@@ -1,0 +1,47 @@
+{
+  "source": {
+    "url": "https://www.digico.com.bd/",
+    "extractedAt": "2026-07-18T17:19:34.542Z",
+    "extractor": "dembrandt"
+  },
+  "colors": {
+    "primary": "rgb(118, 118, 118)",
+    "secondary": "rgba(0, 0, 0, 0)",
+    "palette": ["rgba(0, 0, 0, 0)", "rgb(118, 118, 118)"],
+    "cssVariables": {}
+  },
+  "typography": {
+    "headingFont": "Albert Sans",
+    "bodyFont": "Albert Sans"
+  },
+  "spacing": {
+    "scale": [
+      "0.001px",
+      "1px",
+      "3px",
+      "5px",
+      "6px",
+      "7px",
+      "8px",
+      "10px",
+      "12px",
+      "15px",
+      "18px",
+      "20px",
+      "22.3906px",
+      "24px",
+      "25px",
+      "30px",
+      "35px",
+      "40px",
+      "80px",
+      "120px"
+    ]
+  },
+  "radius": {
+    "scale": []
+  },
+  "shadows": {
+    "scale": []
+  }
+}

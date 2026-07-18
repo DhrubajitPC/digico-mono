@@ -1,0 +1,66 @@
+/*
+ * Starter design tokens extracted from https://www.digico.com.bd/ (homepage only).
+ * Curated from .extract-design-system/raw.json — review before adopting.
+ * Source of truth: design-system/tokens.json (mirror edits there and in the
+ * Tailwind mapping at apps/website/src/theme.css).
+ */
+:root {
+  /* Colors */
+  --color-primary: #ec2839;
+  --color-secondary: var(--color-gray-800);
+  --color-text: var(--color-gray-800);
+  --color-text-muted: var(--color-gray-500);
+  --color-gray-100: #f4f4f4;
+  --color-gray-300: #bbbbbb;
+  --color-gray-400: #a5a5a5;
+  --color-gray-500: #767676;
+  --color-gray-700: #3e3e3e;
+  --color-gray-800: #333333;
+  --color-gray-900: #242424;
+  --color-surface: #ffffff;
+  --color-surface-alt: var(--color-gray-100);
+  --color-success: #459647;
+  --color-warning: #e0b252;
+
+  /* Typography — heading and body share one font on the source site */
+  --font-body: "Albert Sans", Arial, Helvetica, sans-serif;
+  --font-heading: var(--font-body);
+  --text-h1: 700 38px/1.3 var(--font-heading);
+  --text-h2: 700 26px/1.4 var(--font-heading);
+  --text-h3: 700 22px/1.3 var(--font-heading);
+  --text-h4: 700 18px/1.4 var(--font-heading);
+  --text-body: 400 16px/1.6 var(--font-body);
+  --text-caption: 400 14px/1.2 var(--font-body);
+  --text-small: 400 12px/1.2 var(--font-body);
+
+  /* Spacing (as extracted — an irregular scale, kept as the source record) */
+  --space-1: 1px;
+  --space-2: 3px;
+  --space-3: 5px;
+  --space-4: 6px;
+  --space-5: 7px;
+  --space-6: 8px;
+  --space-7: 10px;
+  --space-8: 12px;
+  --space-9: 15px;
+  --space-10: 18px;
+  --space-11: 20px;
+  --space-12: 24px;
+  --space-13: 25px;
+  --space-14: 30px;
+  --space-15: 35px;
+  --space-16: 40px;
+  --space-17: 80px;
+  --space-18: 120px;
+
+  /* Radius */
+  --radius-sm: 12px;
+  --radius-md: 20px;
+  --radius-pill: 35px;
+  --radius-full: 50%;
+
+  /* Shadows */
+  --shadow-sm: 1px 1px 1px 0 rgb(0 0 0 / 0.1);
+  --shadow-md: 0 0 3px 0 rgb(0 0 0 / 0.15);
+  --shadow-lg: 0 3px 10px 0 rgb(0 0 0 / 0.11);
+}
