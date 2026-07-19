@@ -80,17 +80,17 @@ Traditional e-commerce flows (catalog browsing, variant pickers, forms) don't ma
 
 ### Out of scope (deferred)
 
-| Deferred item                                       | Target   |
-| --------------------------------------------------- | -------- |
-| Voice messages (Bengali/Banglish speech-to-text)    | Phase 2  |
-| Tiered / dealer-specific pricing                    | Phase 2  |
-| Inventory & price edit UIs (beyond CSV re-import)   | Phase 2  |
-| Credit limits and balance tracking                  | Phase 3  |
-| Auto-approval of high-confidence orders             | Phase 3  |
-| Website (WooCommerce) or ERP/accounting integration | Phase 3+ |
-| Payments, invoicing                                 | Future   |
-| Images / document understanding                     | Future   |
-| Promotions and discounts                            | Future   |
+| Deferred item                                                  | Target   |
+| -------------------------------------------------------------- | -------- |
+| Voice messages (Bengali/Banglish speech-to-text)               | Phase 2  |
+| Tiered / dealer-specific pricing                               | Phase 2  |
+| Full CRUD management UIs (catalog, dealers, inventory, prices) | Phase 2  |
+| Credit limits and balance tracking                             | Phase 3  |
+| Auto-approval of high-confidence orders                        | Phase 3  |
+| Website (WooCommerce) or ERP/accounting integration            | Phase 3+ |
+| Payments, invoicing                                            | Future   |
+| Images / document understanding                                | Future   |
+| Promotions and discounts                                       | Future   |
 
 ---
 
@@ -210,7 +210,7 @@ To be validated during implementation planning, not final:
 
 ### AI tool interface
 
-The AI is exposed a controlled set of backend tools — never database access:
+The AI is exposed to a controlled set of backend tools — never direct database access:
 
 `search_products()` · `get_product_details()` · `get_price()` · `check_inventory()` · `create_draft_order()` · `modify_draft_order()` · `get_order_status()`
 
@@ -222,14 +222,14 @@ The backend executes each call with deterministic validation and authorization.
 
 Targets are initial hypotheses to be revisited after the first pilot cycle.
 
-| Metric                                                             | Pilot target                                    |
-| ------------------------------------------------------------------ | ----------------------------------------------- |
-| SKU-match accuracy (of orders reaching review)                     | ≥ 90%                                           |
-| Draft orders approved without edits                                | ≥ 80%                                           |
-| Conversations resolved without human messaging (non-order intents) | ≥ 70%                                           |
-| Median response latency (dealer message → AI reply)                | < 10 seconds                                    |
-| Human minutes per order vs. current process                        | ≥ 50% reduction                                 |
-| AI + infra cost per successfully completed order                   | Tracked from day one; target set after baseline |
+| Metric                                                              | Pilot target                                    |
+| ------------------------------------------------------------------- | ----------------------------------------------- |
+| SKU-match accuracy (of orders reaching review)                      | ≥ 90%                                           |
+| Draft orders approved without edits                                 | ≥ 80%                                           |
+| Non-order conversations handled fully by the AI (no staff takeover) | ≥ 70%                                           |
+| Median response latency (dealer message → AI reply)                 | < 10 seconds                                    |
+| Human minutes per order vs. current process                         | ≥ 50% reduction                                 |
+| AI + infra cost per successfully completed order                    | Tracked from day one; target set after baseline |
 
 Adoption metrics (weekly active pilot dealers, orders per dealer) are tracked but not gated during the pilot. The guiding economic principle: **lowest reliable cost per successful business transaction**, not cheapest tokens.
 
