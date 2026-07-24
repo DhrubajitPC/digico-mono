@@ -6,6 +6,7 @@
   "scripts": {
     "ready": "vp check && vp run -r test && vp run -r build",
     "dev": "vp run website#dev",
+    "whatsapp": "vp run whatsapp-webhook#dev",
     "prepare": "vp config"
   },
   "devDependencies": {

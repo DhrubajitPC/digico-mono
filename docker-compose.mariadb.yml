@@ -1,0 +1,28 @@
+services:
+  mariadb:
+    image: mariadb:11.8
+    container_name: digico-mariadb
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: woocommerce_local
+      MARIADB_USER: wp
+      MARIADB_PASSWORD: wp
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_520_ci
+      - --max-allowed-packet=512M
+      - --innodb-buffer-pool-size=1G
+    volumes:
+      - digico_mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+volumes:
+  digico_mariadb_data:

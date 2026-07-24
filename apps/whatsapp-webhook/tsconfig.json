@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "lib": ["ES2024"],
+    "strict": true,
+    "skipLibCheck": true,
+    "rootDir": ".",
+    "noEmit": true
+  },
+  "include": ["src", "tests"]
+}

@@ -29,3 +29,14 @@ dist-ssr
 !.vscode/
 !.vscode/settings.json
 !.vscode/extensions.json
+
+# Database dumps
+export.sql
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Local pnpm store
+.pnpm-store/
