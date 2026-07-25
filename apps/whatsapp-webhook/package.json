@@ -7,10 +7,18 @@
     "dev": "node --env-file=.env --experimental-strip-types --watch src/server.ts",
     "start": "node --env-file=.env --experimental-strip-types src/server.ts",
     "test": "vp test",
-    "check": "vp check"
+    "check": "vp check",
+    "db:generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.3.3",
+    "drizzle-orm": "^0.44.2",
+    "pg": "^8.16.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@types/pg": "^8.15.4",
+    "drizzle-kit": "^0.31.1",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:"

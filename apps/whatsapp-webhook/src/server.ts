@@ -1,5 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
+import { getMessageForApi, listMessagesForApi } from "./api-messages.ts";
+import { getDb } from "./db/instance.ts";
 import { handleIncomingMessage } from "./handle-message.ts";
 import { parseIncomingMessages } from "./parse-webhook.ts";
 
@@ -23,6 +25,42 @@ function readBody(req: IncomingMessage): Promise<string> {
 function send(res: ServerResponse, status: number, body: string, contentType = "text/plain") {
   res.writeHead(status, { "Content-Type": contentType });
   res.end(body);
+}
+
+function sendJson(res: ServerResponse, status: number, body: unknown) {
+  send(res, status, JSON.stringify(body), "application/json");
+}
+
+const MESSAGE_DETAIL_PATH = /^\/api\/messages\/(\d+)$/;
+
+/** Read-only dashboard API: the message/AI-call/reply log. No auth yet — internal tool. */
+async function handleApiRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  path: string,
+): Promise<boolean> {
+  if (req.method !== "GET") return false;
+
+  if (path === "/api/messages") {
+    const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+    const db = await getDb();
+    sendJson(res, 200, await listMessagesForApi(db, url.searchParams));
+    return true;
+  }
+
+  const detailMatch = MESSAGE_DETAIL_PATH.exec(path);
+  if (detailMatch) {
+    const db = await getDb();
+    const detail = await getMessageForApi(db, detailMatch[1]!);
+    if (!detail) {
+      sendJson(res, 404, { error: "Message not found" });
+      return true;
+    }
+    sendJson(res, 200, detail);
+    return true;
+  }
+
+  return false;
 }
 
 function handleVerify(req: IncomingMessage, res: ServerResponse) {
@@ -76,6 +114,11 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && path === "/health") {
       send(res, 200, "ok");
       return;
+    }
+
+    if (path.startsWith("/api/")) {
+      const handled = await handleApiRequest(req, res, path);
+      if (handled) return;
     }
 
     if (path === "/webhook") {

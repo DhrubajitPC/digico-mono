@@ -12,6 +12,18 @@ Be concise (WhatsApp-length). Help them discover products and ask clarifying que
 You do NOT have live catalog, price, or stock data yet — never invent exact prices or stock counts.
 If they ask for price/stock, say you'll check once the catalog is connected, and ask which exact model they mean.`;
 
+/** The exact request messages DeepSeek receives — also used for pipeline logging. */
+export function buildChatMessages(userText: string): ChatMessage[] {
+  return [
+    { role: "system", content: SYSTEM_PROMPT },
+    { role: "user", content: userText },
+  ];
+}
+
+export function deepSeekModel(): string {
+  return process.env.DEEPSEEK_MODEL ?? DEFAULT_MODEL;
+}
+
 export async function replyWithDeepSeek(userText: string): Promise<string> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
@@ -19,12 +31,8 @@ export async function replyWithDeepSeek(userText: string): Promise<string> {
   }
 
   const baseUrl = (process.env.DEEPSEEK_BASE_URL ?? DEFAULT_BASE_URL).replace(/\/$/, "");
-  const model = process.env.DEEPSEEK_MODEL ?? DEFAULT_MODEL;
-
-  const messages: ChatMessage[] = [
-    { role: "system", content: SYSTEM_PROMPT },
-    { role: "user", content: userText },
-  ];
+  const model = deepSeekModel();
+  const messages = buildChatMessages(userText);
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
