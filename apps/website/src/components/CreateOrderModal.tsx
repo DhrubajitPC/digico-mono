@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Dialog, Button, Input, Select } from "@digico/design-system";
 import { createOrder, listDealers, listProducts, type Dealer, type Product } from "../api.js";
-import { formatCurrency } from "../format.js";
+import { CURRENCY_SYMBOL, formatCurrency } from "../format.js";
 import { Plus, Trash2, ShoppingBag } from "lucide-react";
 
 interface CreateOrderModalProps {
@@ -155,7 +155,7 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
             </div>
             <div className="md:col-span-3">
               <label className="block text-xs text-gray-600 mb-1">
-                Unit Price ({formatCurrency(0).slice(0, 1)})
+                Unit Price ({CURRENCY_SYMBOL})
               </label>
               <Input
                 type="number"

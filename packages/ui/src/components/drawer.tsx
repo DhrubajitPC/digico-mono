@@ -49,10 +49,10 @@ export function Drawer({ open, onClose, title, subtitle, children, width = "3xl"
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                aria-label="Close"
+                className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors cursor-pointer"
               >
                 <X className="h-5 w-5" />
-                <span className="sr-only">Close</span>
               </button>
             </div>
             <div className="relative flex-1 overflow-y-auto p-6">{children}</div>
