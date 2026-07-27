@@ -6,12 +6,7 @@ import { handleIncomingMessage } from "./handle-message.ts";
 import { parseIncomingMessages } from "./parse-webhook.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
-const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
-
-if (!VERIFY_TOKEN) {
-  console.error("Missing WHATSAPP_VERIFY_TOKEN in environment (.env)");
-  process.exit(1);
-}
+const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN ?? "digico_webhook_secret_token";
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {

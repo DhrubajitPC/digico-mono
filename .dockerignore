@@ -1,0 +1,17 @@
+.git
+.gitignore
+.agents
+.gemini
+node_modules
+apps/*/node_modules
+packages/*/node_modules
+apps/*/dist
+packages/*/dist
+data
+*.log
+.env
+.env.local
+run-playwright-test.js
+test-e2e.js
+coverage
+.DS_Store
