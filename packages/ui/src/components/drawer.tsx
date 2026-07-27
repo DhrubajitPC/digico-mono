@@ -53,8 +53,8 @@ export function Drawer({ open, onClose, title, subtitle, children, width = "3xl"
           >
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 bg-gray-50/50">
               <div>
-                {title && <h2 className="text-lg font-bold text-gray-900">{title}</h2>}
-                {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
+                {title && <h2 className="text-xl font-bold text-gray-900">{title}</h2>}
+                {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
               </div>
               <button
                 type="button"

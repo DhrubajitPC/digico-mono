@@ -22,34 +22,34 @@ colors:
 typography:
   title:
     fontFamily: "Albert Sans, system-ui, -apple-system, sans-serif"
-    fontSize: "24px"
+    fontSize: "30px"
     fontWeight: 700
     lineHeight: 1.2
     letterSpacing: "-0.01em"
   heading:
     fontFamily: "Albert Sans, system-ui, -apple-system, sans-serif"
-    fontSize: "18px"
+    fontSize: "20px"
     fontWeight: 700
     lineHeight: 1.3
   label:
     fontFamily: "Albert Sans, system-ui, -apple-system, sans-serif"
-    fontSize: "12px"
+    fontSize: "14px"
     fontWeight: 700
     lineHeight: 1.2
     letterSpacing: "0.05em"
   body:
     fontFamily: "Albert Sans, system-ui, -apple-system, sans-serif"
-    fontSize: "14px"
+    fontSize: "16px"
     fontWeight: 400
     lineHeight: 1.5
   data:
     fontFamily: "Albert Sans, system-ui, -apple-system, sans-serif"
-    fontSize: "12px"
+    fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.4
   micro:
     fontFamily: "Albert Sans, system-ui, -apple-system, sans-serif"
-    fontSize: "11px"
+    fontSize: "12px"
     fontWeight: 400
     lineHeight: 1.3
 rounded:
@@ -105,9 +105,9 @@ components:
 
 **Creative North Star: "The Verification Desk"**
 
-Every screen exists so one person can confirm what an AI already drafted — quickly, and with enough evidence on screen to trust the confirmation. The system reads as efficient, precise, and quietly confident: dense information, tiny type, almost no ornament, and exactly one accent color spent on the things that matter (identity, the active tab, the number that's about to be approved). Nothing here is trying to persuade or delight a first-time visitor; it's built for the same small ops team using it dozens of times a day.
+Every screen exists so one person can confirm what an AI already drafted — quickly, and with enough evidence on screen to trust the confirmation. The system reads as efficient, precise, and quietly confident: dense information, compact but readable type, almost no ornament, and exactly one accent color spent on the things that matter (identity, the active tab, the number that's about to be approved). Nothing here is trying to persuade or delight a first-time visitor; it's built for the same small ops team using it dozens of times a day — on real screens, for hours at a time, so type sizes err toward legible over merely dense.
 
-The system borrows exactly two things from Digico's public storefront (digico.com.bd) — the brand red and the Albert Sans typeface — and rebuilds everything else (radius, shadow, spacing, layout) as its own compact, utilitarian internal language. It does not import the storefront's larger display type, its shadow vocabulary, or its rounder corner scale; those belong to a persuade-mode marketing site, not this operate-mode console. This is a deliberate fork, not an oversight — do not "restore" the storefront's fuller radius/shadow scale here.
+The system borrows exactly two things from Digico's public storefront (digico.com.bd) — the brand red and the Albert Sans typeface — and rebuilds everything else (radius, shadow, spacing, layout) as its own compact, utilitarian internal language. It does not import the storefront's shadow vocabulary or its rounder corner scale; those belong to a persuade-mode marketing site, not this operate-mode console. This is a deliberate fork, not an oversight — do not "restore" the storefront's fuller radius/shadow scale here.
 
 **Key Characteristics:**
 
@@ -162,20 +162,20 @@ Each state is a soft-tinted pill (a `50`-tier background, a `700`–`800`-tier t
 
 **Font:** Albert Sans (Google Fonts, variable), with a `system-ui, -apple-system, "Segoe UI", Roboto, sans-serif` fallback stack. One typeface for the entire system — hierarchy comes from size, weight, and case, never from a second font.
 
-**Character:** Narrow and utilitarian by design. The system deliberately does not use the larger 26–38px display scale that the digico.com.bd storefront tokens define; every heading in this admin console tops out at 24px.
+**Character:** Narrow and utilitarian in spirit, but not cramped: the whole scale still stays well below the storefront's 38px hero size, while every working tier was widened one full step from the console's first pass so a reviewer can read a dense table for hours without strain.
 
 ### Hierarchy
 
-- **Title** (700, 24px, 1.2 line-height): page-level H1 only — "Orders", "WhatsApp Message Log". One per view.
-- **Heading** (700, 18px, 1.3): drawer and dialog titles, major section headers.
-- **Label** (700, 12px, 0.05em tracking, uppercase): the recurring "eyebrow" — section headers like "WhatsApp Context," "AI Intent Extraction," and every table column head.
-- **Body** (400, 14px, 1.5): form labels, descriptions, standalone prose, dialog copy.
-- **Data** (400, 12px, 1.4): the dominant size across the system — table cells, toolbars, meta text (phone numbers, dates, SKUs). Density over comfort is the deliberate choice here.
-- **Micro** (400/600, 11px, 1.2–1.3): one step below Data, for annotation that sits _under_ a primary line rather than standing on its own — a dealer's phone number under their name, a SKU under a product name, a chat-bubble sender label, a compact count or origin pill. Never used for a screen's only copy of information; always paired with a Data-or-larger line it clarifies.
+- **Title** (700, 30px, 1.2 line-height): page-level H1 only — "Orders", "WhatsApp Message Log". One per view.
+- **Heading** (700, 20–24px, 1.3): drawer titles sit at 20px; dialog titles at 24px — a dialog interrupts more assertively than a drawer, so it earns one step more weight.
+- **Label** (700, 14px, 0.05em tracking, uppercase): the recurring "eyebrow" — section headers like "WhatsApp Context," "AI Intent Extraction," and every table column head.
+- **Body** (400, 16px, 1.5): form labels, descriptions, standalone prose, dialog copy.
+- **Data** (400, 14px, 1.4): the dominant size across the system — table cells, toolbars, meta text (phone numbers, dates, SKUs). Dense, but never below comfortable reading size.
+- **Micro** (400/600, 12px, 1.2–1.3): one step below Data, for annotation that sits _under_ a primary line rather than standing on its own — a dealer's phone number under their name, a SKU under a product name, a chat-bubble sender label, a compact count or origin pill. Never used for a screen's only copy of information; always paired with a Data-or-larger line it clarifies.
 
 ### Named Rules
 
-**The Eyebrow Rule.** Every distinct content region gets a bold, uppercase, letter-spaced 12px label before its content — never a plain unstyled heading. This is the system's signature typographic device and the fastest way a new screen will read as "on-brand" for this console.
+**The Eyebrow Rule.** Every distinct content region gets a bold, uppercase, letter-spaced 14px label before its content — never a plain unstyled heading. This is the system's signature typographic device and the fastest way a new screen will read as "on-brand" for this console.
 
 ## Layout
 
@@ -271,7 +271,7 @@ An emerald-bordered, emerald-tinted card with a Sparkles icon and a bold "AI Int
 - **Do** reserve Digico Red (`#ec2839`) for identity, active state, primary action, and the one most important number on a screen — never a large fill.
 - **Do** give every distinct content region a bold, uppercase, 12px tracked-out eyebrow label before its content (The Eyebrow Rule).
 - **Do** tie button and badge color strictly to business meaning — emerald = approve, amber = hold, red-600 = reject — never swapped for visual variety (The One Signal Rule).
-- **Do** keep tables and dense views at the 12px data size; reserve 14px+ for standalone prose, form labels, and page titles only.
+- **Do** keep tables and dense views at the 14px data size; reserve 16px+ for standalone prose, form labels, and page titles only.
 - **Do** escalate shadow only for overlay content (dialogs, drawers, menus); keep every other surface flat.
 
 ### Don't:

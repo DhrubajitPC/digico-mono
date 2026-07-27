@@ -37,8 +37,8 @@ export function MessageLogView() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between border-b border-gray-200 pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">WhatsApp Message Log</h1>
-          <p className="text-xs text-gray-500">
+          <h1 className="text-3xl font-bold text-gray-900">WhatsApp Message Log</h1>
+          <p className="text-sm text-gray-500">
             Inbound WhatsApp → AI Interpretation → Outbound Reply
           </p>
         </div>
@@ -52,12 +52,12 @@ export function MessageLogView() {
           placeholder="Filter by phone..."
           value={phoneFilter}
           onChange={(e) => setPhoneFilter(e.target.value)}
-          className="w-48 text-xs"
+          className="w-48 text-sm"
         />
         <Select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="w-40 text-xs"
+          className="w-40 text-sm"
         >
           <option value="">All statuses</option>
           <option value="received">Received</option>
@@ -68,7 +68,7 @@ export function MessageLogView() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7 border border-gray-200 rounded-lg overflow-x-auto bg-white">
-          <table className="w-full text-xs">
+          <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold uppercase">
               <tr>
                 <th className="p-3 text-left">From</th>
@@ -112,8 +112,8 @@ export function MessageLogView() {
 
         <div className="lg:col-span-5 border border-gray-200 rounded-lg p-6 bg-white">
           {selectedMessage ? (
-            <div className="space-y-4 text-xs">
-              <h3 className="text-sm font-bold text-gray-900 border-b border-gray-100 pb-2">
+            <div className="space-y-4 text-sm">
+              <h3 className="text-base font-bold text-gray-900 border-b border-gray-100 pb-2">
                 Message Detail #{selectedMessage.id}
               </h3>
               <div>
@@ -134,7 +134,7 @@ export function MessageLogView() {
               </div>
             </div>
           ) : (
-            <div className="text-center py-12 text-gray-500 text-xs">
+            <div className="text-center py-12 text-gray-500 text-sm">
               Select a message row to view details.
             </div>
           )}

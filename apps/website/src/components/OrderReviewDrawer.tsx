@@ -205,15 +205,17 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
         <div className="lg:col-span-5 space-y-4 border-b lg:border-b-0 lg:border-r border-gray-200 pr-0 lg:pr-6">
           <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+              <span className="text-sm font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
                 <MessageSquare className="w-4 h-4 text-[#ec2839]" /> WhatsApp Context
               </span>
               <StatusBadge status={order.status} />
             </div>
 
             {/* Dealer Contact Summary */}
-            <div className="bg-white rounded-md p-3 border border-gray-200 text-xs space-y-1">
-              <div className="font-semibold text-gray-900 text-sm">{order.dealer.businessName}</div>
+            <div className="bg-white rounded-md p-3 border border-gray-200 text-sm space-y-1">
+              <div className="font-semibold text-gray-900 text-base">
+                {order.dealer.businessName}
+              </div>
               <div className="text-gray-500">Contact: {order.dealer.contactPerson ?? "N/A"}</div>
               <div className="text-gray-500">Phone: {order.dealer.phone}</div>
               {order.dealer.address && (
@@ -222,7 +224,7 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
             </div>
 
             {/* AI Context Card */}
-            <div className="rounded-md border border-emerald-200 bg-emerald-50/40 p-3 text-xs text-emerald-950 space-y-2">
+            <div className="rounded-md border border-emerald-200 bg-emerald-50/40 p-3 text-sm text-emerald-950 space-y-2">
               <div className="font-bold flex items-center gap-1.5 text-emerald-900">
                 <Sparkles className="w-4 h-4 text-emerald-600" /> AI Intent Extraction
               </div>
@@ -235,17 +237,17 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
 
             {/* Simulated WhatsApp Transcript */}
             <div className="space-y-2 pt-2">
-              <span className="text-xs font-semibold text-gray-500">
+              <span className="text-sm font-semibold text-gray-500">
                 Recent Conversation Thread
               </span>
-              <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-3 max-h-[300px] overflow-y-auto text-xs">
+              <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-3 max-h-[300px] overflow-y-auto text-sm">
                 {/* Dealer message */}
                 <div className="flex gap-2 items-start">
                   <div className="size-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold shrink-0">
                     <User className="w-3.5 h-3.5" />
                   </div>
                   <div className="bg-emerald-50 rounded-lg rounded-tl-none p-2.5 text-emerald-900 border border-emerald-100 flex-1">
-                    <div className="font-semibold text-emerald-800 text-[11px] mb-0.5">
+                    <div className="font-semibold text-emerald-800 text-xs mb-0.5">
                       Dealer Message
                     </div>
                     "Bhai HP i5 laptop ta koto? 3 ta lagbe ar Samsung 24 inch monitor 4 ta lagbe."
@@ -255,7 +257,7 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
                 {/* AI response */}
                 <div className="flex gap-2 items-start justify-end">
                   <div className="bg-gray-100 rounded-lg rounded-tr-none p-2.5 text-gray-800 border border-gray-200 flex-1 text-right">
-                    <div className="font-semibold text-gray-700 text-[11px] mb-0.5">
+                    <div className="font-semibold text-gray-700 text-xs mb-0.5">
                       Digico Sales AI
                     </div>
                     "Sir, HP 15s Core i5 price {formatCurrency(68500)} and Samsung 24 IPS Monitor
@@ -286,16 +288,16 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
           {/* Editable Line Items Section */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold uppercase text-gray-800 tracking-wider">
+              <h3 className="text-base font-bold uppercase text-gray-800 tracking-wider">
                 Order Line Items ({editableItems.length})
               </h3>
-              <div className="text-xs text-gray-500 font-medium">
+              <div className="text-sm text-gray-500 font-medium">
                 Admins can override Qty & Price below
               </div>
             </div>
 
             <div className="border border-gray-200 rounded-lg overflow-x-auto bg-white shadow-xs">
-              <table className="w-full text-xs">
+              <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">
                   <tr>
                     <th className="p-2.5 text-left">SKU / Product Name</th>
@@ -310,7 +312,7 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
                     <tr key={idx} className="hover:bg-gray-50/50">
                       <td className="p-2.5 font-medium text-gray-900">
                         {item.productName}
-                        <div className="text-[11px] text-gray-500 font-mono">{item.sku}</div>
+                        <div className="text-xs text-gray-500 font-mono">{item.sku}</div>
                       </td>
                       <td className="p-2.5 text-center">
                         <Input
@@ -318,7 +320,7 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
                           min={1}
                           value={item.quantity}
                           onChange={(e) => handleItemQtyChange(idx, Number(e.target.value))}
-                          className="h-7 text-center px-1 text-xs"
+                          className="h-7 text-center px-1 text-sm"
                         />
                       </td>
                       <td className="p-2.5 text-right">
@@ -326,7 +328,7 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
                           type="number"
                           value={item.unitPrice}
                           onChange={(e) => handleItemPriceChange(idx, Number(e.target.value))}
-                          className="h-7 text-right px-1 text-xs"
+                          className="h-7 text-right px-1 text-sm"
                         />
                       </td>
                       <td className="p-2.5 text-right font-semibold text-gray-900">
@@ -350,7 +352,7 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
                     <td colSpan={3} className="p-3 text-right font-bold text-gray-700">
                       Total Order Amount:
                     </td>
-                    <td className="p-3 text-right font-extrabold text-[#ec2839] text-base">
+                    <td className="p-3 text-right font-extrabold text-[#ec2839] text-lg">
                       {formatCurrency(calculatedTotal)}
                     </td>
                     <td />
@@ -378,7 +380,7 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
 
           {/* Internal Sales Notes */}
           <div>
-            <label className="block text-xs font-bold uppercase text-gray-700 mb-1">
+            <label className="block text-sm font-bold uppercase text-gray-700 mb-1">
               Internal Admin Notes / Memo
             </label>
             <Input
@@ -391,10 +393,10 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
           {/* LIVE EDITABLE WHATSAPP CONFIRMATION MESSAGE PREVIEW */}
           <div className="rounded-lg border-2 border-emerald-300 bg-emerald-50/30 p-4 space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+              <label className="text-sm font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
                 <Send className="w-4 h-4 text-emerald-600" /> WhatsApp Confirmation Message Preview
               </label>
-              <span className="text-[11px] text-emerald-700 font-semibold">
+              <span className="text-xs text-emerald-700 font-semibold">
                 Will be sent to dealer upon approval
               </span>
             </div>
@@ -402,7 +404,7 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
               rows={3}
               value={proposedMsg}
               onChange={(e) => setProposedMsg(e.target.value)}
-              className="w-full rounded-md border border-emerald-300 bg-white p-3 text-xs font-mono text-gray-800 focus:border-emerald-500 focus:outline-none shadow-xs"
+              className="w-full rounded-md border border-emerald-300 bg-white p-3 text-sm font-mono text-gray-800 focus:border-emerald-500 focus:outline-none shadow-xs"
             />
           </div>
 

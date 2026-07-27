@@ -57,7 +57,7 @@ export function DropdownMenu({ trigger, items, onSelect, className }: DropdownMe
                 key={item.value}
                 type="button"
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors text-left cursor-pointer",
+                  "flex w-full items-center gap-2 rounded-md px-3 py-2 text-base transition-colors text-left cursor-pointer",
                   variantClass,
                 )}
                 onClick={() => {

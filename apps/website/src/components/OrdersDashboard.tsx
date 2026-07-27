@@ -78,12 +78,12 @@ export function OrdersDashboard() {
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Orders</h1>
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Orders</h1>
             <Button size="sm" onClick={() => setShowCreateModal(true)}>
               <Plus className="w-4 h-4" /> Add order
             </Button>
           </div>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 mt-1">
             Review, edit, confirm, or hold dealer orders coming in from WhatsApp AI and direct
             sales.
           </p>
@@ -98,7 +98,7 @@ export function OrdersDashboard() {
 
       {/* Status Navigation Tabs */}
       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-6 overflow-x-auto text-xs font-semibold">
+        <nav className="-mb-px flex space-x-6 overflow-x-auto text-sm font-semibold">
           {[
             { id: "all", label: "All", count: counts["all"] ?? 0 },
             { id: "pending_review", label: "Pending Review", count: counts["pending_review"] ?? 0 },
@@ -125,7 +125,7 @@ export function OrdersDashboard() {
               >
                 {tab.label}
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[11px] ${
+                  className={`rounded-full px-2 py-0.5 text-xs ${
                     isSelected ? "bg-[#ec2839]/10 text-[#ec2839]" : "bg-gray-100 text-gray-600"
                   }`}
                 >
@@ -144,7 +144,7 @@ export function OrdersDashboard() {
           <Select
             value={bulkAction}
             onChange={(e) => setBulkAction(e.target.value)}
-            className="w-48 text-xs h-8"
+            className="w-48 text-sm h-8"
           >
             <option value="">Bulk actions</option>
             <option value="processing">Change status to processing</option>
@@ -158,7 +158,7 @@ export function OrdersDashboard() {
             size="sm"
             onClick={handleApplyBulkAction}
             disabled={!bulkAction || selectedOrderIds.length === 0}
-            className="h-8 text-xs"
+            className="h-8 text-sm"
           >
             Apply
           </Button>
@@ -167,7 +167,7 @@ export function OrdersDashboard() {
           <Select
             value={originFilter}
             onChange={(e) => setOriginFilter(e.target.value)}
-            className="w-44 text-xs h-8"
+            className="w-44 text-sm h-8"
           >
             <option value="">All sales channels</option>
             <option value="whatsapp_ai">WhatsApp AI</option>
@@ -183,14 +183,14 @@ export function OrdersDashboard() {
             placeholder="Search orders..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 text-xs h-8 w-full"
+            className="pl-8 text-sm h-8 w-full"
           />
         </div>
       </div>
 
       {/* Orders Data Table */}
       <div className="rounded-lg border border-gray-200 bg-white shadow-xs overflow-x-auto">
-        <table className="w-full text-xs">
+        <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold uppercase tracking-wider">
             <tr>
               <th className="p-3 w-10 text-center">
@@ -242,9 +242,7 @@ export function OrdersDashboard() {
                     <td className="p-3 font-semibold text-gray-900">
                       <span className="text-[#ec2839]">{order.orderNumber}</span>{" "}
                       {order.dealer.businessName}
-                      <div className="text-[11px] font-normal text-gray-500">
-                        {order.dealer.phone}
-                      </div>
+                      <div className="text-xs font-normal text-gray-500">{order.dealer.phone}</div>
                     </td>
                     <td className="p-3 text-gray-600 whitespace-nowrap">
                       {new Date(order.createdAt).toLocaleDateString("en-US", {
@@ -263,7 +261,7 @@ export function OrdersDashboard() {
                       {formatCurrency(order.totalAmount)}
                     </td>
                     <td className="p-3 text-center whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-700">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
                         {order.origin === "whatsapp_ai" ? "WhatsApp AI" : "Direct Sales"}
                       </span>
                     </td>
@@ -274,7 +272,7 @@ export function OrdersDashboard() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-[11px] px-2.5"
+                        className="h-7 text-xs px-2.5"
                         onClick={() => setReviewOrderId(order.id)}
                       >
                         <Eye className="w-3 h-3" /> Review

@@ -64,8 +64,8 @@ export function Dialog({
         >
           <X className="h-5 w-5" />
         </button>
-        {title && <h2 className="text-xl font-bold text-gray-900 pr-10">{title}</h2>}
-        {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
+        {title && <h2 className="text-2xl font-bold text-gray-900 pr-10">{title}</h2>}
+        {description && <p className="mt-1 text-base text-gray-500">{description}</p>}
         <div className="mt-4">{children}</div>
       </div>
     </div>

@@ -4,7 +4,7 @@ import { cn } from "../lib/utils.js";
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
     <div className="relative w-full overflow-auto">
-      <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
+      <table ref={ref} className={cn("w-full caption-bottom text-base", className)} {...props} />
     </div>
   ),
 );
@@ -59,7 +59,7 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      "h-10 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wider text-gray-500 [&:has([role=checkbox])]:pr-0",
+      "h-10 px-4 text-left align-middle text-sm font-semibold uppercase tracking-wider text-gray-500 [&:has([role=checkbox])]:pr-0",
       className,
     )}
     {...props}
@@ -83,7 +83,7 @@ const TableCaption = React.forwardRef<
   HTMLTableCaptionElement,
   React.HTMLAttributes<HTMLTableCaptionElement>
 >(({ className, ...props }, ref) => (
-  <caption ref={ref} className={cn("mt-4 text-sm text-gray-500", className)} {...props} />
+  <caption ref={ref} className={cn("mt-4 text-base text-gray-500", className)} {...props} />
 ));
 TableCaption.displayName = "TableCaption";
 

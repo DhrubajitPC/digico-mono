@@ -111,7 +111,7 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
       <form onSubmit={handleSubmit} className="space-y-6 mt-4">
         {/* Dealer Selection */}
         <div>
-          <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+          <label className="block text-sm font-semibold text-gray-700 uppercase mb-1">
             Registered Dealer / Customer *
           </label>
           <Select
@@ -130,12 +130,12 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
 
         {/* Add Product Line Section */}
         <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 space-y-3">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+          <h4 className="text-sm font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
             <ShoppingBag className="w-4 h-4 text-[#ec2839]" /> Add Line Item
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
             <div className="md:col-span-6">
-              <label className="block text-xs text-gray-600 mb-1">Product SKU</label>
+              <label className="block text-sm text-gray-600 mb-1">Product SKU</label>
               <Select value={selectedSku} onChange={(e) => handleSelectSkuChange(e.target.value)}>
                 {productsList.map((p) => (
                   <option key={p.id} value={p.sku}>
@@ -145,7 +145,7 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
               </Select>
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs text-gray-600 mb-1">Qty</label>
+              <label className="block text-sm text-gray-600 mb-1">Qty</label>
               <Input
                 type="number"
                 min={1}
@@ -154,7 +154,7 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
               />
             </div>
             <div className="md:col-span-3">
-              <label className="block text-xs text-gray-600 mb-1">
+              <label className="block text-sm text-gray-600 mb-1">
                 Unit Price ({CURRENCY_SYMBOL})
               </label>
               <Input
@@ -173,17 +173,17 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
 
         {/* Added Line Items Table */}
         <div>
-          <h4 className="text-xs font-bold uppercase text-gray-700 mb-2">
+          <h4 className="text-sm font-bold uppercase text-gray-700 mb-2">
             Order Items ({items.length})
           </h4>
           {items.length === 0 ? (
-            <div className="text-center py-6 border border-dashed border-gray-300 rounded-md text-sm text-gray-500">
+            <div className="text-center py-6 border border-dashed border-gray-300 rounded-md text-base text-gray-500">
               No products added yet. Use the picker above to add products.
             </div>
           ) : (
             <div className="border border-gray-200 rounded-md overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-100 border-b border-gray-200 text-xs font-semibold text-gray-600">
+              <table className="w-full text-base">
+                <thead className="bg-gray-100 border-b border-gray-200 text-sm font-semibold text-gray-600">
                   <tr>
                     <th className="p-2.5 text-left">SKU & Item</th>
                     <th className="p-2.5 text-center">Qty</th>
@@ -197,7 +197,7 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
                     <tr key={idx} className="hover:bg-gray-50/50">
                       <td className="p-2.5 font-medium text-gray-900">
                         {item.productName}
-                        <div className="text-xs text-gray-500">{item.sku}</div>
+                        <div className="text-sm text-gray-500">{item.sku}</div>
                       </td>
                       <td className="p-2.5 text-center">{item.quantity}</td>
                       <td className="p-2.5 text-right">{formatCurrency(item.unitPrice)}</td>
@@ -221,7 +221,7 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
                     <td colSpan={3} className="p-2.5 text-right">
                       Grand Total:
                     </td>
-                    <td className="p-2.5 text-right text-[#ec2839] text-base">
+                    <td className="p-2.5 text-right text-[#ec2839] text-lg">
                       {formatCurrency(grandTotal)}
                     </td>
                     <td />
@@ -234,7 +234,7 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
 
         {/* Notes */}
         <div>
-          <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
+          <label className="block text-sm font-semibold text-gray-700 uppercase mb-1">
             Internal Sales Notes / Memo
           </label>
           <Input
