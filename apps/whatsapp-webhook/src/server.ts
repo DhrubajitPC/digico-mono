@@ -32,31 +32,129 @@ function sendJson(res: ServerResponse, status: number, body: unknown) {
 }
 
 const MESSAGE_DETAIL_PATH = /^\/api\/messages\/(\d+)$/;
+const ORDER_DETAIL_PATH = /^\/api\/orders\/(\d+)$/;
+const ORDER_STATUS_PATH = /^\/api\/orders\/(\d+)\/status$/;
 
-/** Read-only dashboard API: the message/AI-call/reply log. No auth yet — internal tool. */
+/** Read-only & write dashboard API: message log & orders management. */
 async function handleApiRequest(
   req: IncomingMessage,
   res: ServerResponse,
   path: string,
 ): Promise<boolean> {
-  if (req.method !== "GET") return false;
+  const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+  const db = await getDb();
 
-  if (path === "/api/messages") {
-    const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
-    const db = await getDb();
+  // GET /api/messages
+  if (req.method === "GET" && path === "/api/messages") {
     sendJson(res, 200, await listMessagesForApi(db, url.searchParams));
     return true;
   }
 
-  const detailMatch = MESSAGE_DETAIL_PATH.exec(path);
-  if (detailMatch) {
-    const db = await getDb();
-    const detail = await getMessageForApi(db, detailMatch[1]!);
+  // GET /api/messages/:id
+  const messageDetailMatch = MESSAGE_DETAIL_PATH.exec(path);
+  if (req.method === "GET" && messageDetailMatch) {
+    const detail = await getMessageForApi(db, messageDetailMatch[1]!);
     if (!detail) {
       sendJson(res, 404, { error: "Message not found" });
       return true;
     }
     sendJson(res, 200, detail);
+    return true;
+  }
+
+  // --- ORDERS API ROUTES ---
+  const {
+    listOrdersForApi,
+    getOrderForApi,
+    createOrderForApi,
+    updateOrderForApi,
+    updateOrderStatusForApi,
+    bulkUpdateOrderStatusForApi,
+    listProductsForApi,
+    listDealersForApi,
+  } = await import("./api-orders.ts");
+
+  // GET /api/orders
+  if (req.method === "GET" && path === "/api/orders") {
+    sendJson(res, 200, await listOrdersForApi(db, url.searchParams));
+    return true;
+  }
+
+  // GET /api/products
+  if (req.method === "GET" && path === "/api/products") {
+    sendJson(res, 200, await listProductsForApi(db));
+    return true;
+  }
+
+  // GET /api/dealers
+  if (req.method === "GET" && path === "/api/dealers") {
+    sendJson(res, 200, await listDealersForApi(db));
+    return true;
+  }
+
+  // POST /api/orders (Create Manual Order)
+  if (req.method === "POST" && path === "/api/orders") {
+    const raw = await readBody(req);
+    const body = JSON.parse(raw);
+    const created = await createOrderForApi(db, body);
+    sendJson(res, 201, created);
+    return true;
+  }
+
+  // POST /api/orders/bulk-status
+  if (req.method === "POST" && path === "/api/orders/bulk-status") {
+    const raw = await readBody(req);
+    const body = JSON.parse(raw);
+    const result = await bulkUpdateOrderStatusForApi(db, body.orderIds, body.status, body.reason);
+    sendJson(res, 200, result);
+    return true;
+  }
+
+  // POST /api/orders/:id/status
+  const statusMatch = ORDER_STATUS_PATH.exec(path);
+  if (req.method === "POST" && statusMatch) {
+    const id = Number(statusMatch[1]);
+    const raw = await readBody(req);
+    const body = JSON.parse(raw);
+    const updated = await updateOrderStatusForApi(
+      db,
+      id,
+      body.status,
+      body.reason,
+      body.proposedMessage,
+    );
+    if (!updated) {
+      sendJson(res, 404, { error: "Order not found" });
+      return true;
+    }
+    sendJson(res, 200, updated);
+    return true;
+  }
+
+  // GET /api/orders/:id
+  const orderDetailMatch = ORDER_DETAIL_PATH.exec(path);
+  if (req.method === "GET" && orderDetailMatch) {
+    const id = Number(orderDetailMatch[1]);
+    const detail = await getOrderForApi(db, id);
+    if (!detail) {
+      sendJson(res, 404, { error: "Order not found" });
+      return true;
+    }
+    sendJson(res, 200, detail);
+    return true;
+  }
+
+  // PATCH /api/orders/:id
+  if (req.method === "PATCH" && orderDetailMatch) {
+    const id = Number(orderDetailMatch[1]);
+    const raw = await readBody(req);
+    const body = JSON.parse(raw);
+    const updated = await updateOrderForApi(db, id, body);
+    if (!updated) {
+      sendJson(res, 404, { error: "Order not found" });
+      return true;
+    }
+    sendJson(res, 200, updated);
     return true;
   }
 
