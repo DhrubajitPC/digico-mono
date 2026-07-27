@@ -19,7 +19,7 @@ export function App() {
               </div>
               <div>
                 <span className="font-bold text-gray-900 tracking-tight text-base">Digico</span>
-                <span className="text-xs text-gray-400 block -mt-1 font-medium">
+                <span className="text-xs text-gray-500 -mt-1 font-medium hidden sm:block">
                   B2B Distribution Admin
                 </span>
               </div>
@@ -30,33 +30,37 @@ export function App() {
               <button
                 type="button"
                 onClick={() => setActiveView("orders")}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                aria-label="Order Dashboard"
+                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ec2839] focus-visible:ring-offset-2 ${
                   activeView === "orders"
                     ? "bg-white text-[#ec2839] shadow-xs"
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                <ShoppingBag className="w-3.5 h-3.5" /> Order Dashboard
+                <ShoppingBag className="w-3.5 h-3.5" />{" "}
+                <span className="hidden sm:inline">Order Dashboard</span>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveView("messages")}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                aria-label="WhatsApp Logs"
+                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ec2839] focus-visible:ring-offset-2 ${
                   activeView === "messages"
                     ? "bg-white text-[#ec2839] shadow-xs"
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                <MessageSquare className="w-3.5 h-3.5" /> WhatsApp Logs
+                <MessageSquare className="w-3.5 h-3.5" />{" "}
+                <span className="hidden sm:inline">WhatsApp Logs</span>
               </button>
             </nav>
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full font-medium">
+            <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full font-medium">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> WhatsApp AI Live
             </span>
-            <div className="size-8 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold text-xs">
+            <div className="size-8 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold text-xs shrink-0">
               SA
             </div>
           </div>

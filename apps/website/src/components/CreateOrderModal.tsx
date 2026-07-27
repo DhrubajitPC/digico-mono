@@ -177,11 +177,11 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
             Order Items ({items.length})
           </h4>
           {items.length === 0 ? (
-            <div className="text-center py-6 border border-dashed border-gray-300 rounded-md text-sm text-gray-400">
+            <div className="text-center py-6 border border-dashed border-gray-300 rounded-md text-sm text-gray-500">
               No products added yet. Use the picker above to add products.
             </div>
           ) : (
-            <div className="border border-gray-200 rounded-md overflow-hidden">
+            <div className="border border-gray-200 rounded-md overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-100 border-b border-gray-200 text-xs font-semibold text-gray-600">
                   <tr>
@@ -197,7 +197,7 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
                     <tr key={idx} className="hover:bg-gray-50/50">
                       <td className="p-2.5 font-medium text-gray-900">
                         {item.productName}
-                        <div className="text-xs text-gray-400">{item.sku}</div>
+                        <div className="text-xs text-gray-500">{item.sku}</div>
                       </td>
                       <td className="p-2.5 text-center">{item.quantity}</td>
                       <td className="p-2.5 text-right">{formatCurrency(item.unitPrice)}</td>

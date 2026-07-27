@@ -244,7 +244,7 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
                   <div className="size-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold shrink-0">
                     <User className="w-3.5 h-3.5" />
                   </div>
-                  <div className="bg-emerald-50 rounded-lg rounded-tl-none p-2.5 text-gray-800 border border-emerald-100 flex-1">
+                  <div className="bg-emerald-50 rounded-lg rounded-tl-none p-2.5 text-emerald-900 border border-emerald-100 flex-1">
                     <div className="font-semibold text-emerald-800 text-[11px] mb-0.5">
                       Dealer Message
                     </div>
@@ -272,7 +272,7 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
                   <div className="size-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold shrink-0">
                     <User className="w-3.5 h-3.5" />
                   </div>
-                  <div className="bg-emerald-50 rounded-lg rounded-tl-none p-2.5 text-gray-800 border border-emerald-100 flex-1">
+                  <div className="bg-emerald-50 rounded-lg rounded-tl-none p-2.5 text-emerald-900 border border-emerald-100 flex-1">
                     "Ha, order confirmation ta pathay den."
                   </div>
                 </div>
@@ -294,7 +294,7 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
               </div>
             </div>
 
-            <div className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-xs">
+            <div className="border border-gray-200 rounded-lg overflow-x-auto bg-white shadow-xs">
               <table className="w-full text-xs">
                 <thead className="bg-gray-50 border-b border-gray-200 font-semibold text-gray-600">
                   <tr>
@@ -310,7 +310,7 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
                     <tr key={idx} className="hover:bg-gray-50/50">
                       <td className="p-2.5 font-medium text-gray-900">
                         {item.productName}
-                        <div className="text-[11px] text-gray-400 font-mono">{item.sku}</div>
+                        <div className="text-[11px] text-gray-500 font-mono">{item.sku}</div>
                       </td>
                       <td className="p-2.5 text-center">
                         <Input

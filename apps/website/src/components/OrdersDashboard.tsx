@@ -117,7 +117,7 @@ export function OrdersDashboard() {
                   setActiveTab(tab.id);
                   setSelectedOrderIds([]);
                 }}
-                className={`pb-3 px-1 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                className={`pb-3 px-1 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ec2839] focus-visible:ring-offset-2 rounded-t-sm ${
                   isSelected
                     ? "border-[#ec2839] text-[#ec2839] font-bold"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -177,7 +177,7 @@ export function OrdersDashboard() {
 
         {/* Search bar */}
         <div className="relative min-w-[240px]">
-          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-400" />
+          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-500" />
           <Input
             type="text"
             placeholder="Search orders..."
@@ -189,7 +189,7 @@ export function OrdersDashboard() {
       </div>
 
       {/* Orders Data Table */}
-      <div className="rounded-lg border border-gray-200 bg-white shadow-xs overflow-hidden">
+      <div className="rounded-lg border border-gray-200 bg-white shadow-xs overflow-x-auto">
         <table className="w-full text-xs">
           <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold uppercase tracking-wider">
             <tr>
@@ -216,7 +216,7 @@ export function OrdersDashboard() {
           <tbody className="divide-y divide-gray-200">
             {!ordersData || ordersData.items.length === 0 ? (
               <tr>
-                <td colSpan={8} className="p-8 text-center text-gray-400">
+                <td colSpan={8} className="p-8 text-center text-gray-500">
                   No orders found matching the current status and search filters.
                 </td>
               </tr>
@@ -242,7 +242,7 @@ export function OrdersDashboard() {
                     <td className="p-3 font-semibold text-gray-900">
                       <span className="text-[#ec2839]">{order.orderNumber}</span>{" "}
                       {order.dealer.businessName}
-                      <div className="text-[11px] font-normal text-gray-400">
+                      <div className="text-[11px] font-normal text-gray-500">
                         {order.dealer.phone}
                       </div>
                     </td>
@@ -263,7 +263,7 @@ export function OrdersDashboard() {
                       {formatCurrency(order.totalAmount)}
                     </td>
                     <td className="p-3 text-center whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-700">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-700">
                         {order.origin === "whatsapp_ai" ? "WhatsApp AI" : "Direct Sales"}
                       </span>
                     </td>

@@ -67,7 +67,7 @@ export function MessageLogView() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-7 border border-gray-200 rounded-lg overflow-hidden bg-white">
+        <div className="lg:col-span-7 border border-gray-200 rounded-lg overflow-x-auto bg-white">
           <table className="w-full text-xs">
             <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold uppercase">
               <tr>
@@ -81,7 +81,7 @@ export function MessageLogView() {
             <tbody className="divide-y divide-gray-200">
               {messages.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-gray-400">
+                  <td colSpan={5} className="p-8 text-center text-gray-500">
                     No messages recorded yet.
                   </td>
                 </tr>
@@ -134,7 +134,7 @@ export function MessageLogView() {
               </div>
             </div>
           ) : (
-            <div className="text-center py-12 text-gray-400 text-xs">
+            <div className="text-center py-12 text-gray-500 text-xs">
               Select a message row to view details.
             </div>
           )}

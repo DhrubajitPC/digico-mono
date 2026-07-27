@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/*
+ * @digico/design-system components live in packages/ui/src (outside this
+ * app's own source tree), so Tailwind's automatic content detection never
+ * scans them. Any utility class used only inside the shared component
+ * library — and not also used verbatim somewhere in this app — is silently
+ * never generated. This registers it explicitly.
+ */
+@source "../../../packages/ui/src";
+
 @theme {
   --color-primary: #ec2839;
   --font-sans:
