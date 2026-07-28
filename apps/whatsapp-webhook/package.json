@@ -8,6 +8,7 @@
     "start": "node --env-file=.env --experimental-strip-types src/server.ts",
     "test": "vp test",
     "check": "vp check",
+    "seed": "node --env-file=.env --experimental-strip-types src/db/seed.ts",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
