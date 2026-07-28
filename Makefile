@@ -14,6 +14,7 @@ help:
 	@echo "  make check-fix    - Auto-fix formatting and linting issues"
 	@echo "  make build        - Build production bundle for website"
 	@echo "  make clean-db     - Reset local PGlite database"
+	@echo "  make deploy       - Execute automated production server deployment script"
 	@echo "  make docker-up    - Build and launch production Docker containers"
 	@echo "  make docker-down  - Stop and remove Docker containers"
 	@echo "  make docker-logs  - Follow production Docker container logs"
@@ -51,6 +52,10 @@ build:
 clean-db:
 	rm -rf ./data/db apps/whatsapp-webhook/data/db
 	@echo "Local PGlite database cleaned. Fresh data will seed on next server boot."
+
+## deploy: Execute automated production deployment script
+deploy:
+	./deploy.sh
 
 ## docker-up: Build and launch production containers with Docker Compose
 docker-up:
