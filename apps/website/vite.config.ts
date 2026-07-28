@@ -5,6 +5,8 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    port: 5173,
+    strictPort: true,
     // Dashboard proxy to Fastify backend API on 8787
     proxy: {
       "/api": "http://localhost:8787",

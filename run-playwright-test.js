@@ -5,13 +5,13 @@ import path from "node:path";
 async function main() {
   console.log("Starting backend server (port 8787)...");
   const backend = spawn("pnpm", ["--filter", "whatsapp-webhook", "dev"], {
-    stdio: "inherit",
+    stdio: "pipe",
     shell: true,
   });
 
   console.log("Starting frontend dev server (port 5173)...");
   const frontend = spawn("pnpm", ["--filter", "website", "dev"], {
-    stdio: "inherit",
+    stdio: "pipe",
     shell: true,
   });
 
@@ -42,29 +42,28 @@ async function main() {
     const shot2 = path.join(artifactDir, "dashboard_pending_review.png");
     await page.screenshot({ path: shot2, fullPage: true });
 
-    // 3. Open Order Review Drawer
-    console.log("Capturing 3: Order Review Drawer...");
-    await page.click("button:has-text('Review')");
+    // 3. Open WhatsApp AI Order Review Drawer (#ORD-7585)
+    console.log("Capturing 3: WhatsApp AI Order Review Drawer...");
+    await page.click("tbody tr:first-child button");
     await page.waitForTimeout(1500);
     const shot3 = path.join(artifactDir, "order_review_drawer.png");
     await page.screenshot({ path: shot3 });
-
-    // 4. Test editing WhatsApp message preview
-    console.log("Capturing 4: Live Edited WhatsApp Message Preview...");
-    const textarea = page.locator("textarea");
-    if ((await textarea.count()) > 0) {
-      await textarea.fill(
-        "Dear Souhardo Ahmed, your order #ORD-7585 has been approved by Sales Admin and is ready for dispatch.",
-      );
-      await page.waitForTimeout(500);
-      const shot4 = path.join(artifactDir, "order_whatsapp_preview_edited.png");
-      await page.screenshot({ path: shot4 });
-    }
 
     // Close Drawer
     console.log("Closing Order Review Drawer...");
     await page.keyboard.press("Escape");
     await page.waitForTimeout(800);
+
+    // 4. Open Manual Direct Sales Order Drawer (#ORD-7506)
+    console.log("Capturing 4: Manual Direct Sales Order Drawer (#ORD-7506)...");
+    await page.click("tr:has-text('#ORD-7506') button");
+    await page.waitForTimeout(1500);
+    const shot4 = path.join(artifactDir, "order_manual_sales_drawer.png");
+    await page.screenshot({ path: shot4 });
+
+    // Close Drawer
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(600);
 
     // 5. Open Add Order Modal
     console.log("Capturing 5: Create Manual Order Modal...");
