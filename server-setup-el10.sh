@@ -78,12 +78,28 @@ EOF
 
 sysctl -p /etc/sysctl.d/99-security.conf
 
-# 7. Install Docker CE & Compose
-echo "[7/8] Installing Docker Engine & Docker Compose..."
-dnf install -y dnf-plugins-core
+# 7. Install Docker CE, containerd, & iptables-nft
+echo "[7/8] Installing Docker CE, containerd, & iptables compatibility..."
+dnf install -y dnf-plugins-core iptables-nft
 dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
+# Configure Docker Daemon for Enterprise Linux 10
+mkdir -p /etc/docker
+cat << 'EOF' > /etc/docker/daemon.json
+{
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m"
+  },
+  "storage-driver": "overlay2"
+}
+EOF
+
+# Start containerd first, then docker daemon
+systemctl daemon-reload
+systemctl enable --now containerd
 systemctl enable --now docker
 usermod -aG docker deploy
 
