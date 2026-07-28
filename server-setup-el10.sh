@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Digico — Enterprise Linux 10 (RHEL / AlmaLinux / Rocky / CentOS) Setup Script
+# Digico — Enterprise Linux 10 / AlmaLinux 10 Setup & Hardening Script
 # ==============================================================================
 # Run as root: bash server-setup-el10.sh
 # ==============================================================================
@@ -12,11 +12,11 @@ echo " Starting Enterprise Linux 10 Server Setup & Hardening..."
 echo "=========================================================="
 
 # 1. Update Package Index
-echo "[1/8] Updating system packages..."
+echo "[1/9] Updating system packages..."
 dnf update -y
 
 # 2. Create Deploy User
-echo "[2/8] Setting up 'deploy' user..."
+echo "[2/9] Setting up 'deploy' user..."
 if ! id "deploy" &>/dev/null; then
     useradd -m -s /bin/bash deploy
     usermod -aG wheel deploy
@@ -33,7 +33,7 @@ if [ -d "/root/.ssh" ]; then
 fi
 
 # 3. Apply SSH Hardening
-echo "[3/8] Applying SSH hardening parameters..."
+echo "[3/9] Applying SSH hardening parameters..."
 cat << 'EOF' > /etc/ssh/sshd_config.d/50-security.conf
 PermitRootLogin no
 PasswordAuthentication no
@@ -46,7 +46,7 @@ EOF
 sshd -t && systemctl restart sshd
 
 # 4. Configure Firewalld
-echo "[4/8] Configuring firewalld network rules..."
+echo "[4/9] Configuring firewalld network rules..."
 dnf install -y firewalld
 systemctl enable --now firewalld
 
@@ -56,7 +56,7 @@ firewall-cmd --permanent --add-service=https || true
 firewall-cmd --reload
 
 # 5. Fail2ban & Auto Updates
-echo "[5/8] Installing Fail2ban and security auto-updates..."
+echo "[5/9] Installing Fail2ban and security auto-updates..."
 dnf install -y epel-release
 dnf install -y fail2ban dnf-automatic
 
@@ -64,7 +64,7 @@ systemctl enable --now dnf-automatic.timer
 systemctl enable --now fail2ban
 
 # 6. Kernel Sysctl Parameters
-echo "[6/8] Setting kernel sysctl security parameters..."
+echo "[6/9] Setting kernel sysctl security parameters..."
 cat << 'EOF' > /etc/sysctl.d/99-security.conf
 net.ipv4.icmp_echo_ignore_broadcasts = 1
 net.ipv4.conf.all.accept_source_route = 0
@@ -78,22 +78,30 @@ EOF
 
 sysctl -p /etc/sysctl.d/99-security.conf
 
-# 7. Install Docker CE, containerd, & iptables-nft
-echo "[7/8] Installing Docker CE, containerd, & iptables compatibility..."
+# 7. Load Required Kernel Modules for Docker NAT (AlmaLinux 10 fix)
+echo "[7/9] Loading kernel modules for Docker bridge NAT (xt_addrtype)..."
+modprobe xt_addrtype || true
+modprobe iptable_nat || true
+modprobe ip_tables || true
+
+cat << 'EOF' > /etc/modules-load.d/docker.conf
+xt_addrtype
+iptable_nat
+ip_tables
+EOF
+
+# 8. Install Docker CE, containerd, & iptables-nft
+echo "[8/9] Installing Docker CE, containerd, & iptables compatibility..."
 dnf install -y dnf-plugins-core iptables-nft
 dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-# Configure Docker Daemon for Enterprise Linux 10
+# Configure Docker Daemon
 mkdir -p /etc/docker
 cat << 'EOF' > /etc/docker/daemon.json
 {
-  "exec-opts": ["native.cgroupdriver=systemd"],
-  "log-driver": "json-file",
-  "log-opts": {
-    "max-size": "100m"
-  },
-  "storage-driver": "overlay2"
+  "iptables": true,
+  "userland-proxy": true
 }
 EOF
 
@@ -103,8 +111,8 @@ systemctl enable --now containerd
 systemctl enable --now docker
 usermod -aG docker deploy
 
-# 8. Setup App Directory
-echo "[8/8] Preparing /opt/digico deployment directory..."
+# 9. Setup App Directory
+echo "[9/9] Preparing /opt/digico deployment directory..."
 mkdir -p /opt/digico
 chown -R deploy:deploy /opt/digico
 
