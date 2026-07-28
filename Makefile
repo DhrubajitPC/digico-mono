@@ -48,6 +48,10 @@ check-fix:
 build:
 	pnpm --filter website build
 
+## seed: Populate database with initial seed data (dealers, products, sample orders)
+seed:
+	pnpm --filter whatsapp-webhook seed
+
 ## clean-db: Delete local PGlite database files to re-seed fresh data
 clean-db:
 	rm -rf ./data/db apps/whatsapp-webhook/data/db
