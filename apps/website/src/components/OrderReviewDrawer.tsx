@@ -424,37 +424,74 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
 
             <div className="flex flex-wrap items-center gap-2">
               {/* Cancel Button */}
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => handleSetStatus("cancelled", "Rejected by Sales Admin")}
-                disabled={isSaving}
-              >
-                <XCircle className="w-4 h-4" /> Reject / Cancel
-              </Button>
+              {order.status !== "cancelled" && order.status !== "completed" && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleSetStatus("cancelled", "Rejected by Sales Admin")}
+                  disabled={isSaving}
+                >
+                  <XCircle className="w-4 h-4" /> Reject / Cancel
+                </Button>
+              )}
 
               {/* On-Hold Button */}
-              <Button
-                type="button"
-                variant="warning"
-                size="sm"
-                onClick={() => handleSetStatus("on_hold", "Placed on hold by Sales Admin")}
-                disabled={isSaving}
-              >
-                <Clock className="w-4 h-4" /> Hold Order
-              </Button>
+              {order.status !== "on_hold" &&
+                order.status !== "completed" &&
+                order.status !== "cancelled" && (
+                  <Button
+                    type="button"
+                    variant="warning"
+                    size="sm"
+                    onClick={() => handleSetStatus("on_hold", "Placed on hold by Sales Admin")}
+                    disabled={isSaving}
+                  >
+                    <Clock className="w-4 h-4" /> Hold Order
+                  </Button>
+                )}
 
-              {/* Confirm & Send Button */}
-              <Button
-                type="button"
-                variant="success"
-                size="sm"
-                onClick={handleApproveAndSend}
-                disabled={isSaving || editableItems.length === 0}
-              >
-                <CheckCircle className="w-4 h-4" /> Approve & Confirm to WhatsApp
-              </Button>
+              {/* Move to Processing Button */}
+              {order.status === "confirmed" && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    handleSetStatus("processing", "Order moved to warehouse processing")
+                  }
+                  disabled={isSaving}
+                >
+                  <Clock className="w-4 h-4" /> Move to Processing
+                </Button>
+              )}
+
+              {/* Mark as Completed Button */}
+              {(order.status === "confirmed" || order.status === "processing") && (
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  onClick={() => handleSetStatus("completed", "Order completed and delivered")}
+                  disabled={isSaving}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <CheckCircle className="w-4 h-4" /> Mark as Completed
+                </Button>
+              )}
+
+              {/* Confirm & Send Button for Pending / Hold */}
+              {(order.status === "pending_review" || order.status === "on_hold") && (
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  onClick={handleApproveAndSend}
+                  disabled={isSaving || editableItems.length === 0}
+                >
+                  <CheckCircle className="w-4 h-4" /> Approve & Confirm to WhatsApp
+                </Button>
+              )}
             </div>
           </div>
         </div>
