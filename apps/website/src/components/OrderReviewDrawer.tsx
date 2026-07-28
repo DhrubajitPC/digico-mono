@@ -22,6 +22,7 @@ import {
   User,
   Sparkles,
   Save,
+  ShoppingBag,
 } from "lucide-react";
 
 interface OrderReviewDrawerProps {
@@ -190,6 +191,35 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
     }
   };
 
+  const handleMarkCompleted = async () => {
+    try {
+      setIsSaving(true);
+      const isModified =
+        JSON.stringify(editableItems) !== JSON.stringify(order.items) ||
+        proposedMsg !== (order.proposedMessage ?? "");
+      if (isModified) {
+        await updateOrder(order.id, {
+          notes,
+          proposedMessage: proposedMsg,
+          items: editableItems.map((i) => ({
+            productId: i.productId ?? undefined,
+            sku: i.sku,
+            productName: i.productName,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+          })),
+        });
+      }
+      await updateOrderStatus(order.id, "completed", "Marked as completed by Sales Admin");
+      onRefresh();
+      onClose();
+    } catch (err) {
+      console.error("Failed to complete order", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <Drawer
       open={open}
@@ -201,12 +231,20 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
       width="4xl"
     >
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* LEFT PANE (4 cols): WhatsApp Context & AI Extraction */}
+        {/* LEFT PANE (5 cols): Order Context & Dealer Info */}
         <div className="lg:col-span-5 space-y-4 border-b lg:border-b-0 lg:border-r border-gray-200 pr-0 lg:pr-6">
           <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-                <MessageSquare className="w-4 h-4 text-[#ec2839]" /> WhatsApp Context
+                {order.origin === "whatsapp_ai" ? (
+                  <>
+                    <MessageSquare className="w-4 h-4 text-[#ec2839]" /> WhatsApp Context
+                  </>
+                ) : (
+                  <>
+                    <ShoppingBag className="w-4 h-4 text-blue-600" /> Direct Sales Context
+                  </>
+                )}
               </span>
               <StatusBadge status={order.status} />
             </div>
@@ -223,63 +261,74 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
               )}
             </div>
 
-            {/* AI Context Card */}
-            <div className="rounded-md border border-emerald-200 bg-emerald-50/40 p-3 text-sm text-emerald-950 space-y-2">
-              <div className="font-bold flex items-center gap-1.5 text-emerald-900">
-                <Sparkles className="w-4 h-4 text-emerald-600" /> AI Intent Extraction
-              </div>
-              <p className="text-emerald-800 leading-relaxed">
-                Intent: <span className="font-semibold">ORDER_CREATION</span> (High Confidence 94%).
-                AI matched <span className="font-semibold">{order.items.length} SKU(s)</span> from
-                catalog aliases.
-              </p>
-            </div>
-
-            {/* Simulated WhatsApp Transcript */}
-            <div className="space-y-2 pt-2">
-              <span className="text-sm font-semibold text-gray-500">
-                Recent Conversation Thread
-              </span>
-              <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-3 max-h-[300px] overflow-y-auto text-sm">
-                {/* Dealer message */}
-                <div className="flex gap-2 items-start">
-                  <div className="size-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold shrink-0">
-                    <User className="w-3.5 h-3.5" />
+            {/* Conditional Context: AI Intent & WhatsApp Log vs Direct Sales Note */}
+            {order.origin === "whatsapp_ai" ? (
+              <>
+                <div className="rounded-md border border-emerald-200 bg-emerald-50/40 p-3 text-sm text-emerald-950 space-y-2">
+                  <div className="font-bold flex items-center gap-1.5 text-emerald-900">
+                    <Sparkles className="w-4 h-4 text-emerald-600" /> AI Intent Extraction
                   </div>
-                  <div className="bg-emerald-50 rounded-lg rounded-tl-none p-2.5 text-emerald-900 border border-emerald-100 flex-1">
-                    <div className="font-semibold text-emerald-800 text-xs mb-0.5">
-                      Dealer Message
+                  <p className="text-emerald-800 leading-relaxed text-xs">
+                    Intent: <span className="font-semibold">ORDER_CREATION</span> (Confidence 94%).
+                    AI extracted <span className="font-semibold">{order.items.length} SKU(s)</span>{" "}
+                    from catalog aliases.
+                  </p>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <span className="text-sm font-semibold text-gray-500">
+                    Recent WhatsApp Thread
+                  </span>
+                  <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-3 max-h-[260px] overflow-y-auto text-sm">
+                    {/* Dealer message */}
+                    <div className="flex gap-2 items-start">
+                      <div className="size-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold shrink-0">
+                        <User className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="bg-emerald-50 rounded-lg rounded-tl-none p-2.5 text-emerald-900 border border-emerald-100 flex-1">
+                        <div className="font-semibold text-emerald-800 text-xs mb-0.5">
+                          Dealer Message
+                        </div>
+                        "Bhai HP i5 laptop ta koto? 3 ta lagbe ar Samsung 24 inch monitor 4 ta
+                        lagbe."
+                      </div>
                     </div>
-                    "Bhai HP i5 laptop ta koto? 3 ta lagbe ar Samsung 24 inch monitor 4 ta lagbe."
-                  </div>
-                </div>
 
-                {/* AI response */}
-                <div className="flex gap-2 items-start justify-end">
-                  <div className="bg-gray-100 rounded-lg rounded-tr-none p-2.5 text-gray-800 border border-gray-200 flex-1 text-right">
-                    <div className="font-semibold text-gray-700 text-xs mb-0.5">
-                      Digico Sales AI
+                    {/* AI response */}
+                    <div className="flex gap-2 items-start justify-end">
+                      <div className="bg-gray-100 rounded-lg rounded-tr-none p-2.5 text-gray-800 border border-gray-200 flex-1 text-right">
+                        <div className="font-semibold text-gray-700 text-xs mb-0.5">
+                          Digico Sales AI
+                        </div>
+                        "Sir, HP 15s Core i5 price {formatCurrency(68500)} and Samsung 24 IPS
+                        Monitor price {formatCurrency(12095)}."
+                      </div>
+                      <div className="size-6 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold shrink-0">
+                        <Bot className="w-3.5 h-3.5" />
+                      </div>
                     </div>
-                    "Sir, HP 15s Core i5 price {formatCurrency(68500)} and Samsung 24 IPS Monitor
-                    price {formatCurrency(12095)}. Draft order created for total{" "}
-                    {formatCurrency(253880)}."
-                  </div>
-                  <div className="size-6 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold shrink-0">
-                    <Bot className="w-3.5 h-3.5" />
                   </div>
                 </div>
-
-                {/* Dealer confirmation */}
-                <div className="flex gap-2 items-start">
-                  <div className="size-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold shrink-0">
-                    <User className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="bg-emerald-50 rounded-lg rounded-tl-none p-2.5 text-emerald-900 border border-emerald-100 flex-1">
-                    "Ha, order confirmation ta pathay den."
-                  </div>
+              </>
+            ) : (
+              <div className="rounded-md border border-blue-200 bg-blue-50/40 p-3 text-sm text-blue-950 space-y-2">
+                <div className="font-bold flex items-center gap-1.5 text-blue-900">
+                  <ShoppingBag className="w-4 h-4 text-blue-600" /> Manual Sales Record
                 </div>
+                <p className="text-blue-800 leading-relaxed text-xs">
+                  This order was taken directly over phone call, WhatsApp direct message, or
+                  in-person sales visit by staff. No AI chat log associated.
+                </p>
+                {order.notes && (
+                  <div className="mt-2 pt-2 border-t border-blue-200">
+                    <span className="font-semibold text-blue-900 text-xs">Staff Note:</span>
+                    <p className="text-blue-800 italic bg-white/70 p-2 rounded mt-1 text-xs border border-blue-100">
+                      {order.notes}
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -467,12 +516,12 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
               )}
 
               {/* Mark as Completed Button */}
-              {(order.status === "confirmed" || order.status === "processing") && (
+              {order.status !== "completed" && order.status !== "cancelled" && (
                 <Button
                   type="button"
                   variant="default"
                   size="sm"
-                  onClick={() => handleSetStatus("completed", "Order completed and delivered")}
+                  onClick={handleMarkCompleted}
                   disabled={isSaving}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
@@ -489,7 +538,10 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
                   onClick={handleApproveAndSend}
                   disabled={isSaving || editableItems.length === 0}
                 >
-                  <CheckCircle className="w-4 h-4" /> Approve & Confirm to WhatsApp
+                  <CheckCircle className="w-4 h-4" />{" "}
+                  {order.origin === "whatsapp_ai"
+                    ? "Approve & Confirm to WhatsApp"
+                    : "Approve & Confirm Order"}
                 </Button>
               )}
             </div>
