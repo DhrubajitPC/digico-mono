@@ -2,6 +2,7 @@ import { buildChatMessages, deepSeekModel, replyWithDeepSeek } from "./deepseek.
 import { getDb } from "./db/instance.ts";
 import type { Db } from "./db/client.ts";
 import {
+  getRecentConversationHistory,
   markMessageStatus,
   recordAiCall,
   recordInboundMessage,
@@ -179,12 +180,13 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
   }
 
   const isEmulator = message.phoneNumberId === "EMULATOR" || message.from.includes("EMULATOR");
+  const chatHistory = await getRecentConversationHistory(db, message.from, 8);
   const promptContext = { products: productsList, dealer: dealerInfo };
-  const requestMessages = buildChatMessages(userText, promptContext);
+  const requestMessages = buildChatMessages(userText, promptContext, chatHistory);
   const startedAt = Date.now();
   let reply: string;
   try {
-    reply = await replyWithDeepSeek(userText, promptContext);
+    reply = await replyWithDeepSeek(userText, promptContext, chatHistory);
   } catch (error) {
     await log.aiCall({
       requestMessages,

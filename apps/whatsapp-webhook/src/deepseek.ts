@@ -31,7 +31,12 @@ const DEFAULT_MODEL = "deepseek-chat";
 export function buildSystemPrompt(context?: DeepSeekPromptContext): string {
   let prompt = `You are Digico's WhatsApp B2B sales AI assistant for a technology products distributor in Bangladesh.
 Dealers message in Bengali, English, or Banglish — reply in a helpful, concise, and professional sales tone matching their language style.
-You HAVE access to Digico's live database catalog & inventory listed below. Use exact prices in BDT (৳) and exact stock quantities from this live catalog. Do NOT say you lack live price/stock data.`;
+You HAVE access to Digico's live database catalog & inventory listed below. Use exact prices in BDT (৳) and exact stock quantities from this live catalog. Do NOT say you lack live price/stock data.
+
+MULTI-TURN CONVERSATION & FOLLOW-UP ORDERS:
+1. Multi-turn conversation history is provided in the chat sequence below. Maintain full context across turns.
+2. If the dealer follows up with short quantity requests like "order 5 units", "give me 2", "send 10", "I want 5", or "yes", refer back to the exact product recommended or discussed in the preceding messages (e.g., Panasonic Hair Straightener EH HS70 or Philips BHS397/40).
+3. Do NOT ask them to repeat the product name if it was just discussed. Calculate the total price (quantity x unit price) and confirm the order clearly.`;
 
   if (context?.dealer) {
     prompt += `\n\nCURRENT DEALER / CUSTOMER CONTEXT:
@@ -55,11 +60,16 @@ ${context.dealer.address ? `- Address: ${context.dealer.address}` : ""}`;
 export function buildChatMessages(
   userText: string,
   context?: DeepSeekPromptContext,
+  history: ChatMessage[] = [],
 ): ChatMessage[] {
-  return [
-    { role: "system", content: buildSystemPrompt(context) },
-    { role: "user", content: userText },
-  ];
+  const systemMsg: ChatMessage = { role: "system", content: buildSystemPrompt(context) };
+
+  // Filter out any empty messages or duplicate current user message at end of history
+  const cleanHistory = history.filter(
+    (h) => h.content && h.content.trim().length > 0 && h.content !== userText,
+  );
+
+  return [systemMsg, ...cleanHistory, { role: "user", content: userText }];
 }
 
 export function deepSeekModel(): string {
@@ -69,6 +79,7 @@ export function deepSeekModel(): string {
 export async function replyWithDeepSeek(
   userText: string,
   context?: DeepSeekPromptContext,
+  history: ChatMessage[] = [],
 ): Promise<string> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
@@ -80,7 +91,7 @@ export async function replyWithDeepSeek(
 
   const baseUrl = (process.env.DEEPSEEK_BASE_URL ?? DEFAULT_BASE_URL).replace(/\/$/, "");
   const model = deepSeekModel();
-  const messages = buildChatMessages(userText, context);
+  const messages = buildChatMessages(userText, context, history);
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
