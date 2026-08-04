@@ -9,6 +9,13 @@ import {
   type OrderStatus,
 } from "./db/schema.ts";
 import { eq, desc } from "drizzle-orm";
+import {
+  isMariaDbAvailable,
+  fetchMariaDbOrders,
+  fetchMariaDbOrderById,
+  fetchMariaDbProducts,
+  fetchMariaDbDealers,
+} from "./db/mariadb.ts";
 
 export const CURRENCY_SYMBOL = "৳";
 
@@ -348,6 +355,28 @@ export async function seedInitialOrdersData(db: Db) {
 
 // GET /api/orders
 export async function listOrdersForApi(db: Db, params: URLSearchParams) {
+  if (await isMariaDbAvailable()) {
+    const status = params.get("status");
+    const search = params.get("search");
+    const mariaOrders = await fetchMariaDbOrders({ status, search });
+    const allMariaOrders = await fetchMariaDbOrders();
+    const counts = {
+      all: allMariaOrders.length,
+      pending_review: allMariaOrders.filter((e) => e.status === "pending_review").length,
+      confirmed: allMariaOrders.filter((e) => e.status === "confirmed").length,
+      on_hold: allMariaOrders.filter((e) => e.status === "on_hold").length,
+      processing: allMariaOrders.filter((e) => e.status === "processing").length,
+      completed: allMariaOrders.filter((e) => e.status === "completed").length,
+      cancelled: allMariaOrders.filter((e) => e.status === "cancelled").length,
+    };
+
+    return {
+      items: mariaOrders,
+      total: mariaOrders.length,
+      counts,
+    };
+  }
+
   await seedInitialOrdersData(db);
 
   const status = params.get("status") as OrderStatus | null;
@@ -424,6 +453,16 @@ export async function listOrdersForApi(db: Db, params: URLSearchParams) {
 
 // GET /api/orders/:id
 export async function getOrderForApi(db: Db, id: number) {
+  if (await isMariaDbAvailable()) {
+    const mariaOrder = await fetchMariaDbOrderById(id);
+    if (mariaOrder) {
+      return {
+        ...mariaOrder,
+        history: [],
+      };
+    }
+  }
+
   const [order] = await db
     .select({
       id: orders.id,
@@ -559,7 +598,7 @@ export async function updateOrderStatusForApi(
   const order = await getOrderForApi(db, id);
   if (!order) return null;
 
-  const prevStatus = order.status;
+  const prevStatus = order.status as OrderStatus;
 
   await db
     .update(orders)
@@ -597,12 +636,18 @@ export async function bulkUpdateOrderStatusForApi(
 
 // GET /api/products
 export async function listProductsForApi(db: Db) {
+  if (await isMariaDbAvailable()) {
+    return fetchMariaDbProducts();
+  }
   await seedInitialOrdersData(db);
   return db.select().from(products);
 }
 
 // GET /api/dealers
 export async function listDealersForApi(db: Db) {
+  if (await isMariaDbAvailable()) {
+    return fetchMariaDbDealers();
+  }
   await seedInitialOrdersData(db);
   return db.select().from(dealers);
 }
