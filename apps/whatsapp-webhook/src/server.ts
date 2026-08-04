@@ -131,6 +131,25 @@ async function handleApiRequest(
     return true;
   }
 
+  // POST /api/emulator/send
+  if (req.method === "POST" && path === "/api/emulator/send") {
+    const { sendEmulatorMessage } = await import("./api-emulator.ts");
+    const raw = await readBody(req);
+    const body = JSON.parse(raw);
+    const result = await sendEmulatorMessage(body);
+    sendJson(res, 200, result);
+    return true;
+  }
+
+  // GET /api/emulator/chat
+  if (req.method === "GET" && path === "/api/emulator/chat") {
+    const { getEmulatorChatHistory } = await import("./api-emulator.ts");
+    const phone = url.searchParams.get("phone") || "+8801711000001";
+    const result = await getEmulatorChatHistory(db, phone);
+    sendJson(res, 200, result);
+    return true;
+  }
+
   // GET /api/orders/:id
   const orderDetailMatch = ORDER_DETAIL_PATH.exec(path);
   if (req.method === "GET" && orderDetailMatch) {

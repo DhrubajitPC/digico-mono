@@ -12,6 +12,8 @@ import type { IncomingWhatsAppMessage } from "./parse-webhook.ts";
 import { transcribeAudio } from "./transcribe.ts";
 import { downloadWhatsAppMedia } from "./whatsapp-media.ts";
 import { sendWhatsAppText } from "./whatsapp-send.ts";
+import { fetchMariaDbOrders, fetchMariaDbProducts, isMariaDbAvailable } from "./db/mariadb.ts";
+import { listProductsForApi } from "./api-orders.ts";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -157,11 +159,32 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
     return;
   }
 
-  const requestMessages = buildChatMessages(userText);
+  // Load Live Catalog & Dealer Context from MariaDB / DB for DeepSeek LLM Prompt
+  let productsList: any[] = [];
+  let dealerInfo: any = null;
+
+  try {
+    if (await isMariaDbAvailable()) {
+      productsList = await fetchMariaDbProducts();
+      const mariaOrders = await fetchMariaDbOrders();
+      const matchOrder = mariaOrders.find((o) => o.dealer.phone === message.from);
+      if (matchOrder) {
+        dealerInfo = matchOrder.dealer;
+      }
+    } else {
+      productsList = await listProductsForApi(db);
+    }
+  } catch (err) {
+    console.error("Failed to fetch database context for DeepSeek prompt", err);
+  }
+
+  const isEmulator = message.phoneNumberId === "EMULATOR" || message.from.includes("EMULATOR");
+  const promptContext = { products: productsList, dealer: dealerInfo };
+  const requestMessages = buildChatMessages(userText, promptContext);
   const startedAt = Date.now();
   let reply: string;
   try {
-    reply = await replyWithDeepSeek(userText);
+    reply = await replyWithDeepSeek(userText, promptContext);
   } catch (error) {
     await log.aiCall({
       requestMessages,
@@ -175,16 +198,18 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
   console.log("DeepSeek reply:", reply);
 
   try {
-    await sendWhatsAppText(message.from, reply);
+    await sendWhatsAppText(message.from, reply, isEmulator);
   } catch (error) {
-    await log.outboundReply({
-      toPhone: message.from,
-      replyText: reply,
-      status: "failed",
-      error: errorMessage(error),
-    });
-    await log.status("failed", errorMessage(error));
-    throw error;
+    if (!isEmulator) {
+      await log.outboundReply({
+        toPhone: message.from,
+        replyText: reply,
+        status: "failed",
+        error: errorMessage(error),
+      });
+      await log.status("failed", errorMessage(error));
+      throw error;
+    }
   }
 
   console.log("WhatsApp reply sent to", message.from);

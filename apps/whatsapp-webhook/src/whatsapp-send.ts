@@ -1,8 +1,21 @@
-export async function sendWhatsAppText(to: string, body: string): Promise<void> {
+export async function sendWhatsAppText(
+  to: string,
+  body: string,
+  isEmulator = false,
+): Promise<void> {
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  if (!token) throw new Error("Missing WHATSAPP_ACCESS_TOKEN");
-  if (!phoneNumberId) throw new Error("Missing WHATSAPP_PHONE_NUMBER_ID");
+
+  if (
+    isEmulator ||
+    !token ||
+    !phoneNumberId ||
+    phoneNumberId === "EMULATOR" ||
+    to.includes("EMULATOR")
+  ) {
+    console.log(`[EMULATOR] Simulated WhatsApp send to ${to}:`, body);
+    return;
+  }
 
   const url = `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`;
   const response = await fetch(url, {

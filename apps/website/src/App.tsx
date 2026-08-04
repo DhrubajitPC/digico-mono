@@ -1,10 +1,11 @@
 import * as React from "react";
 import { OrdersDashboard } from "./components/OrdersDashboard.js";
 import { MessageLogView } from "./components/MessageLogView.js";
-import { ShoppingBag, MessageSquare, ShieldCheck } from "lucide-react";
+import { WhatsAppEmulator } from "./components/WhatsAppEmulator.js";
+import { ShoppingBag, MessageSquare, MessageCircleCode, ShieldCheck } from "lucide-react";
 
 export function App() {
-  const [activeView, setActiveView] = React.useState<"orders" | "messages">("orders");
+  const [activeView, setActiveView] = React.useState<"orders" | "messages" | "emulator">("orders");
 
   return (
     <div className="min-h-screen bg-gray-50/50 flex flex-col font-sans">
@@ -42,6 +43,19 @@ export function App() {
               </button>
               <button
                 type="button"
+                onClick={() => setActiveView("emulator")}
+                aria-label="WhatsApp Emulator"
+                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ec2839] focus-visible:ring-offset-2 ${
+                  activeView === "emulator"
+                    ? "bg-white text-[#ec2839] shadow-xs"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <MessageCircleCode className="w-3.5 h-3.5 text-emerald-600" />{" "}
+                <span className="hidden sm:inline">WhatsApp Emulator</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveView("messages")}
                 aria-label="WhatsApp Logs"
                 className={`px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ec2839] focus-visible:ring-offset-2 ${
@@ -58,7 +72,7 @@ export function App() {
 
           <div className="flex items-center gap-3">
             <span className="hidden md:inline-flex items-center gap-1.5 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full font-medium">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> WhatsApp AI Live
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> DeepSeek AI Live
             </span>
             <div className="size-8 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold text-sm shrink-0">
               SA
@@ -69,7 +83,13 @@ export function App() {
 
       {/* Main View Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto">
-        {activeView === "orders" ? <OrdersDashboard /> : <MessageLogView />}
+        {activeView === "orders" ? (
+          <OrdersDashboard />
+        ) : activeView === "emulator" ? (
+          <WhatsAppEmulator />
+        ) : (
+          <MessageLogView />
+        )}
       </main>
     </div>
   );
