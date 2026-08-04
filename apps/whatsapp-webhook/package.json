@@ -14,7 +14,7 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.3.3",
     "drizzle-orm": "^0.44.2",
-    "mysql2": "catalog:",
+    "mysql2": "^3.12.0",
     "pg": "^8.16.0"
   },
   "devDependencies": {
