@@ -13,8 +13,13 @@ import type { IncomingWhatsAppMessage } from "./parse-webhook.ts";
 import { transcribeAudio } from "./transcribe.ts";
 import { downloadWhatsAppMedia } from "./whatsapp-media.ts";
 import { sendWhatsAppText } from "./whatsapp-send.ts";
-import { fetchMariaDbOrders, fetchMariaDbProducts, isMariaDbAvailable } from "./db/mariadb.ts";
-import { listProductsForApi } from "./api-orders.ts";
+import {
+  createMariaDbOrder,
+  fetchMariaDbOrders,
+  fetchMariaDbProducts,
+  isMariaDbAvailable,
+} from "./db/mariadb.ts";
+import { createOrderForApi, listProductsForApi } from "./api-orders.ts";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -198,6 +203,52 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
   }
   await log.aiCall({ requestMessages, responseText: reply, latencyMs: Date.now() - startedAt });
   console.log("DeepSeek reply:", reply);
+
+  // Auto-detect ORDER_DATA from DeepSeek completion and insert into MariaDB Order Dashboard
+  const orderDataMatch = /\[ORDER_DATA:\s*(\{.*?\})\s*\]/s.exec(reply);
+  if (orderDataMatch && orderDataMatch[1]) {
+    try {
+      const parsedOrder = JSON.parse(orderDataMatch[1]);
+      reply = reply.replace(/\[ORDER_DATA:\s*\{.*?\}\s*\]/s, "").trim();
+
+      const orderPayload = {
+        phone: parsedOrder.phone || message.from,
+        customerName: parsedOrder.customerName || message.contactName || "WhatsApp Customer",
+        deliveryAddress: parsedOrder.deliveryAddress || "Address via WhatsApp",
+        productName: parsedOrder.productName || "Ordered Product",
+        quantity: Number(parsedOrder.quantity) || 1,
+        unitPrice: Number(parsedOrder.unitPrice) || 0,
+        totalAmount:
+          Number(parsedOrder.totalAmount) ||
+          (Number(parsedOrder.unitPrice) || 0) * (Number(parsedOrder.quantity) || 1) ||
+          0,
+        notes: `WhatsApp AI Order via ${message.from}`,
+      };
+
+      if (await isMariaDbAvailable()) {
+        const createdMaria = await createMariaDbOrder(orderPayload);
+        if (createdMaria) {
+          console.log("Auto-created MariaDB Order for Order Dashboard:", createdMaria.orderNumber);
+        }
+      } else {
+        await createOrderForApi(db, {
+          dealerId: 1,
+          origin: "whatsapp_ai",
+          notes: orderPayload.notes,
+          items: [
+            {
+              sku: parsedOrder.sku || "SKU-AUTO",
+              productName: orderPayload.productName,
+              quantity: orderPayload.quantity,
+              unitPrice: orderPayload.unitPrice,
+            },
+          ],
+        });
+      }
+    } catch (err) {
+      console.error("Failed to parse and insert ORDER_DATA into database", err);
+    }
+  }
 
   try {
     await sendWhatsAppText(message.from, reply, isEmulator);
