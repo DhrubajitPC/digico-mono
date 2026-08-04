@@ -1,3 +1,5 @@
+import { DEEPSEEK_TOOLS } from "./tools/order-tools.ts";
+
 export type ChatMessage = {
   role: "system" | "user" | "assistant";
   content: string;
@@ -25,6 +27,18 @@ export interface DeepSeekPromptContext {
   dealer?: DealerContext | null;
 }
 
+export interface DeepSeekReplyResult {
+  text: string;
+  toolCalls?: Array<{
+    id: string;
+    type: string;
+    function: {
+      name: string;
+      arguments: string;
+    };
+  }>;
+}
+
 const DEFAULT_BASE_URL = "https://api.deepseek.com";
 const DEFAULT_MODEL = "deepseek-chat";
 
@@ -38,8 +52,8 @@ MULTI-TURN CONVERSATION & FOLLOW-UP ORDERS:
 2. If the dealer follows up with short quantity requests like "order 5 units", "give me 2", "send 10", "I want 5", or "yes", refer back to the exact product recommended or discussed in the preceding messages (e.g., Panasonic Hair Straightener EH HS70 or Philips BHS397/40).
 3. Do NOT ask them to repeat the product name if it was just discussed. Calculate the total price (quantity x unit price) and confirm the order clearly.
 4. AUTOMATED ORDER CREATION FOR ORDER DASHBOARD:
-   When you summarize/confirm an order (containing product, quantity, unit price, total, customer name/address), ALWAYS append a JSON block at the VERY END of your text formatted as:
-   [ORDER_DATA: {"productName": "Product Name", "quantity": 5, "unitPrice": 6890, "totalAmount": 34450, "customerName": "Customer Name", "deliveryAddress": "Address", "phone": "01321321321"}]
+   When you summarize/confirm an order (containing product, quantity, unit price, total, customer name/address), ALWAYS call the \`draft_order\` function tool OR append a JSON block at the VERY END of your text formatted as:
+   [ORDER_DATA: {"productName": "Product Name", "quantity": 5, "unitPrice": 6890, "totalAmount": 34450, "customerName": "Customer Name", "deliveryAddress": "Address", "phone": "01321321321", "userConfirmation": true}]
    This allows the B2B Order Dashboard to automatically record the order in MariaDB.`;
 
   if (context?.dealer) {
@@ -51,8 +65,8 @@ ${context.dealer.address ? `- Address: ${context.dealer.address}` : ""}`;
   }
 
   if (context?.products && context.products.length > 0) {
-    prompt += `\n\nLIVE MARIADB / DATABASE PRODUCT CATALOG & INVENTORY:\n`;
-    for (const p of context.products.slice(0, 100)) {
+    prompt += `\n\nLIVE MARIADB / DATABASE PRODUCT CANDIDATES:\n`;
+    for (const p of context.products.slice(0, 10)) {
       prompt += `- Product: ${p.name} | SKU: ${p.sku} | Price: ৳${p.unitPrice.toLocaleString()} | Stock Available: ${p.stockQuantity} units\n`;
     }
   }
@@ -68,7 +82,6 @@ export function buildChatMessages(
 ): ChatMessage[] {
   const systemMsg: ChatMessage = { role: "system", content: buildSystemPrompt(context) };
 
-  // Filter out any empty messages or duplicate current user message at end of history
   const cleanHistory = history.filter(
     (h) => h.content && h.content.trim().length > 0 && h.content !== userText,
   );
@@ -85,12 +98,23 @@ export async function replyWithDeepSeek(
   context?: DeepSeekPromptContext,
   history: ChatMessage[] = [],
 ): Promise<string> {
+  const res = await replyWithDeepSeekFull(userText, context, history);
+  return res.text;
+}
+
+export async function replyWithDeepSeekFull(
+  userText: string,
+  context?: DeepSeekPromptContext,
+  history: ChatMessage[] = [],
+): Promise<DeepSeekReplyResult> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
     console.warn(
       "[DeepSeek] DEEPSEEK_API_KEY is not set in .env. Returning simulated DeepSeek reply.",
     );
-    return `[DeepSeek AI Assistant] Hello! Received your request: "${userText}".\n\n(To connect live DeepSeek AI model completions, add DEEPSEEK_API_KEY to apps/whatsapp-webhook/.env)`;
+    return {
+      text: `[DeepSeek AI Assistant] Hello! Received your request: "${userText}".\n\n(To connect live DeepSeek AI model completions, add DEEPSEEK_API_KEY to apps/whatsapp-webhook/.env)`,
+    };
   }
 
   const baseUrl = (process.env.DEEPSEEK_BASE_URL ?? DEFAULT_BASE_URL).replace(/\/$/, "");
@@ -106,6 +130,7 @@ export async function replyWithDeepSeek(
     body: JSON.stringify({
       model,
       messages,
+      tools: DEEPSEEK_TOOLS,
       temperature: 0.3,
     }),
   });
@@ -116,11 +141,10 @@ export async function replyWithDeepSeek(
   }
 
   const data: unknown = await response.json();
-  const content = extractAssistantContent(data);
-  if (!content) {
-    throw new Error("DeepSeek returned empty content");
-  }
-  return content;
+  const text = extractAssistantContent(data) || "Order request processed.";
+  const toolCalls = extractToolCalls(data);
+
+  return { text, toolCalls };
 }
 
 export function extractAssistantContent(data: unknown): string | null {
@@ -133,4 +157,16 @@ export function extractAssistantContent(data: unknown): string | null {
   if (typeof message !== "object" || message === null) return null;
   const content = "content" in message ? message.content : null;
   return typeof content === "string" && content.trim().length > 0 ? content.trim() : null;
+}
+
+export function extractToolCalls(data: unknown): DeepSeekReplyResult["toolCalls"] {
+  if (typeof data !== "object" || data === null) return undefined;
+  const choices = "choices" in data ? data.choices : null;
+  if (!Array.isArray(choices) || choices.length === 0) return undefined;
+  const first = choices[0];
+  if (typeof first !== "object" || first === null) return undefined;
+  const message = "message" in first ? first.message : null;
+  if (typeof message !== "object" || message === null) return undefined;
+  const toolCalls = "tool_calls" in message ? message.tool_calls : null;
+  return Array.isArray(toolCalls) && toolCalls.length > 0 ? (toolCalls as any) : undefined;
 }

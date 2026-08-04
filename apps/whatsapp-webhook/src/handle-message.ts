@@ -1,4 +1,4 @@
-import { buildChatMessages, deepSeekModel, replyWithDeepSeek } from "./deepseek.ts";
+import { buildChatMessages, deepSeekModel, replyWithDeepSeekFull } from "./deepseek.ts";
 import { getDb } from "./db/instance.ts";
 import type { Db } from "./db/client.ts";
 import {
@@ -13,13 +13,10 @@ import type { IncomingWhatsAppMessage } from "./parse-webhook.ts";
 import { transcribeAudio } from "./transcribe.ts";
 import { downloadWhatsAppMedia } from "./whatsapp-media.ts";
 import { sendWhatsAppText } from "./whatsapp-send.ts";
-import {
-  createMariaDbOrder,
-  fetchMariaDbOrders,
-  fetchMariaDbProducts,
-  isMariaDbAvailable,
-} from "./db/mariadb.ts";
-import { createOrderForApi, listProductsForApi } from "./api-orders.ts";
+import { fetchMariaDbOrders, searchMariaDbProducts, isMariaDbAvailable } from "./db/mariadb.ts";
+import { listProductsForApi } from "./api-orders.ts";
+import { routeIntent } from "./intent-router.ts";
+import { validateAndExecuteOrderTool } from "./tools/order-tools.ts";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -165,13 +162,28 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
     return;
   }
 
-  // Load Live Catalog & Dealer Context from MariaDB / DB for DeepSeek LLM Prompt
+  // Step 1: Rule-Based Intent Interceptor (0 LLM Token Cost & 10ms Latency)
+  const routeResult = await routeIntent(userText, message.from, db);
+  if (routeResult.handled && routeResult.replyText) {
+    console.log("[Intent Router] Intercepted deterministically without LLM call:", userText);
+    const isEmulator = message.phoneNumberId === "EMULATOR" || message.from.includes("EMULATOR");
+    await sendWhatsAppText(message.from, routeResult.replyText, isEmulator);
+    await log.outboundReply({
+      toPhone: message.from,
+      replyText: routeResult.replyText,
+      status: "sent",
+    });
+    await log.status("completed");
+    return;
+  }
+
+  // Step 2: RAG Catalog Search (Retrieve top 3-5 candidate products for compressed LLM prompt)
   let productsList: any[] = [];
   let dealerInfo: any = null;
 
   try {
     if (await isMariaDbAvailable()) {
-      productsList = await fetchMariaDbProducts();
+      productsList = await searchMariaDbProducts(userText, 5);
       const mariaOrders = await fetchMariaDbOrders();
       const matchOrder = mariaOrders.find((o) => o.dealer.phone === message.from);
       if (matchOrder) {
@@ -184,14 +196,16 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
     console.error("Failed to fetch database context for DeepSeek prompt", err);
   }
 
+  // Step 3: DeepSeek Completion with Tool Calling & Multi-Turn History
   const isEmulator = message.phoneNumberId === "EMULATOR" || message.from.includes("EMULATOR");
   const chatHistory = await getRecentConversationHistory(db, message.from, 8);
   const promptContext = { products: productsList, dealer: dealerInfo };
   const requestMessages = buildChatMessages(userText, promptContext, chatHistory);
   const startedAt = Date.now();
-  let reply: string;
+
+  let deepseekResult: { text: string; toolCalls?: any[] };
   try {
-    reply = await replyWithDeepSeek(userText, promptContext, chatHistory);
+    deepseekResult = await replyWithDeepSeekFull(userText, promptContext, chatHistory);
   } catch (error) {
     await log.aiCall({
       requestMessages,
@@ -201,50 +215,43 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
     await log.status("failed", errorMessage(error));
     throw error;
   }
+
+  let reply = deepseekResult.text;
   await log.aiCall({ requestMessages, responseText: reply, latencyMs: Date.now() - startedAt });
   console.log("DeepSeek reply:", reply);
 
-  // Auto-detect ORDER_DATA from DeepSeek completion and insert into MariaDB Order Dashboard
+  // Step 4: Execute Tool Calls with Server-Side Guardrails (Confirmation + Stock/Price Truth)
+  if (deepseekResult.toolCalls && deepseekResult.toolCalls.length > 0) {
+    for (const call of deepseekResult.toolCalls) {
+      if (call.function?.name === "draft_order") {
+        try {
+          const payload = JSON.parse(call.function.arguments);
+          const execResult = await validateAndExecuteOrderTool(payload);
+          console.log("Tool execution result:", execResult);
+        } catch (err) {
+          console.error("Failed to execute draft_order tool call", err);
+        }
+      }
+    }
+  }
+
+  // Fallback: Check [ORDER_DATA: ...] tag if tool call wasn't directly generated
   const orderDataMatch = /\[ORDER_DATA:\s*(\{.*?\})\s*\]/s.exec(reply);
   if (orderDataMatch && orderDataMatch[1]) {
     try {
       const parsedOrder = JSON.parse(orderDataMatch[1]);
       reply = reply.replace(/\[ORDER_DATA:\s*\{.*?\}\s*\]/s, "").trim();
-
-      const orderPayload = {
-        phone: parsedOrder.phone || message.from,
-        customerName: parsedOrder.customerName || message.contactName || "WhatsApp Customer",
-        deliveryAddress: parsedOrder.deliveryAddress || "Address via WhatsApp",
+      const execResult = await validateAndExecuteOrderTool({
         productName: parsedOrder.productName || "Ordered Product",
+        sku: parsedOrder.sku,
         quantity: Number(parsedOrder.quantity) || 1,
         unitPrice: Number(parsedOrder.unitPrice) || 0,
-        totalAmount:
-          Number(parsedOrder.totalAmount) ||
-          (Number(parsedOrder.unitPrice) || 0) * (Number(parsedOrder.quantity) || 1) ||
-          0,
-        notes: `WhatsApp AI Order via ${message.from}`,
-      };
-
-      if (await isMariaDbAvailable()) {
-        const createdMaria = await createMariaDbOrder(orderPayload);
-        if (createdMaria) {
-          console.log("Auto-created MariaDB Order for Order Dashboard:", createdMaria.orderNumber);
-        }
-      } else {
-        await createOrderForApi(db, {
-          dealerId: 1,
-          origin: "whatsapp_ai",
-          notes: orderPayload.notes,
-          items: [
-            {
-              sku: parsedOrder.sku || "SKU-AUTO",
-              productName: orderPayload.productName,
-              quantity: orderPayload.quantity,
-              unitPrice: orderPayload.unitPrice,
-            },
-          ],
-        });
-      }
+        customerName: parsedOrder.customerName || message.contactName || "WhatsApp Customer",
+        deliveryAddress: parsedOrder.deliveryAddress || "Address via WhatsApp",
+        phone: parsedOrder.phone || message.from,
+        userConfirmation: parsedOrder.userConfirmation !== false,
+      });
+      console.log("ORDER_DATA fallback execution result:", execResult);
     } catch (err) {
       console.error("Failed to parse and insert ORDER_DATA into database", err);
     }

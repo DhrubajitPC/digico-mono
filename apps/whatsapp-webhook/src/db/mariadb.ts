@@ -284,6 +284,59 @@ export async function fetchMariaDbProducts(): Promise<WcProduct[]> {
   }));
 }
 
+/** RAG Search: Retrieve top 3-5 candidate products matching user query keywords for compressed LLM prompt */
+export async function searchMariaDbProducts(userQuery: string, limit = 5): Promise<WcProduct[]> {
+  const all = await fetchMariaDbProducts();
+  if (!userQuery || userQuery.trim().length === 0) {
+    return all.slice(0, limit);
+  }
+
+  const terms = userQuery
+    .toLowerCase()
+    .replace(/[^\w\s]/g, "")
+    .split(/\s+/)
+    .filter(
+      (t) =>
+        t.length > 2 &&
+        ![
+          "what",
+          "is",
+          "the",
+          "current",
+          "stock",
+          "price",
+          "and",
+          "for",
+          "with",
+          "want",
+          "need",
+          "order",
+          "units",
+          "please",
+        ].includes(t),
+    );
+
+  if (terms.length === 0) {
+    return all.slice(0, limit);
+  }
+
+  const scored = all.map((p) => {
+    const text = `${p.name} ${p.sku} ${p.brand}`.toLowerCase();
+    let score = 0;
+    for (const term of terms) {
+      if (text.includes(term)) score += 1;
+    }
+    return { product: p, score };
+  });
+
+  const matches = scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score);
+  if (matches.length > 0) {
+    return matches.slice(0, limit).map((m) => m.product);
+  }
+
+  return all.slice(0, limit);
+}
+
 /** Fetch Dealers list from MariaDB */
 export async function fetchMariaDbDealers(): Promise<WcDealer[]> {
   const orders = await fetchMariaDbOrders();
