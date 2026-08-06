@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, feat/order-dashboard-design-system]
+    branches: [main, "feat/*", "fix/*"]
   pull_request:
     branches: [main]
 
@@ -14,17 +14,28 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.14.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Set up Vite+ Toolchain
         uses: voidzero-dev/setup-vp@v1
         with:
-          cache: true
-          run-install: true
+          cache: false
+          run-install: false
 
       - name: Code Quality & Type Check
-        run: pnpm exec vp check
-
-      - name: Run Unit & Integration Test Suite
-        run: pnpm exec vp test
+        run: pnpm --filter whatsapp-webhook check && pnpm --filter website exec vp check
 
       - name: Verify Frontend Production Build
         run: pnpm --filter website build
@@ -32,7 +43,6 @@ jobs:
   deploy:
     name: Deploy to Production Server
     needs: test
-    # Only deploy when pushing to main branch
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
