@@ -191,3 +191,36 @@ export function listDealers(): Promise<Dealer[]> {
 export function listMessages(): Promise<{ items: LogMessage[]; total: number }> {
   return getJson<{ items: LogMessage[]; total: number }>("/api/messages");
 }
+
+export interface EmulatorChatMessage {
+  id: number;
+  role: "user" | "assistant";
+  text: string;
+  timestamp: string;
+  model?: string;
+  latencyMs?: number;
+  status?: string;
+  error?: string | null;
+  rawPayload?: unknown;
+}
+
+export function sendEmulatorMessage(data: {
+  fromPhone: string;
+  contactName?: string;
+  text: string;
+}): Promise<{ success: boolean; messageId: string; metaPayload: unknown }> {
+  return sendJson<{ success: boolean; messageId: string; metaPayload: unknown }>(
+    "/api/emulator/send",
+    "POST",
+    data,
+  );
+}
+
+export function getEmulatorChat(
+  phone: string,
+): Promise<{ fromPhone: string; messages: EmulatorChatMessage[] }> {
+  const params = new URLSearchParams({ phone });
+  return getJson<{ fromPhone: string; messages: EmulatorChatMessage[] }>(
+    `/api/emulator/chat?${params.toString()}`,
+  );
+}

@@ -284,6 +284,59 @@ export async function fetchMariaDbProducts(): Promise<WcProduct[]> {
   }));
 }
 
+/** RAG Search: Retrieve top 3-5 candidate products matching user query keywords for compressed LLM prompt */
+export async function searchMariaDbProducts(userQuery: string, limit = 5): Promise<WcProduct[]> {
+  const all = await fetchMariaDbProducts();
+  if (!userQuery || userQuery.trim().length === 0) {
+    return all.slice(0, limit);
+  }
+
+  const terms = userQuery
+    .toLowerCase()
+    .replace(/[^\w\s]/g, "")
+    .split(/\s+/)
+    .filter(
+      (t) =>
+        t.length > 2 &&
+        ![
+          "what",
+          "is",
+          "the",
+          "current",
+          "stock",
+          "price",
+          "and",
+          "for",
+          "with",
+          "want",
+          "need",
+          "order",
+          "units",
+          "please",
+        ].includes(t),
+    );
+
+  if (terms.length === 0) {
+    return all.slice(0, limit);
+  }
+
+  const scored = all.map((p) => {
+    const text = `${p.name} ${p.sku} ${p.brand}`.toLowerCase();
+    let score = 0;
+    for (const term of terms) {
+      if (text.includes(term)) score += 1;
+    }
+    return { product: p, score };
+  });
+
+  const matches = scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score);
+  if (matches.length > 0) {
+    return matches.slice(0, limit).map((m) => m.product);
+  }
+
+  return all.slice(0, limit);
+}
+
 /** Fetch Dealers list from MariaDB */
 export async function fetchMariaDbDealers(): Promise<WcDealer[]> {
   const orders = await fetchMariaDbOrders();
@@ -301,4 +354,88 @@ export async function fetchMariaDbDealers(): Promise<WcDealer[]> {
     }
   }
   return Array.from(dealerMap.values());
+}
+
+export interface CreateMariaDbOrderInput {
+  phone: string;
+  customerName: string;
+  deliveryAddress?: string | null;
+  productName: string;
+  sku?: string | null;
+  productId?: number | null;
+  quantity: number;
+  unitPrice: number;
+  totalAmount: number;
+  notes?: string | null;
+}
+
+/** Insert a new WhatsApp AI confirmed order into MariaDB WooCommerce tables */
+export async function createMariaDbOrder(input: CreateMariaDbOrderInput): Promise<WcOrder | null> {
+  const p = getMariaDbPool();
+  const nowStr = new Date().toISOString().slice(0, 19).replace("T", " ");
+
+  try {
+    const [res] = await p.query<mysql.ResultSetHeader>(
+      `
+      INSERT INTO joy_posts (
+        post_author, post_date, post_date_gmt, post_content, post_title, post_excerpt,
+        post_status, comment_status, ping_status, post_name, post_modified, post_modified_gmt,
+        post_type, to_ping, pinged, post_content_filtered
+      )
+      VALUES (
+        1, ?, ?, '', 'Order', ?,
+        'wc-pending', 'closed', 'closed', ?, ?, ?,
+        'shop_order', '', '', ''
+      )
+    `,
+      [nowStr, nowStr, input.notes || "WhatsApp AI Order", `order-${Date.now()}`, nowStr, nowStr],
+    );
+
+    const orderId = res.insertId;
+
+    const metaValues = [
+      [orderId, "_order_total", String(input.totalAmount)],
+      [orderId, "_billing_first_name", input.customerName],
+      [orderId, "_billing_phone", input.phone],
+      [orderId, "_billing_address_1", input.deliveryAddress || ""],
+      [orderId, "_order_currency", "BDT"],
+    ];
+
+    for (const [pId, k, v] of metaValues) {
+      await p.query("INSERT INTO joy_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)", [
+        pId,
+        k,
+        v,
+      ]);
+    }
+
+    const [itemRes] = await p.query<mysql.ResultSetHeader>(
+      `
+      INSERT INTO joy_woocommerce_order_items (order_item_name, order_item_type, order_id)
+      VALUES (?, 'line_item', ?)
+    `,
+      [input.productName, orderId],
+    );
+
+    const itemId = itemRes.insertId;
+
+    const itemMetaValues = [
+      [itemId, "_qty", String(input.quantity)],
+      [itemId, "_line_total", String(input.totalAmount)],
+      [itemId, "_product_id", String(input.productId || 1)],
+    ];
+
+    for (const [iId, k, v] of itemMetaValues) {
+      await p.query(
+        "INSERT INTO joy_woocommerce_order_itemmeta (order_item_id, meta_key, meta_value) VALUES (?, ?, ?)",
+        [iId, k, v],
+      );
+    }
+
+    const orders = await fetchMariaDbOrders();
+    return orders.find((o) => o.id === orderId) || null;
+  } catch (err) {
+    console.error("Failed to create MariaDB order", err);
+    return null;
+  }
 }
