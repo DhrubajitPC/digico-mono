@@ -15,8 +15,13 @@ services:
       - PORT=8787
       - DB_DATA_DIR=/app/data/db
       - DATABASE_URL=${DATABASE_URL:-}
+      - MARIADB_URL=${MARIADB_URL:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - WHATSAPP_VERIFY_TOKEN=${WHATSAPP_VERIFY_TOKEN}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - DEEPSEEK_MODEL=${DEEPSEEK_MODEL:-deepseek-chat}
+      - WHATSAPP_VERIFY_TOKEN=${WHATSAPP_VERIFY_TOKEN:-}
+      - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN:-}
+      - WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID:-}
     volumes:
       - pglite_data:/app/data/db
     healthcheck:
