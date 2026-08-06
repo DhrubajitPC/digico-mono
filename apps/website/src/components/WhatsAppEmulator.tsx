@@ -65,7 +65,7 @@ export function WhatsAppEmulator() {
   const [isSending, setIsSending] = React.useState<boolean>(false);
   const [isLoadingHistory, setIsLoadingHistory] = React.useState<boolean>(false);
 
-  const [inspectingPayload, setInspectingPayload] = React.useState<unknown | null>(null);
+  const [inspectingPayload, setInspectingPayload] = React.useState<unknown>(null);
   const [showInspector, setShowInspector] = React.useState<boolean>(false);
 
   const chatEndRef = React.useRef<HTMLDivElement>(null);

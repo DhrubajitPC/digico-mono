@@ -4,7 +4,7 @@ packages:
   - tools/*
 
 allowBuilds:
-  esbuild: set this to true or false
+  esbuild: true
 
 catalog:
   "@tailwindcss/vite": ^4.3.3
