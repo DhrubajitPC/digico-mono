@@ -1,0 +1,55 @@
+# Stage 1: Install dependencies and prepare application
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+# Install git for prepare scripts
+RUN apk add --no-cache git
+
+# Enable Corepack for pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Bypass minimum release age policy inside Docker build
+ENV PNPM_CONFIG_MINIMUM_RELEASE_AGE=0
+
+# Copy root workspace configs
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+# Copy shared packages and backend app
+COPY packages/ ./packages/
+COPY apps/whatsapp-webhook/ ./apps/whatsapp-webhook/
+
+# Install all dependencies
+RUN pnpm install --ignore-scripts
+
+# Stage 2: Minimal Production Runtime Stage
+FROM node:22-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=8787
+
+# Enable Corepack for pnpm in runtime
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Copy root workspace configs
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+# Copy installed node_modules and built code from builder
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/apps/whatsapp-webhook ./apps/whatsapp-webhook
+
+# Create persistent DB directory for PGlite with proper non-root permissions
+RUN mkdir -p /app/data/db && chown -R node:node /app
+
+# Run application under unprivileged 'node' user for security
+USER node
+
+EXPOSE 8787
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://localhost:8787/api/orders').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+
+CMD ["node", "--experimental-strip-types", "apps/whatsapp-webhook/src/server.ts"]

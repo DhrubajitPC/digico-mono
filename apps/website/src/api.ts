@@ -1,61 +1,92 @@
-export type MessageStatus = "received" | "completed" | "failed";
-export type MessageKind = "text" | "audio";
-export type ReplyStatus = "sent" | "failed";
+import type { OrderStatusType } from "@digico/design-system";
 
+export type OrderOriginType = "whatsapp_ai" | "manual_sales";
+
+export interface Dealer {
+  id: number;
+  businessName: string;
+  phone: string;
+  contactPerson: string | null;
+  address?: string | null;
+}
+
+export interface Product {
+  id: number;
+  sku: string;
+  brand: string;
+  name: string;
+  category: string;
+  model: string | null;
+  specifications: string | null;
+  unitPrice: number;
+  stockQuantity: number;
+  aliases: string[];
+}
+
+export interface OrderItem {
+  id: number;
+  orderId: number;
+  productId: number | null;
+  sku: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+export interface OrderHistoryItem {
+  id: number;
+  orderId: number;
+  previousStatus: OrderStatusType | null;
+  newStatus: OrderStatusType;
+  changedBy: string;
+  reason: string | null;
+  createdAt: string;
+}
+
+export interface Order {
+  id: number;
+  orderNumber: string;
+  dealer: Dealer;
+  status: OrderStatusType;
+  origin: OrderOriginType;
+  totalAmount: number;
+  notes: string | null;
+  proposedMessage: string | null;
+  approvedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: OrderItem[];
+  history?: OrderHistoryItem[];
+}
+
+export interface ListOrdersResult {
+  items: Order[];
+  total: number;
+  counts: Record<string, number>;
+}
+
+export interface ListOrdersParams {
+  status?: string;
+  origin?: string;
+  search?: string;
+}
+
+// Log Messages Types (for Message Log tab)
 export interface LogMessage {
   id: number;
   messageId: string;
   fromPhone: string;
   contactName: string | null;
-  kind: MessageKind;
+  kind: "text" | "audio";
   rawPayload: unknown;
   inboundText: string | null;
   transcript: string | null;
   resolvedText: string | null;
-  status: MessageStatus;
+  status: "received" | "completed" | "failed";
   error: string | null;
   receivedAt: string;
   completedAt: string | null;
-}
-
-export interface AiCall {
-  id: number;
-  messageId: number;
-  provider: string;
-  model: string;
-  requestMessages: unknown;
-  responseText: string | null;
-  error: string | null;
-  latencyMs: number;
-  createdAt: string;
-}
-
-export interface OutboundReply {
-  id: number;
-  messageId: number;
-  toPhone: string;
-  replyText: string;
-  status: ReplyStatus;
-  error: string | null;
-  sentAt: string;
-}
-
-export interface MessageDetail {
-  message: LogMessage;
-  aiCalls: AiCall[];
-  outboundReplies: OutboundReply[];
-}
-
-export interface ListMessagesResult {
-  items: LogMessage[];
-  total: number;
-}
-
-export interface ListFilters {
-  phone?: string;
-  status?: MessageStatus;
-  limit?: number;
-  offset?: number;
 }
 
 async function getJson<T>(url: string): Promise<T> {
@@ -66,16 +97,130 @@ async function getJson<T>(url: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function listMessages(filters: ListFilters = {}): Promise<ListMessagesResult> {
-  const params = new URLSearchParams();
-  if (filters.phone) params.set("phone", filters.phone);
-  if (filters.status) params.set("status", filters.status);
-  if (filters.limit !== undefined) params.set("limit", String(filters.limit));
-  if (filters.offset !== undefined) params.set("offset", String(filters.offset));
-  const query = params.toString();
-  return getJson<ListMessagesResult>(`/api/messages${query ? `?${query}` : ""}`);
+async function sendJson<T>(
+  url: string,
+  method: "POST" | "PATCH" | "PUT",
+  body: unknown,
+): Promise<T> {
+  const response = await fetch(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(`Request to ${url} failed with ${response.status}`);
+  }
+  return response.json() as Promise<T>;
 }
 
-export function getMessageDetail(id: number): Promise<MessageDetail> {
-  return getJson<MessageDetail>(`/api/messages/${id}`);
+// API functions
+export function listOrders(params: ListOrdersParams = {}): Promise<ListOrdersResult> {
+  const search = new URLSearchParams();
+  if (params.status && params.status !== "all") search.set("status", params.status);
+  if (params.origin) search.set("origin", params.origin);
+  if (params.search) search.set("search", params.search);
+  const query = search.toString();
+  return getJson<ListOrdersResult>(`/api/orders${query ? `?${query}` : ""}`);
+}
+
+export function getOrder(id: number): Promise<Order> {
+  return getJson<Order>(`/api/orders/${id}`);
+}
+
+export function createOrder(data: {
+  dealerId: number;
+  origin?: OrderOriginType;
+  notes?: string;
+  items: Array<{
+    productId?: number;
+    sku: string;
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+  }>;
+}): Promise<Order> {
+  return sendJson<Order>("/api/orders", "POST", data);
+}
+
+export function updateOrder(
+  id: number,
+  data: {
+    notes?: string;
+    proposedMessage?: string;
+    items?: Array<{
+      productId?: number;
+      sku: string;
+      productName: string;
+      quantity: number;
+      unitPrice: number;
+    }>;
+  },
+): Promise<Order> {
+  return sendJson<Order>(`/api/orders/${id}`, "PATCH", data);
+}
+
+export function updateOrderStatus(
+  id: number,
+  status: OrderStatusType,
+  reason?: string,
+  proposedMessage?: string,
+): Promise<Order> {
+  return sendJson<Order>(`/api/orders/${id}/status`, "POST", { status, reason, proposedMessage });
+}
+
+export function bulkUpdateOrderStatus(
+  orderIds: number[],
+  status: OrderStatusType,
+  reason?: string,
+): Promise<{ success: boolean; count: number }> {
+  return sendJson<{ success: boolean; count: number }>("/api/orders/bulk-status", "POST", {
+    orderIds,
+    status,
+    reason,
+  });
+}
+
+export function listProducts(): Promise<Product[]> {
+  return getJson<Product[]>("/api/products");
+}
+
+export function listDealers(): Promise<Dealer[]> {
+  return getJson<Dealer[]>("/api/dealers");
+}
+
+export function listMessages(): Promise<{ items: LogMessage[]; total: number }> {
+  return getJson<{ items: LogMessage[]; total: number }>("/api/messages");
+}
+
+export interface EmulatorChatMessage {
+  id: number;
+  role: "user" | "assistant";
+  text: string;
+  timestamp: string;
+  model?: string;
+  latencyMs?: number;
+  status?: string;
+  error?: string | null;
+  rawPayload?: unknown;
+}
+
+export function sendEmulatorMessage(data: {
+  fromPhone: string;
+  contactName?: string;
+  text: string;
+}): Promise<{ success: boolean; messageId: string; metaPayload: unknown }> {
+  return sendJson<{ success: boolean; messageId: string; metaPayload: unknown }>(
+    "/api/emulator/send",
+    "POST",
+    data,
+  );
+}
+
+export function getEmulatorChat(
+  phone: string,
+): Promise<{ fromPhone: string; messages: EmulatorChatMessage[] }> {
+  const params = new URLSearchParams({ phone });
+  return getJson<{ fromPhone: string; messages: EmulatorChatMessage[] }>(
+    `/api/emulator/chat?${params.toString()}`,
+  );
 }

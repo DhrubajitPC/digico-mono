@@ -38,5 +38,9 @@ export.sql
 .env.*
 !.env.example
 
+# Local database data
+data/
+apps/whatsapp-webhook/data/
+
 # Local pnpm store
 .pnpm-store/

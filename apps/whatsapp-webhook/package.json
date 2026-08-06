@@ -8,11 +8,13 @@
     "start": "node --env-file=.env --experimental-strip-types src/server.ts",
     "test": "vp test",
     "check": "vp check",
+    "seed": "node --env-file=.env --experimental-strip-types src/db/seed.ts",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.3",
     "drizzle-orm": "^0.44.2",
+    "mysql2": "^3.12.0",
     "pg": "^8.16.0"
   },
   "devDependencies": {

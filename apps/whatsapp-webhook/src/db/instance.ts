@@ -16,13 +16,19 @@ async function connect(): Promise<Db> {
     return client as unknown as Db;
   }
   // No Postgres server configured — file-backed PGlite needs no setup.
-  return createFilePgliteDb(process.env.DB_DATA_DIR ?? "./data/db");
+  return await createFilePgliteDb(process.env.DB_DATA_DIR ?? "./data/db");
 }
 
 let dbPromise: Promise<Db> | undefined;
 
 /** Lazily-created singleton DB connection for this process. */
-export function getDb(): Promise<Db> {
-  dbPromise ??= connect();
+export async function getDb(): Promise<Db> {
+  if (!dbPromise) {
+    dbPromise = connect().then(async (db) => {
+      const { seedInitialOrdersData } = await import("../api-orders.ts");
+      await seedInitialOrdersData(db);
+      return db;
+    });
+  }
   return dbPromise;
 }

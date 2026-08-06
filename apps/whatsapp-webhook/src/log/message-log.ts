@@ -202,3 +202,58 @@ export async function getMessageDetail(db: Db, id: number): Promise<MessageDetai
 
   return { message, aiCalls: calls, outboundReplies: replies };
 }
+
+export async function getRecentConversationHistory(
+  db: Db,
+  fromPhone: string,
+  limit = 8,
+): Promise<Array<{ role: "user" | "assistant"; content: string }>> {
+  const recentMsgs = await db
+    .select()
+    .from(messages)
+    .where(eq(messages.fromPhone, fromPhone))
+    .orderBy(desc(messages.receivedAt), desc(messages.id))
+    .limit(limit);
+
+  if (recentMsgs.length === 0) return [];
+
+  const historyItems: Array<{
+    time: Date;
+    id: number;
+    role: "user" | "assistant";
+    content: string;
+  }> = [];
+
+  for (const m of recentMsgs) {
+    const text = m.resolvedText || m.inboundText;
+    if (text && text.trim().length > 0) {
+      historyItems.push({
+        time: m.receivedAt,
+        id: m.id,
+        role: "user",
+        content: text.trim(),
+      });
+    }
+
+    const replies = await db
+      .select()
+      .from(outboundReplies)
+      .where(eq(outboundReplies.messageId, m.id))
+      .orderBy(outboundReplies.sentAt);
+
+    for (const r of replies) {
+      if (r.replyText && r.replyText.trim().length > 0) {
+        historyItems.push({
+          time: r.sentAt,
+          id: r.id,
+          role: "assistant",
+          content: r.replyText.trim(),
+        });
+      }
+    }
+  }
+
+  historyItems.sort((a, b) => a.time.getTime() - b.time.getTime() || a.id - b.id);
+
+  return historyItems.map((h) => ({ role: h.role, content: h.content }));
+}

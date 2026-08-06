@@ -1,0 +1,280 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-27T00:00:00.000Z",
+  "title": "Design System: Digico Sales Admin & Order Dashboard",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Digico Red",
+        "canonical": "#ec2839",
+        "tonalRamp": [
+          "#fef2f3",
+          "#fde3e5",
+          "#fbc9cd",
+          "#f7a3a9",
+          "#f26e77",
+          "#ec2839",
+          "#d41f30",
+          "#b01825"
+        ]
+      },
+      "destructive": {
+        "role": "danger",
+        "displayName": "Reject Red",
+        "canonical": "#dc2626",
+        "tonalRamp": [
+          "#fef2f2",
+          "#fee2e2",
+          "#fecaca",
+          "#fca5a5",
+          "#f87171",
+          "#dc2626",
+          "#b91c1c",
+          "#991b1b"
+        ]
+      },
+      "success": {
+        "role": "success",
+        "displayName": "Approve Emerald",
+        "canonical": "#059669",
+        "tonalRamp": [
+          "#ecfdf5",
+          "#d1fae5",
+          "#a7f3d0",
+          "#6ee7b7",
+          "#34d399",
+          "#10b981",
+          "#059669",
+          "#047857"
+        ]
+      },
+      "warning": {
+        "role": "warning",
+        "displayName": "Hold Amber",
+        "canonical": "#f59e0b",
+        "tonalRamp": [
+          "#fffbeb",
+          "#fef3c7",
+          "#fde68a",
+          "#fcd34d",
+          "#fbbf24",
+          "#f59e0b",
+          "#d97706",
+          "#b45309"
+        ]
+      },
+      "neutral-bg": {
+        "role": "neutral",
+        "displayName": "Page Gray",
+        "canonical": "#f9fafb",
+        "tonalRamp": [
+          "#ffffff",
+          "#f9fafb",
+          "#f3f4f6",
+          "#e5e7eb",
+          "#d1d5db",
+          "#9ca3af",
+          "#6b7280",
+          "#374151"
+        ]
+      },
+      "status-draft": { "role": "status", "displayName": "Draft Gray", "canonical": "#9ca3af" },
+      "status-pending-review": {
+        "role": "status",
+        "displayName": "Pending Amber",
+        "canonical": "#f59e0b"
+      },
+      "status-confirmed": {
+        "role": "status",
+        "displayName": "Confirmed Emerald",
+        "canonical": "#10b981"
+      },
+      "status-on-hold": {
+        "role": "status",
+        "displayName": "On-Hold Orange",
+        "canonical": "#f97316"
+      },
+      "status-processing": {
+        "role": "status",
+        "displayName": "Processing Blue",
+        "canonical": "#3b82f6"
+      },
+      "status-completed": {
+        "role": "status",
+        "displayName": "Completed Teal",
+        "canonical": "#0d9488"
+      },
+      "status-cancelled": {
+        "role": "status",
+        "displayName": "Cancelled Rose",
+        "canonical": "#f43f5e"
+      }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Title", "purpose": "Page-level H1 only. One per view." },
+      "heading": {
+        "displayName": "Heading",
+        "purpose": "Drawer/dialog titles, major section headers."
+      },
+      "label": {
+        "displayName": "Eyebrow Label",
+        "purpose": "Bold uppercase tracked-out section label; the system's signature typographic device."
+      },
+      "body": { "displayName": "Body", "purpose": "Form labels, descriptions, standalone prose." },
+      "data": {
+        "displayName": "Data",
+        "purpose": "Dominant size in tables, toolbars, and meta text. Density over comfort."
+      },
+      "micro": {
+        "displayName": "Micro",
+        "purpose": "One step below Data, for annotation under a primary line: phone numbers, SKUs, chat-bubble labels, compact pills."
+      }
+    },
+    "shadows": [
+      {
+        "name": "flat",
+        "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+        "purpose": "shadow-xs; the default (and usually only) shadow on cards, toolbars, table wrappers."
+      },
+      {
+        "name": "overlay-menu",
+        "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+        "purpose": "shadow-lg; dropdown menus."
+      },
+      {
+        "name": "overlay-modal",
+        "value": "0 25px 50px -12px rgb(0 0 0 / 0.25)",
+        "purpose": "shadow-2xl; dialogs and drawers, the only surfaces allowed real elevation."
+      }
+    ],
+    "motion": [
+      {
+        "name": "transition-standard",
+        "value": "150ms ease",
+        "purpose": "Default hover/focus color transitions on buttons, links, table rows, tabs."
+      },
+      {
+        "name": "overlay-fade-in",
+        "value": "fade-in-0 (tailwindcss-animate)",
+        "purpose": "Entrance animation for dialogs and dropdown menus."
+      }
+    ],
+    "breakpoints": [
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Default/identity action — the button used for the single most important action on a screen.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Add order</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-family: 'Albert Sans', system-ui, sans-serif; font-size: 16px; font-weight: 500; transition: background-color 0.15s ease; } .ds-btn-primary { background: #ec2839; color: #ffffff; } .ds-btn-primary:hover { background: #d41f30; } .ds-btn-primary:focus-visible { outline: 2px solid #ec2839; outline-offset: 2px; }"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "Reject / Cancel actions only — never shares a hue with the primary brand red.",
+      "html": "<button class=\"ds-btn ds-btn-destructive\">Reject / Cancel</button>",
+      "css": ".ds-btn-destructive { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-family: 'Albert Sans', system-ui, sans-serif; font-size: 16px; font-weight: 500; background: #dc2626; color: #ffffff; transition: background-color 0.15s ease; } .ds-btn-destructive:hover { background: #b91c1c; } .ds-btn-destructive:focus-visible { outline: 2px solid #dc2626; outline-offset: 2px; }"
+    },
+    {
+      "name": "Success Button",
+      "kind": "button",
+      "refersTo": "button-success",
+      "description": "Approve & Confirm action only.",
+      "html": "<button class=\"ds-btn ds-btn-success\">Approve & Confirm</button>",
+      "css": ".ds-btn-success { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-family: 'Albert Sans', system-ui, sans-serif; font-size: 16px; font-weight: 500; background: #059669; color: #ffffff; transition: background-color 0.15s ease; } .ds-btn-success:hover { background: #047857; } .ds-btn-success:focus-visible { outline: 2px solid #059669; outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-status-confirmed",
+      "description": "Signature order-lifecycle badge — soft-tinted pill plus a solid dot in the same hue. Seven states share this shape.",
+      "html": "<span class=\"ds-status-badge ds-status-confirmed\"><span class=\"ds-status-dot\"></span>Confirmed</span>",
+      "css": ".ds-status-badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; border: 1px solid transparent; padding: 2px 10px; font-family: 'Albert Sans', system-ui, sans-serif; font-size: 14px; font-weight: 600; } .ds-status-dot { width: 6px; height: 6px; border-radius: 9999px; } .ds-status-confirmed { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; } .ds-status-confirmed .ds-status-dot { background: #10b981; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The repeating surface unit — reused identically for panels, toolbars, and table wrappers.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-header\"><h3 class=\"ds-card-title\">Card title</h3></div><div class=\"ds-card-content\">Card content goes here.</div></div>",
+      "css": ".ds-card { border-radius: 8px; border: 1px solid #e5e7eb; background: #ffffff; } .ds-card-header { padding: 24px 24px 0; } .ds-card-title { font-family: 'Albert Sans', system-ui, sans-serif; font-size: 30px; font-weight: 600; color: #111827; margin: 0; } .ds-card-content { padding: 24px; font-family: 'Albert Sans', system-ui, sans-serif; font-size: 16px; color: #374151; }"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Text field — Digico Red appears only as a focus ring, never as a border color change.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Search orders...\" />",
+      "css": ".ds-input { height: 36px; width: 100%; border-radius: 6px; border: 1px solid #d1d5db; background: #ffffff; padding: 4px 12px; font-family: 'Albert Sans', system-ui, sans-serif; font-size: 16px; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); } .ds-input::placeholder { color: #9ca3af; } .ds-input:focus { outline: none; box-shadow: 0 0 0 1px #ec2839; } .ds-input:disabled { cursor: not-allowed; opacity: 0.5; }"
+    },
+    {
+      "name": "Dialog",
+      "kind": "custom",
+      "refersTo": "dialog",
+      "description": "Centered modal — rounded-xl is the one place in the system with a softer, more prominent corner.",
+      "html": "<div class=\"ds-dialog-overlay\"><div class=\"ds-dialog\"><button class=\"ds-dialog-close\" aria-label=\"Close\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"18\" y1=\"6\" x2=\"6\" y2=\"18\"></line><line x1=\"6\" y1=\"6\" x2=\"18\" y2=\"18\"></line></svg></button><h2 class=\"ds-dialog-title\">Create Manual Sales Order</h2><p class=\"ds-dialog-description\">Record an order taken over a phone call, WhatsApp direct message, or in-person visit.</p></div></div>",
+      "css": ".ds-dialog-overlay { position: relative; display: flex; align-items: center; justify-content: center; background: rgb(0 0 0 / 0.5); backdrop-filter: blur(2px); padding: 16px; border-radius: 8px; } .ds-dialog { position: relative; width: 100%; max-width: 420px; border-radius: 12px; background: #ffffff; padding: 24px; box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25); border: 1px solid #f3f4f6; } .ds-dialog-close { position: absolute; top: 16px; right: 16px; padding: 6px; border-radius: 6px; border: none; background: transparent; color: #9ca3af; cursor: pointer; } .ds-dialog-close:hover { background: #f3f4f6; color: #4b5563; } .ds-dialog-title { font-family: 'Albert Sans', system-ui, sans-serif; font-size: 24px; font-weight: 700; color: #111827; margin: 0; padding-right: 40px; } .ds-dialog-description { margin-top: 4px; font-family: 'Albert Sans', system-ui, sans-serif; font-size: 16px; color: #6b7280; }"
+    },
+    {
+      "name": "Drawer",
+      "kind": "custom",
+      "refersTo": "drawer",
+      "description": "Right-side slide-over used for the Order Review detail view — the system's primary detail pattern.",
+      "html": "<div class=\"ds-drawer-overlay\"><div class=\"ds-drawer\"><div class=\"ds-drawer-header\"><div><h2 class=\"ds-drawer-title\">ORD-1042 — ABC Computers</h2><p class=\"ds-drawer-subtitle\">Created via WhatsApp AI</p></div><button class=\"ds-drawer-close\" aria-label=\"Close\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"18\" y1=\"6\" x2=\"6\" y2=\"18\"></line><line x1=\"6\" y1=\"6\" x2=\"18\" y2=\"18\"></line></svg></button></div><div class=\"ds-drawer-body\">Drawer content goes here.</div></div></div>",
+      "css": ".ds-drawer-overlay { position: relative; background: rgb(0 0 0 / 0.4); backdrop-filter: blur(2px); border-radius: 8px; overflow: hidden; } .ds-drawer { position: relative; margin-left: auto; width: 100%; max-width: 420px; background: #ffffff; box-shadow: -8px 0 32px rgb(0 0 0 / 0.2); border-left: 1px solid #e5e7eb; display: flex; flex-direction: column; } .ds-drawer-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e5e7eb; background: rgb(249 250 251 / 0.5); padding: 16px 24px; } .ds-drawer-title { font-family: 'Albert Sans', system-ui, sans-serif; font-size: 20px; font-weight: 700; color: #111827; margin: 0; } .ds-drawer-subtitle { font-family: 'Albert Sans', system-ui, sans-serif; font-size: 14px; color: #6b7280; margin: 0; } .ds-drawer-close { padding: 6px; border-radius: 6px; border: none; background: transparent; color: #9ca3af; cursor: pointer; } .ds-drawer-close:hover { background: #f3f4f6; color: #4b5563; } .ds-drawer-body { flex: 1; overflow-y: auto; padding: 24px; font-family: 'Albert Sans', system-ui, sans-serif; font-size: 16px; color: #374151; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Verification Desk",
+    "overview": "Every screen exists so one person can confirm what an AI already drafted — quickly, and with enough evidence on screen to trust the confirmation. The system reads as efficient, precise, and quietly confident: dense information, tiny type, almost no ornament, and exactly one accent color spent on the things that matter (identity, the active tab, the number that's about to be approved). Nothing here is trying to persuade or delight a first-time visitor; it's built for the same small ops team using it dozens of times a day. The system borrows exactly two things from Digico's public storefront (digico.com.bd) — the brand red and the Albert Sans typeface — and rebuilds everything else (radius, shadow, spacing, layout) as its own compact, utilitarian internal language.",
+    "keyCharacteristics": [
+      "One brand accent (Digico Red), spent sparingly, never as a large fill",
+      "A precise, business-meaning-driven color vocabulary — every non-neutral color maps to one specific status or action, never decoration",
+      "Flat surfaces everywhere except overlays, which get real shadow and a blurred scrim",
+      "A single typeface carrying the entire hierarchy through size, weight, and case alone",
+      "Tables and dense grids are the default content type, not the exception"
+    ],
+    "rules": [
+      {
+        "name": "The Two Reds Rule",
+        "body": "Digico Red (#ec2839) marks identity and primary action. A separate red (#dc2626) marks destructive/danger actions. They never swap roles.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Signal Rule",
+        "body": "Non-neutral color always maps to one specific status or business action. No color exists purely for visual variety.",
+        "section": "colors"
+      },
+      {
+        "name": "The Eyebrow Rule",
+        "body": "Every distinct content region gets a bold, uppercase, letter-spaced 12px label before its content — never a plain unstyled heading.",
+        "section": "typography"
+      },
+      {
+        "name": "The Overlay-Only Elevation Rule",
+        "body": "Shadow escalates only for content that must visually separate from the page (modals, drawers, menus). Every other surface stays flat.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do reserve Digico Red (#ec2839) for identity, active state, primary action, and the one most important number on a screen — never a large fill.",
+      "Do give every distinct content region a bold, uppercase, 12px tracked-out eyebrow label before its content (The Eyebrow Rule).",
+      "Do tie button and badge color strictly to business meaning — emerald = approve, amber = hold, red-600 = reject — never swapped for visual variety (The One Signal Rule).",
+      "Do keep tables and dense views at the 12px data size; reserve 14px+ for standalone prose, form labels, and page titles only.",
+      "Do escalate shadow only for overlay content (dialogs, drawers, menus); keep every other surface flat."
+    ],
+    "donts": [
+      "Don't introduce a second accent hue. The system has exactly one brand accent (Digico Red) plus the fixed semantic set (emerald/amber/blue/orange/teal/rose/gray) — no new decorative colors.",
+      "Don't use Digico Red for destructive actions; destructive stays on red-600/700 so the two reds never compete for meaning (The Two Reds Rule).",
+      "Don't add imagery, illustration, or the storefront's larger display type — the 38px/26px marketing scale in design-system/tokens.* belongs to the public digico.com.bd site, not this admin console.",
+      "Don't reach for the raw design-system/tokens.* radius or shadow values (12/20/35px radii; ambient shadow scale). The implemented system already committed to its own, tighter radius (6/8/12px) and shadow (flat-by-default) scales instead."
+    ]
+  }
+}

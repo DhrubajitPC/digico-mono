@@ -3,21 +3,34 @@ packages:
   - packages/*
   - tools/*
 
-catalogMode: prefer
+allowBuilds:
+  esbuild: true
 
 catalog:
   "@tailwindcss/vite": ^4.3.3
   "@types/node": ^24
+  "@types/react": ^19.0.0
+  "@types/react-dom": ^19.0.0
+  "@vitejs/plugin-react": ^4.3.4
+  class-variance-authority: ^0.7.1
+  clsx: ^2.1.1
+  lucide-react: ^0.475.0
+  playwright: 1.62.0
+  react: ^19.0.0
+  react-dom: ^19.0.0
+  tailwind-merge: ^3.0.1
   tailwindcss: ^4.3.3
   typescript: ^5
   vite: npm:@voidzero-dev/vite-plus-core@0.2.4
   vite-plus: 0.2.4
+
+catalogMode: prefer
+
 overrides:
   vite: "catalog:"
+
 peerDependencyRules:
   allowAny:
     - vite
   allowedVersions:
     vite: "*"
-allowBuilds:
-  esbuild: set this to true or false
