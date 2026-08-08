@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Digico Lean Production Deployment Script (RHEL / Enterprise Linux Compatible)
+# Digico Lean Docker Production Deployment Script
 set -euo pipefail
 
 echo "========================================="
@@ -22,25 +22,12 @@ fi
 
 # 2. Build and launch containers
 echo "[1/2] Building and starting Docker containers..."
-if command -v docker &>/dev/null && docker compose version &>/dev/null; then
-    docker compose up -d --build
-elif command -v docker-compose &>/dev/null; then
-    docker-compose up -d --build
-elif command -v podman-compose &>/dev/null; then
-    podman-compose up -d --build
-else
-    echo "[!] Error: Neither 'docker compose' nor 'podman-compose' was found."
-    exit 1
-fi
+docker compose up -d --build
 
 # 3. Verify status
 echo "[2/2] Checking container health..."
 sleep 3
-if command -v docker &>/dev/null && docker compose version &>/dev/null; then
-    docker compose ps
-elif command -v podman-compose &>/dev/null; then
-    podman-compose ps
-fi
+docker compose ps
 
 echo "========================================="
 echo "   SUCCESS: Digico Container Deploy Complete!"
