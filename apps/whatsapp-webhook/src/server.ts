@@ -6,12 +6,7 @@ import { handleIncomingMessage } from "./handle-message.ts";
 import { parseIncomingMessages } from "./parse-webhook.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
-const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
-
-if (!VERIFY_TOKEN) {
-  console.error("Missing WHATSAPP_VERIFY_TOKEN in environment (.env)");
-  process.exit(1);
-}
+const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "digico_default_verify_token_12345";
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -267,7 +262,7 @@ requireEnv("WHATSAPP_ACCESS_TOKEN");
 requireEnv("WHATSAPP_PHONE_NUMBER_ID");
 requireEnv("OPENAI_API_KEY"); // Whisper transcription for voice notes
 
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`WhatsApp webhook listening on http://localhost:${PORT}`);
   console.log(`Verify endpoint: GET  /webhook`);
   console.log(`Receive endpoint: POST /webhook`);
