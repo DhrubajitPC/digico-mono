@@ -62,7 +62,7 @@ check-fix:
 build:
 	pnpm --filter website build
 
-## seed: Populate database with initial seed data (dealers, products, sample orders)
+## seed: Populate MariaDB database with WooCommerce export.sql seed data
 seed:
 	pnpm --filter whatsapp-webhook seed
 
