@@ -16,16 +16,24 @@ NODE_ENV=production
 WHATSAPP_VERIFY_TOKEN=$(openssl rand -hex 16 2>/dev/null || echo "digico_secret_$(date +%s)")
 OPENAI_API_KEY=${OPENAI_API_KEY:-}
 DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+MARIADB_URL=mysql://wp:wp@mariadb:3306/woocommerce_local
 EOF
     echo "[+] Created production .env file."
 fi
 
-# 2. Build and launch containers
+# 2. MariaDB Seed Directory Setup
+mkdir -p data/mariadb-init
+if [ -f export.sql ] && [ ! -f data/mariadb-init/export.sql ]; then
+    echo "[+] Linking export.sql into data/mariadb-init/ for container database seed..."
+    cp -s "$(pwd)/export.sql" data/mariadb-init/export.sql 2>/dev/null || cp export.sql data/mariadb-init/export.sql || true
+fi
+
+# 3. Build and launch containers
 echo "[1/2] Building and starting Docker containers..."
 docker compose up -d --build
 
-# 3. Verify status
-echo "[2/2] Checking container status..."
+# 4. Verify status
+echo "[2/2] Checking container health..."
 docker compose ps
 
 echo "========================================="
