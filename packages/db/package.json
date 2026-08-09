@@ -10,7 +10,7 @@
   },
   "scripts": {
     "check": "vp check",
-    "seed": "node --env-file=../../.env --env-file=.env --experimental-strip-types src/seed.ts"
+    "seed": "node --env-file=../../.env --experimental-strip-types src/seed.ts"
   },
   "dependencies": {
     "mysql2": "^3.12.0"

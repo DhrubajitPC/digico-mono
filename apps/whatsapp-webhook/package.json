@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --env-file=../../.env --env-file=.env --experimental-strip-types --watch src/server.ts",
-    "start": "node --env-file=../../.env --env-file=.env --experimental-strip-types src/server.ts",
+    "dev": "node --env-file=../../.env --experimental-strip-types --watch src/server.ts",
+    "start": "node --env-file=../../.env --experimental-strip-types src/server.ts",
     "test": "vp test",
     "check": "vp check",
     "seed": "pnpm --filter @digico/db seed"
