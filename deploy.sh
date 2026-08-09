@@ -16,7 +16,9 @@ NODE_ENV=production
 WHATSAPP_VERIFY_TOKEN=$(openssl rand -hex 16 2>/dev/null || echo "digico_secret_$(date +%s)")
 OPENAI_API_KEY=${OPENAI_API_KEY:-}
 DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
-MARIADB_URL=mysql://wp:wp@mariadb:3306/woocommerce_local
+MARIADB_USER=${MARIADB_USER:-wp}
+MARIADB_PASSWORD=${MARIADB_PASSWORD:-wp}
+MARIADB_DATABASE=${MARIADB_DATABASE:-woocommerce_local}
 EOF
     echo "[+] Created production .env file."
 fi

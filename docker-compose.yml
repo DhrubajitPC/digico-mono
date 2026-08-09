@@ -47,7 +47,7 @@ services:
       - PORT=8787
       - DB_DATA_DIR=/app/data/db
       - DATABASE_URL=${DATABASE_URL:-}
-      - MARIADB_URL=${MARIADB_URL:-mysql://wp:wp@mariadb:3306/woocommerce_local}
+      - MARIADB_URL=${MARIADB_URL:-mysql://${MARIADB_USER:-wp}:${MARIADB_PASSWORD:-wp}@mariadb:3306/${MARIADB_DATABASE:-woocommerce_local}}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - DEEPSEEK_MODEL=${DEEPSEEK_MODEL:-deepseek-chat}
