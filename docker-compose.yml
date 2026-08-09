@@ -8,6 +8,8 @@ services:
     restart: unless-stopped
     ports:
       - "3307:3306"
+    env_file:
+      - .env
     environment:
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root}
       MARIADB_DATABASE: ${MARIADB_DATABASE:-woocommerce_local}
@@ -42,9 +44,11 @@ services:
     depends_on:
       mariadb:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
-      - NODE_ENV=production
-      - PORT=8787
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${PORT:-8787}
       - DB_DATA_DIR=/app/data/db
       - DATABASE_URL=${DATABASE_URL:-}
       - MARIADB_URL=${MARIADB_URL:-mysql://${MARIADB_USER:-wp}:${MARIADB_PASSWORD:-wp}@mariadb:3306/${MARIADB_DATABASE:-woocommerce_local}}
