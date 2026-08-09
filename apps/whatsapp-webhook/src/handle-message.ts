@@ -177,13 +177,13 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
     return;
   }
 
-  // Step 2: RAG Catalog Search (Retrieve top 3-5 candidate products for compressed LLM prompt)
+  // Step 2: RAG Catalog Search (Retrieve top candidate products for compressed LLM prompt)
   let productsList: any[] = [];
   let dealerInfo: any = null;
 
   try {
     if (await isMariaDbAvailable()) {
-      productsList = await searchMariaDbProducts(userText, 5);
+      productsList = await searchMariaDbProducts(userText, 10);
       const mariaOrders = await fetchMariaDbOrders();
       const matchOrder = mariaOrders.find((o) => o.dealer.phone === message.from);
       if (matchOrder) {

@@ -284,37 +284,61 @@ export async function fetchMariaDbProducts(): Promise<WcProduct[]> {
   }));
 }
 
-/** RAG Search: Retrieve top 3-5 candidate products matching user query keywords for compressed LLM prompt */
-export async function searchMariaDbProducts(userQuery: string, limit = 5): Promise<WcProduct[]> {
+/** RAG Search: Retrieve top candidate products matching user query keywords for compressed LLM prompt */
+export async function searchMariaDbProducts(userQuery: string, limit = 10): Promise<WcProduct[]> {
   const all = await fetchMariaDbProducts();
   if (!userQuery || userQuery.trim().length === 0) {
     return all.slice(0, limit);
   }
 
+  const stopWords = new Set([
+    "what",
+    "is",
+    "the",
+    "current",
+    "stock",
+    "price",
+    "and",
+    "for",
+    "with",
+    "want",
+    "need",
+    "order",
+    "units",
+    "please",
+    "have",
+    "has",
+    "you",
+    "your",
+    "are",
+    "any",
+    "some",
+    "can",
+    "er",
+    "ki",
+    "ponno",
+    "ache",
+    "koto",
+    "dam",
+    "dami",
+    "dorkar",
+    "lagbe",
+    "nibo",
+    "khujchi",
+    "chaichilam",
+    "apnader",
+    "kache",
+    "bhai",
+    "sir",
+    "kono",
+    "somoy",
+  ]);
+
   const terms = userQuery
     .toLowerCase()
-    .replace(/[^\w\s]/g, "")
+    .replace(/[^\w\s]/g, " ")
     .split(/\s+/)
-    .filter(
-      (t) =>
-        t.length > 2 &&
-        ![
-          "what",
-          "is",
-          "the",
-          "current",
-          "stock",
-          "price",
-          "and",
-          "for",
-          "with",
-          "want",
-          "need",
-          "order",
-          "units",
-          "please",
-        ].includes(t),
-    );
+    .filter((t) => t.length >= 2 && !stopWords.has(t));
 
   if (terms.length === 0) {
     return all.slice(0, limit);
