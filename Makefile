@@ -1,24 +1,30 @@
-.PHONY: dev frontend backend test-e2e check check-fix build clean-db docker-up docker-down docker-logs docker-ps help
+.PHONY: dev frontend backend mariadb-up mariadb-logs test-e2e check check-fix build seed clean-db deploy docker-up docker-down docker-logs docker-ps help
 
 # Default target
 .DEFAULT_GOAL := help
 
 ## help: Display available Makefile commands
 help:
-	@echo "Available commands:"
-	@echo "  make dev          - Run both backend API (8787) and frontend web app (5173) locally"
+	@echo "====================================================================="
+	@echo "   Digico B2B WhatsApp Platform Makefile Commands"
+	@echo "====================================================================="
+	@echo "  make dev          - Run both backend API (8787) & frontend app (5173)"
 	@echo "  make backend      - Run Fastify backend API dev server"
 	@echo "  make frontend     - Run React 19 frontend web app dev server"
-	@echo "  make test-e2e     - Run Playwright end-to-end visual tests"
-	@echo "  make check        - Run linting, formatting, and typechecking across monorepo"
-	@echo "  make check-fix    - Auto-fix formatting and linting issues"
-	@echo "  make build        - Build production bundle for website"
-	@echo "  make clean-db     - Reset local PGlite database"
-	@echo "  make deploy       - Execute automated production server deployment script"
-	@echo "  make docker-up    - Build and launch production Docker containers"
-	@echo "  make docker-down  - Stop and remove Docker containers"
-	@echo "  make docker-logs  - Follow production Docker container logs"
-	@echo "  make docker-ps    - List running Docker container status"
+	@echo "  make mariadb-up   - Start local MariaDB container (port 3307)"
+	@echo "  make mariadb-logs - View live MariaDB container logs"
+	@echo "  make check        - Run monorepo formatting, linting, & typechecking"
+	@echo "  make check-fix    - Auto-fix formatting and linting issues across monorepo"
+	@echo "  make build        - Build frontend production bundle"
+	@echo "  make seed         - Populate database with initial seed data"
+	@echo "  make clean-db     - Reset local PGlite database data"
+	@echo "  make test-e2e     - Run Playwright E2E visual test suite"
+	@echo "  make deploy       - Execute production deployment script"
+	@echo "  make docker-up    - Build & launch all containers (MariaDB, Backend, Frontend)"
+	@echo "  make docker-down  - Stop all running containers"
+	@echo "  make docker-logs  - Stream live logs from all Docker containers"
+	@echo "  make docker-ps    - List running container status"
+	@echo "====================================================================="
 
 ## dev: Run both backend and frontend concurrently
 dev:
@@ -32,17 +38,25 @@ backend:
 frontend:
 	pnpm --filter website dev
 
+## mariadb-up: Launch MariaDB container with docker compose
+mariadb-up:
+	docker compose up -d mariadb
+
+## mariadb-logs: Stream logs from MariaDB container
+mariadb-logs:
+	docker compose logs -f mariadb
+
 ## test-e2e: Run Playwright E2E visual test script
 test-e2e:
 	node run-playwright-test.js
 
-## check: Run Vite+ checks (formatting, linting, typechecking)
+## check: Run Vite+ checks across monorepo packages (formatting, linting, typechecking)
 check:
-	pnpm exec vp check
+	pnpm --filter whatsapp-webhook check && pnpm --filter website exec vp check
 
-## check-fix: Auto-fix linting and formatting issues
+## check-fix: Auto-fix linting and formatting issues across monorepo
 check-fix:
-	pnpm exec vp check --fix
+	pnpm --filter whatsapp-webhook exec vp check --fix && pnpm --filter website exec vp check --fix
 
 ## build: Build website production bundle
 build:
@@ -52,16 +66,16 @@ build:
 seed:
 	pnpm --filter whatsapp-webhook seed
 
-## clean-db: Delete local PGlite database files to re-seed fresh data
+## clean-db: Delete local database data to re-seed fresh state
 clean-db:
 	rm -rf ./data/db apps/whatsapp-webhook/data/db
-	@echo "Local PGlite database cleaned. Fresh data will seed on next server boot."
+	@echo "Local database cleaned. Fresh data will seed on next server boot."
 
-## deploy: Execute automated production deployment script
+## deploy: Execute production container deployment script
 deploy:
 	./deploy.sh
 
-## docker-up: Build and launch production containers with Docker Compose
+## docker-up: Build and launch all production containers (MariaDB, Backend, Frontend)
 docker-up:
 	docker compose up -d --build
 
