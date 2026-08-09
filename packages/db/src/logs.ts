@@ -188,7 +188,23 @@ export async function listMariaDbMessages(
   params.push(limit, offset);
 
   const [rows] = await pool.query<mysql.RowDataPacket[]>(sql, params);
-  return { items: rows || [], total: rows?.length || 0 };
+
+  const mappedItems = (rows || []).map((r: any) => ({
+    id: r.id,
+    messageId: r.message_id,
+    fromPhone: r.from_phone,
+    contactName: r.contact_name,
+    kind: r.kind,
+    inboundText: r.inbound_text,
+    resolvedText: r.resolved_text,
+    transcript: r.transcript,
+    status: r.status,
+    error: r.error,
+    receivedAt: r.received_at ? new Date(r.received_at).toISOString() : new Date().toISOString(),
+    completedAt: r.completed_at ? new Date(r.completed_at).toISOString() : null,
+  }));
+
+  return { items: mappedItems, total: mappedItems.length };
 }
 
 export async function getMariaDbMessageDetail(id: number) {
@@ -210,7 +226,44 @@ export async function getMariaDbMessageDetail(id: number) {
     [id],
   );
 
-  return { message, aiCalls: aiCalls || [], outboundReplies: outboundReplies || [] };
+  return {
+    message: {
+      id: message.id,
+      messageId: message.message_id,
+      fromPhone: message.from_phone,
+      contactName: message.contact_name,
+      kind: message.kind,
+      inboundText: message.inbound_text,
+      resolvedText: message.resolved_text,
+      transcript: message.transcript,
+      status: message.status,
+      error: message.error,
+      receivedAt: message.received_at
+        ? new Date(message.received_at).toISOString()
+        : new Date().toISOString(),
+      completedAt: message.completed_at ? new Date(message.completed_at).toISOString() : null,
+    },
+    aiCalls: (aiCalls || []).map((c: any) => ({
+      id: c.id,
+      messageId: c.message_id,
+      provider: c.provider,
+      model: c.model,
+      requestMessages: c.request_messages ? JSON.parse(c.request_messages) : [],
+      responseText: c.response_text,
+      error: c.error,
+      latencyMs: c.latency_ms,
+      createdAt: c.created_at ? new Date(c.created_at).toISOString() : new Date().toISOString(),
+    })),
+    outboundReplies: (outboundReplies || []).map((r: any) => ({
+      id: r.id,
+      messageId: r.message_id,
+      toPhone: r.to_phone,
+      replyText: r.reply_text,
+      status: r.status,
+      error: r.error,
+      sentAt: r.sent_at ? new Date(r.sent_at).toISOString() : new Date().toISOString(),
+    })),
+  };
 }
 
 export async function getMariaDbRecentConversationHistory(

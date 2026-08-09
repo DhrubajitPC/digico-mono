@@ -76,7 +76,7 @@ async function fetchChatHistoryHandler(req: FastifyRequest, reply: FastifyReply)
 
   chatThread.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-  return reply.send(chatThread);
+  return reply.send({ fromPhone, messages: chatThread });
 }
 
 export async function registerEmulatorRoutes(app: FastifyInstance) {
