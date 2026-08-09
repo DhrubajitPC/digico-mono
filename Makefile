@@ -50,13 +50,13 @@ mariadb-logs:
 test-e2e:
 	node run-playwright-test.js
 
-## check: Run Vite+ checks across monorepo packages (formatting, linting, typechecking)
+## check: Format, lint and type-check all workspaces
 check:
-	pnpm --filter whatsapp-webhook check && pnpm --filter website exec vp check
+	pnpm --filter @digico/db check && pnpm --filter whatsapp-webhook check && pnpm --filter website exec vp check
 
-## check-fix: Auto-fix linting and formatting issues across monorepo
+## check-fix: Format and auto-fix all workspaces
 check-fix:
-	pnpm --filter whatsapp-webhook exec vp check --fix && pnpm --filter website exec vp check --fix
+	pnpm --filter @digico/db exec vp check --fix && pnpm --filter whatsapp-webhook exec vp check --fix && pnpm --filter website exec vp check --fix
 
 ## build: Build website production bundle
 build:

@@ -1,5 +1,4 @@
-import type { Db } from "./db/client.ts";
-import { fetchMariaDbOrderById, getMariaDbPool } from "./db/mariadb.ts";
+import { fetchMariaDbOrderById, getMariaDbPool } from "@digico/db";
 
 export interface IntentRouteResult {
   handled: boolean;
@@ -10,7 +9,6 @@ export interface IntentRouteResult {
 export async function routeIntent(
   userText: string,
   _fromPhone: string,
-  _db: Db,
 ): Promise<IntentRouteResult> {
   const text = userText.trim();
 

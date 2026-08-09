@@ -1,50 +1,36 @@
-import { buildChatMessages, deepSeekModel, replyWithDeepSeekFull } from "./deepseek.ts";
-import { getDb } from "./db/instance.ts";
-import type { Db } from "./db/client.ts";
 import {
-  getRecentConversationHistory,
-  markMessageStatus,
-  recordAiCall,
-  recordInboundMessage,
-  recordOutboundReply,
-  setResolvedText,
-} from "./log/message-log.ts";
+  fetchMariaDbOrders,
+  getMariaDbRecentConversationHistory,
+  markMariaDbMessageStatus,
+  recordMariaDbAiCall,
+  recordMariaDbInboundMessage,
+  recordMariaDbOutboundReply,
+  searchMariaDbProducts,
+  setMariaDbResolvedText,
+} from "@digico/db";
+import { buildChatMessages, deepSeekModel, replyWithDeepSeekFull } from "./deepseek.ts";
+import { routeIntent } from "./intent-router.ts";
+
 import type { IncomingWhatsAppMessage } from "./parse-webhook.ts";
 import { transcribeAudio } from "./transcribe.ts";
 import { downloadWhatsAppMedia } from "./whatsapp-media.ts";
 import { sendWhatsAppText } from "./whatsapp-send.ts";
-import { fetchMariaDbOrders, searchMariaDbProducts } from "./db/mariadb.ts";
-import { routeIntent } from "./intent-router.ts";
-import { validateAndExecuteOrderTool } from "./tools/order-tools.ts";
+import { validateAndExecuteOrderTool } from "./order-tools.ts";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/**
- * Records the pipeline for one message. Every write is best-effort — a
- * logging failure must never stop a dealer from getting their reply, so
- * every method swallows and logs its own errors instead of throwing.
- */
 class PipelineLog {
-  private readonly db: Db;
   private id: number | undefined;
 
-  private constructor(db: Db, id: number | undefined) {
-    this.db = db;
+  private constructor(id: number | undefined) {
     this.id = id;
   }
 
-  /**
-   * Returns "duplicate" when this exact messageId was already recorded —
-   * the database's unique constraint is the durable de-duplication check,
-   * so a retried webhook or a process restart can't cause double-processing.
-   * Any other failure to record still opens a (silently unlogged) pipeline,
-   * since a DB hiccup must never stop a dealer from getting their reply.
-   */
-  static async open(db: Db, message: IncomingWhatsAppMessage): Promise<PipelineLog | "duplicate"> {
+  static async open(message: IncomingWhatsAppMessage): Promise<PipelineLog | "duplicate"> {
     try {
-      const result = await recordInboundMessage(db, {
+      const result = await recordMariaDbInboundMessage({
         messageId: message.messageId,
         fromPhone: message.from,
         contactName: message.contactName,
@@ -53,17 +39,17 @@ class PipelineLog {
         inboundText: message.text,
       });
       if (result.outcome === "duplicate") return "duplicate";
-      return new PipelineLog(db, result.message.id);
+      return new PipelineLog(result.message.id);
     } catch (error) {
       console.error("Failed to record inbound message", error);
-      return new PipelineLog(db, undefined);
+      return new PipelineLog(undefined);
     }
   }
 
   async resolvedText(resolvedText: string, transcript?: string): Promise<void> {
     if (this.id === undefined) return;
     try {
-      await setResolvedText(this.db, this.id, { resolvedText, transcript });
+      await setMariaDbResolvedText(this.id, { resolvedText, transcript });
     } catch (error) {
       console.error("Failed to record resolved text", error);
     }
@@ -77,7 +63,7 @@ class PipelineLog {
   }): Promise<void> {
     if (this.id === undefined) return;
     try {
-      await recordAiCall(this.db, {
+      await recordMariaDbAiCall({
         messageId: this.id,
         provider: "deepseek",
         model: deepSeekModel(),
@@ -91,21 +77,21 @@ class PipelineLog {
   async outboundReply(input: {
     toPhone: string;
     replyText: string;
-    status: "sent" | "failed";
+    status: string;
     error?: string;
   }): Promise<void> {
     if (this.id === undefined) return;
     try {
-      await recordOutboundReply(this.db, { messageId: this.id, ...input });
+      await recordMariaDbOutboundReply({ messageId: this.id, ...input });
     } catch (error) {
       console.error("Failed to record outbound reply", error);
     }
   }
 
-  async status(status: "completed" | "failed", error?: string): Promise<void> {
+  async status(status: string, error?: string): Promise<void> {
     if (this.id === undefined) return;
     try {
-      await markMessageStatus(this.db, this.id, status, error);
+      await markMariaDbMessageStatus(this.id, status, error);
     } catch (err) {
       console.error("Failed to record final status", err);
     }
@@ -141,8 +127,7 @@ async function resolveUserText(
 export async function handleIncomingMessage(message: IncomingWhatsAppMessage): Promise<void> {
   console.log("Incoming WhatsApp message:", JSON.stringify(message, null, 2));
 
-  const db = await getDb();
-  const log = await PipelineLog.open(db, message);
+  const log = await PipelineLog.open(message);
   if (log === "duplicate") {
     console.log("Skipping duplicate message", message.messageId);
     return;
@@ -162,7 +147,7 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
   }
 
   // Step 1: Rule-Based Intent Interceptor (0 LLM Token Cost & 10ms Latency)
-  const routeResult = await routeIntent(userText, message.from, db);
+  const routeResult = await routeIntent(userText, message.from);
   if (routeResult.handled && routeResult.replyText) {
     console.log("[Intent Router] Intercepted deterministically without LLM call:", userText);
     const isEmulator = message.phoneNumberId === "EMULATOR" || message.from.includes("EMULATOR");
@@ -193,7 +178,7 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
 
   // Step 3: DeepSeek Completion with Tool Calling & Multi-Turn History
   const isEmulator = message.phoneNumberId === "EMULATOR" || message.from.includes("EMULATOR");
-  const chatHistory = await getRecentConversationHistory(db, message.from, 8);
+  const chatHistory = await getMariaDbRecentConversationHistory(message.from, 8);
   const promptContext = { products: productsList, dealer: dealerInfo };
   const requestMessages = buildChatMessages(userText, promptContext, chatHistory);
   const startedAt = Date.now();
@@ -234,45 +219,19 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
   const orderDataMatch = /\[ORDER_DATA:\s*(\{.*?\})\s*\]/s.exec(reply);
   if (orderDataMatch && orderDataMatch[1]) {
     try {
-      const parsedOrder = JSON.parse(orderDataMatch[1]);
+      const payload = JSON.parse(orderDataMatch[1]);
+      await validateAndExecuteOrderTool(payload);
       reply = reply.replace(/\[ORDER_DATA:\s*\{.*?\}\s*\]/s, "").trim();
-      const execResult = await validateAndExecuteOrderTool({
-        productName: parsedOrder.productName || "Ordered Product",
-        sku: parsedOrder.sku,
-        quantity: Number(parsedOrder.quantity) || 1,
-        unitPrice: Number(parsedOrder.unitPrice) || 0,
-        customerName: parsedOrder.customerName || message.contactName || "WhatsApp Customer",
-        deliveryAddress: parsedOrder.deliveryAddress || "Address via WhatsApp",
-        phone: parsedOrder.phone || message.from,
-        userConfirmation: parsedOrder.userConfirmation !== false,
-      });
-      console.log("ORDER_DATA fallback execution result:", execResult);
     } catch (err) {
-      console.error("Failed to parse and insert ORDER_DATA into database", err);
+      console.error("Failed to parse fallback [ORDER_DATA] tag", err);
     }
   }
 
-  try {
+  // Step 5: Send final formatted WhatsApp reply
+  if (reply.trim().length > 0) {
     await sendWhatsAppText(message.from, reply, isEmulator);
-  } catch (error) {
-    if (!isEmulator) {
-      await log.outboundReply({
-        toPhone: message.from,
-        replyText: reply,
-        status: "failed",
-        error: errorMessage(error),
-      });
-      await log.status("failed", errorMessage(error));
-      throw error;
-    }
+    await log.outboundReply({ toPhone: message.from, replyText: reply, status: "sent" });
   }
 
-  console.log("WhatsApp reply sent to", message.from);
-  await log.outboundReply({ toPhone: message.from, replyText: reply, status: "sent" });
   await log.status("completed");
-}
-
-/** @deprecated Use handleIncomingMessage */
-export async function handleIncomingText(message: IncomingWhatsAppMessage): Promise<void> {
-  return handleIncomingMessage(message);
 }

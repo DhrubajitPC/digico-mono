@@ -1,21 +1,5 @@
-import mysql from "mysql2/promise";
-
-const DEFAULT_MARIADB_URL = "mysql://wp:wp@127.0.0.1:3307/woocommerce_local";
-
-let pool: mysql.Pool | null = null;
-
-export function getMariaDbPool(): mysql.Pool {
-  if (!pool) {
-    const connectionUrl = process.env.MARIADB_URL || DEFAULT_MARIADB_URL;
-    pool = mysql.createPool({
-      uri: connectionUrl,
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0,
-    });
-  }
-  return pool;
-}
+import type mysql from "mysql2/promise";
+import { getMariaDbPool } from "./client.ts";
 
 export interface WcOrder {
   id: number;
@@ -49,28 +33,6 @@ export interface WcOrderItem {
   lineTotal: number;
 }
 
-export interface WcProduct {
-  id: number;
-  sku: string;
-  brand: string;
-  name: string;
-  category: string;
-  model: string | null;
-  specifications: string | null;
-  unitPrice: number;
-  stockQuantity: number;
-  aliases: string[];
-}
-
-export interface WcDealer {
-  id: number;
-  businessName: string;
-  contactPerson: string;
-  phone: string;
-  address: string | null;
-  status: string;
-}
-
 export function mapWcStatusToDigico(wcStatus: string): string {
   const status = wcStatus.replace(/^wc-/, "");
   switch (status) {
@@ -91,14 +53,21 @@ export function mapWcStatusToDigico(wcStatus: string): string {
   }
 }
 
-/** Check if MariaDB has imported WooCommerce data */
-export async function isMariaDbAvailable(): Promise<boolean> {
-  try {
-    const p = getMariaDbPool();
-    const [rows] = await p.query<mysql.RowDataPacket[]>("SELECT 1 FROM joy_posts LIMIT 1");
-    return Array.isArray(rows) && rows.length > 0;
-  } catch {
-    return false;
+export function mapDigicoStatusToWc(digicoStatus: string): string {
+  switch (digicoStatus) {
+    case "pending_review":
+      return "wc-pending";
+    case "confirmed":
+    case "completed":
+      return "wc-completed";
+    case "on_hold":
+      return "wc-on-hold";
+    case "processing":
+      return "wc-processing";
+    case "cancelled":
+      return "wc-cancelled";
+    default:
+      return `wc-${digicoStatus}`;
   }
 }
 
@@ -109,7 +78,6 @@ export async function fetchMariaDbOrders(params?: {
 }): Promise<WcOrder[]> {
   const p = getMariaDbPool();
 
-  // Primary order fetch from joy_posts shop_order
   const [orderRows] = await p.query<mysql.RowDataPacket[]>(`
     SELECT 
       p.ID as id,
@@ -129,7 +97,6 @@ export async function fetchMariaDbOrders(params?: {
 
   const orderIds = orderRows.map((r) => r.id);
 
-  // Fetch postmeta for these orders in bulk
   const [metaRows] = await p.query<mysql.RowDataPacket[]>(
     `
     SELECT post_id, meta_key, meta_value
@@ -138,7 +105,8 @@ export async function fetchMariaDbOrders(params?: {
       AND meta_key IN (
         '_order_total', '_billing_first_name', '_billing_last_name',
         '_billing_company', '_billing_phone', '_billing_email',
-        '_billing_address_1', '_billing_city', '_customer_user'
+        '_billing_address_1', '_billing_city', '_customer_user',
+        '_proposed_message'
       )
   `,
     [orderIds],
@@ -151,7 +119,6 @@ export async function fetchMariaDbOrders(params?: {
     metaMap.set(row.post_id, existing);
   }
 
-  // Fetch order items for these orders
   const [itemRows] = await p.query<mysql.RowDataPacket[]>(
     `
     SELECT 
@@ -205,6 +172,9 @@ export async function fetchMariaDbOrders(params?: {
     const totalAmount = Math.round(parseFloat(meta["_order_total"] || "0"));
     const items = itemsByOrder.get(r.id) || [];
     const digicoStatus = mapWcStatusToDigico(r.status);
+    const proposedMessage =
+      meta["_proposed_message"] ||
+      `Dear ${contactName}, your order #ORD-${r.id} total ৳${totalAmount.toLocaleString()} status is ${digicoStatus}.`;
 
     orders.push({
       id: r.id,
@@ -213,7 +183,7 @@ export async function fetchMariaDbOrders(params?: {
       origin: "woocommerce",
       totalAmount,
       notes: r.customer_note || null,
-      proposedMessage: `Dear ${contactName}, your order #ORD-${r.id} total ৳${totalAmount.toLocaleString()} status is ${digicoStatus}.`,
+      proposedMessage,
       approvedBy:
         digicoStatus === "confirmed" || digicoStatus === "completed" ? "System Admin" : null,
       createdAt: new Date(r.created_at).toISOString(),
@@ -229,7 +199,6 @@ export async function fetchMariaDbOrders(params?: {
     });
   }
 
-  // Filter if params are set
   return orders.filter((o) => {
     if (params?.status && params.status !== "all" && o.status !== params.status) return false;
     if (params?.search) {
@@ -250,134 +219,6 @@ export async function fetchMariaDbOrders(params?: {
 export async function fetchMariaDbOrderById(id: number): Promise<WcOrder | null> {
   const orders = await fetchMariaDbOrders();
   return orders.find((o) => o.id === id) || null;
-}
-
-/** Fetch Products list from MariaDB */
-export async function fetchMariaDbProducts(): Promise<WcProduct[]> {
-  const p = getMariaDbPool();
-  const [rows] = await p.query<mysql.RowDataPacket[]>(`
-    SELECT 
-      p.ID as id,
-      p.post_title as name,
-      m1.meta_value as sku,
-      m2.meta_value as price,
-      m3.meta_value as stock
-    FROM joy_posts p
-    LEFT JOIN joy_postmeta m1 ON p.ID = m1.post_id AND m1.meta_key = '_sku'
-    LEFT JOIN joy_postmeta m2 ON p.ID = m2.post_id AND m2.meta_key = '_price'
-    LEFT JOIN joy_postmeta m3 ON p.ID = m3.post_id AND m3.meta_key = '_stock'
-    WHERE p.post_type = 'product' AND p.post_status = 'publish'
-    LIMIT 200
-  `);
-
-  return (rows || []).map((r) => ({
-    id: r.id,
-    sku: r.sku || `SKU-${r.id}`,
-    brand: "WooCommerce",
-    name: r.name,
-    category: "Products",
-    model: null,
-    specifications: null,
-    unitPrice: Math.round(parseFloat(r.price || "0")),
-    stockQuantity: parseInt(r.stock || "10", 10),
-    aliases: [r.name],
-  }));
-}
-
-/** RAG Search: Retrieve top candidate products matching user query keywords for compressed LLM prompt */
-export async function searchMariaDbProducts(userQuery: string, limit = 10): Promise<WcProduct[]> {
-  const all = await fetchMariaDbProducts();
-  if (!userQuery || userQuery.trim().length === 0) {
-    return all.slice(0, limit);
-  }
-
-  const stopWords = new Set([
-    "what",
-    "is",
-    "the",
-    "current",
-    "stock",
-    "price",
-    "and",
-    "for",
-    "with",
-    "want",
-    "need",
-    "order",
-    "units",
-    "please",
-    "have",
-    "has",
-    "you",
-    "your",
-    "are",
-    "any",
-    "some",
-    "can",
-    "er",
-    "ki",
-    "ponno",
-    "ache",
-    "koto",
-    "dam",
-    "dami",
-    "dorkar",
-    "lagbe",
-    "nibo",
-    "khujchi",
-    "chaichilam",
-    "apnader",
-    "kache",
-    "bhai",
-    "sir",
-    "kono",
-    "somoy",
-  ]);
-
-  const terms = userQuery
-    .toLowerCase()
-    .replace(/[^\w\s]/g, " ")
-    .split(/\s+/)
-    .filter((t) => t.length >= 2 && !stopWords.has(t));
-
-  if (terms.length === 0) {
-    return all.slice(0, limit);
-  }
-
-  const scored = all.map((p) => {
-    const text = `${p.name} ${p.sku} ${p.brand}`.toLowerCase();
-    let score = 0;
-    for (const term of terms) {
-      if (text.includes(term)) score += 1;
-    }
-    return { product: p, score };
-  });
-
-  const matches = scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score);
-  if (matches.length > 0) {
-    return matches.slice(0, limit).map((m) => m.product);
-  }
-
-  return all.slice(0, limit);
-}
-
-/** Fetch Dealers list from MariaDB */
-export async function fetchMariaDbDealers(): Promise<WcDealer[]> {
-  const orders = await fetchMariaDbOrders();
-  const dealerMap = new Map<number, WcDealer>();
-  for (const o of orders) {
-    if (!dealerMap.has(o.dealer.id)) {
-      dealerMap.set(o.dealer.id, {
-        id: o.dealer.id,
-        businessName: o.dealer.businessName,
-        contactPerson: o.dealer.contactPerson,
-        phone: o.dealer.phone,
-        address: o.dealer.address || null,
-        status: "active",
-      });
-    }
-  }
-  return Array.from(dealerMap.values());
 }
 
 export interface CreateMariaDbOrderInput {
@@ -464,24 +305,6 @@ export async function createMariaDbOrder(input: CreateMariaDbOrderInput): Promis
   }
 }
 
-export function mapDigicoStatusToWc(digicoStatus: string): string {
-  switch (digicoStatus) {
-    case "pending_review":
-      return "wc-pending";
-    case "confirmed":
-    case "completed":
-      return "wc-completed";
-    case "on_hold":
-      return "wc-on-hold";
-    case "processing":
-      return "wc-processing";
-    case "cancelled":
-      return "wc-cancelled";
-    default:
-      return `wc-${digicoStatus}`;
-  }
-}
-
 /** Update order status in MariaDB joy_posts */
 export async function updateMariaDbOrderStatus(
   orderId: number,
@@ -532,119 +355,5 @@ export async function updateMariaDbOrder(
   } catch (err) {
     console.error("Failed to update MariaDB order", err);
     return null;
-  }
-}
-
-/** Ensure WhatsApp message log tables exist in MariaDB */
-export async function ensureMariaDbLogTables(): Promise<void> {
-  const p = getMariaDbPool();
-  try {
-    await p.query(`
-      CREATE TABLE IF NOT EXISTS joy_whatsapp_messages (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        message_id VARCHAR(255) UNIQUE NOT NULL,
-        from_phone VARCHAR(64) NOT NULL,
-        contact_name VARCHAR(255),
-        kind VARCHAR(32) NOT NULL,
-        inbound_text TEXT,
-        resolved_text TEXT,
-        transcript TEXT,
-        status VARCHAR(32) DEFAULT 'received',
-        error TEXT,
-        received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        completed_at DATETIME
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    `);
-
-    await p.query(`
-      CREATE TABLE IF NOT EXISTS joy_whatsapp_ai_calls (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        message_id INT NOT NULL,
-        provider VARCHAR(64) NOT NULL,
-        model VARCHAR(64) NOT NULL,
-        request_messages LONGTEXT,
-        response_text LONGTEXT,
-        error TEXT,
-        latency_ms INT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    `);
-
-    await p.query(`
-      CREATE TABLE IF NOT EXISTS joy_whatsapp_outbound_replies (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        message_id INT NOT NULL,
-        to_phone VARCHAR(64) NOT NULL,
-        reply_text LONGTEXT NOT NULL,
-        status VARCHAR(32) NOT NULL,
-        error TEXT,
-        sent_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    `);
-  } catch (err) {
-    console.error("Failed to ensure MariaDB log tables", err);
-  }
-}
-
-/** Get conversation history for a phone number directly from MariaDB */
-export async function getMariaDbRecentConversationHistory(
-  fromPhone: string,
-  limit = 8,
-): Promise<Array<{ role: "user" | "assistant"; content: string }>> {
-  await ensureMariaDbLogTables();
-  const p = getMariaDbPool();
-  try {
-    const [msgs] = await p.query<mysql.RowDataPacket[]>(
-      `
-      SELECT id, inbound_text, resolved_text, received_at
-      FROM joy_whatsapp_messages
-      WHERE from_phone = ?
-      ORDER BY received_at DESC, id DESC
-      LIMIT ?
-    `,
-      [fromPhone, limit],
-    );
-
-    if (!msgs || msgs.length === 0) return [];
-
-    const msgIds = msgs.map((m) => m.id);
-    const [replies] = await p.query<mysql.RowDataPacket[]>(
-      `
-      SELECT message_id, reply_text, sent_at
-      FROM joy_whatsapp_outbound_replies
-      WHERE message_id IN (?)
-      ORDER BY sent_at ASC
-    `,
-      [msgIds],
-    );
-
-    const historyItems: Array<{ time: Date; role: "user" | "assistant"; content: string }> = [];
-
-    for (const m of msgs) {
-      const text = m.resolved_text || m.inbound_text;
-      if (text && text.trim().length > 0) {
-        historyItems.push({
-          time: new Date(m.received_at),
-          role: "user",
-          content: text.trim(),
-        });
-      }
-    }
-
-    for (const r of replies) {
-      if (r.reply_text && r.reply_text.trim().length > 0) {
-        historyItems.push({
-          time: new Date(r.sent_at),
-          role: "assistant",
-          content: r.reply_text.trim(),
-        });
-      }
-    }
-
-    historyItems.sort((a, b) => a.time.getTime() - b.time.getTime());
-    return historyItems.map((h) => ({ role: h.role, content: h.content }));
-  } catch (err) {
-    console.error("Failed to fetch conversation history from MariaDB", err);
-    return [];
   }
 }

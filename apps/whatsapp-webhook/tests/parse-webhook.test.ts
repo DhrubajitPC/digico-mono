@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { parseIncomingMessages } from "../src/parse-webhook.ts";
+import { parseIncomingMessages } from "../src/services/parse-webhook.ts";
 
 const sampleTextPayload = {
   object: "whatsapp_business_account",

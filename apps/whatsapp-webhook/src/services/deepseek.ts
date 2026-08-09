@@ -1,30 +1,8 @@
-import { DEEPSEEK_TOOLS } from "./tools/order-tools.ts";
-
-export type ChatMessage = {
-  role: "system" | "user" | "assistant";
-  content: string;
-};
-
-export interface CatalogProductContext {
-  id?: number;
-  sku: string;
-  name: string;
-  brand?: string;
-  category?: string;
-  unitPrice: number;
-  stockQuantity: number;
-}
-
-export interface DealerContext {
-  businessName: string;
-  contactPerson?: string | null;
-  phone: string;
-  address?: string | null;
-}
+import type { WcDealer, WcProduct } from "@digico/db";
 
 export interface DeepSeekPromptContext {
-  products?: CatalogProductContext[];
-  dealer?: DealerContext | null;
+  products?: WcProduct[];
+  dealer?: WcDealer | null;
 }
 
 export interface DeepSeekReplyResult {
@@ -78,99 +56,110 @@ ${context.dealer.address ? `- Address: ${context.dealer.address}` : ""}`;
   return prompt;
 }
 
-/** The exact request messages DeepSeek receives — also used for pipeline logging. */
 export function buildChatMessages(
   userText: string,
   context?: DeepSeekPromptContext,
-  history: ChatMessage[] = [],
-): ChatMessage[] {
-  const systemMsg: ChatMessage = { role: "system", content: buildSystemPrompt(context) };
+  chatHistory?: Array<{ role: "user" | "assistant"; content: string }>,
+): Array<{ role: "system" | "user" | "assistant"; content: string }> {
+  const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+    { role: "system", content: buildSystemPrompt(context) },
+  ];
 
-  const cleanHistory = history.filter(
-    (h) => h.content && h.content.trim().length > 0 && h.content !== userText,
-  );
+  if (chatHistory && chatHistory.length > 0) {
+    for (const h of chatHistory) {
+      messages.push({ role: h.role, content: h.content });
+    }
+  }
 
-  return [systemMsg, ...cleanHistory, { role: "user", content: userText }];
+  const lastHistory = chatHistory?.[chatHistory.length - 1];
+  if (!lastHistory || lastHistory.role !== "user" || lastHistory.content !== userText) {
+    messages.push({ role: "user", content: userText });
+  }
+
+  return messages;
 }
 
 export function deepSeekModel(): string {
   return process.env.DEEPSEEK_MODEL ?? DEFAULT_MODEL;
 }
 
-export async function replyWithDeepSeek(
-  userText: string,
-  context?: DeepSeekPromptContext,
-  history: ChatMessage[] = [],
-): Promise<string> {
-  const res = await replyWithDeepSeekFull(userText, context, history);
-  return res.text;
-}
-
 export async function replyWithDeepSeekFull(
   userText: string,
   context?: DeepSeekPromptContext,
-  history: ChatMessage[] = [],
+  chatHistory?: Array<{ role: "user" | "assistant"; content: string }>,
 ): Promise<DeepSeekReplyResult> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
-    console.warn(
-      "[DeepSeek] DEEPSEEK_API_KEY is not set in .env. Returning simulated DeepSeek reply.",
-    );
+    console.warn("Warning: DEEPSEEK_API_KEY is not set — returning simulated DeepSeek reply.");
     return {
-      text: `[DeepSeek AI Assistant] Hello! Received your request: "${userText}".\n\n(To connect live DeepSeek AI model completions, add DEEPSEEK_API_KEY to apps/whatsapp-webhook/.env)`,
+      text: `[DeepSeek AI Assistant] Hello! Received your request: "${userText}".\n\n(To connect live DeepSeek AI model completions, add DEEPSEEK_API_KEY to root .env)`,
     };
   }
 
-  const baseUrl = (process.env.DEEPSEEK_BASE_URL ?? DEFAULT_BASE_URL).replace(/\/$/, "");
+  const baseUrl = process.env.DEEPSEEK_BASE_URL ?? DEFAULT_BASE_URL;
   const model = deepSeekModel();
-  const messages = buildChatMessages(userText, context, history);
+  const messages = buildChatMessages(userText, context, chatHistory);
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
+  const tools = [
+    {
+      type: "function",
+      function: {
+        name: "draft_order",
+        description:
+          "Drafts and confirms a B2B sales order in MariaDB database when customer requests quantity",
+        parameters: {
+          type: "object",
+          properties: {
+            productName: { type: "string" },
+            quantity: { type: "integer" },
+            unitPrice: { type: "number" },
+            totalAmount: { type: "number" },
+            customerName: { type: "string" },
+            deliveryAddress: { type: "string" },
+            phone: { type: "string" },
+            userConfirmation: { type: "boolean" },
+          },
+          required: ["productName", "quantity", "unitPrice", "totalAmount"],
+        },
+      },
+    },
+  ];
+
+  const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model,
       messages,
-      tools: DEEPSEEK_TOOLS,
+      tools,
       temperature: 0.3,
     }),
   });
 
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`DeepSeek ${response.status}: ${detail}`);
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`DeepSeek API error (${res.status}): ${errText}`);
   }
 
-  const data: unknown = await response.json();
-  const text = extractAssistantContent(data) || "Order request processed.";
-  const toolCalls = extractToolCalls(data);
+  const data = (await res.json()) as {
+    choices?: Array<{
+      message?: {
+        content?: string;
+        tool_calls?: Array<{
+          id: string;
+          type: string;
+          function: { name: string; arguments: string };
+        }>;
+      };
+    }>;
+  };
 
-  return { text, toolCalls };
-}
-
-export function extractAssistantContent(data: unknown): string | null {
-  if (typeof data !== "object" || data === null) return null;
-  const choices = "choices" in data ? data.choices : null;
-  if (!Array.isArray(choices) || choices.length === 0) return null;
-  const first = choices[0];
-  if (typeof first !== "object" || first === null) return null;
-  const message = "message" in first ? first.message : null;
-  if (typeof message !== "object" || message === null) return null;
-  const content = "content" in message ? message.content : null;
-  return typeof content === "string" && content.trim().length > 0 ? content.trim() : null;
-}
-
-export function extractToolCalls(data: unknown): DeepSeekReplyResult["toolCalls"] {
-  if (typeof data !== "object" || data === null) return undefined;
-  const choices = "choices" in data ? data.choices : null;
-  if (!Array.isArray(choices) || choices.length === 0) return undefined;
-  const first = choices[0];
-  if (typeof first !== "object" || first === null) return undefined;
-  const message = "message" in first ? first.message : null;
-  if (typeof message !== "object" || message === null) return undefined;
-  const toolCalls = "tool_calls" in message ? message.tool_calls : null;
-  return Array.isArray(toolCalls) && toolCalls.length > 0 ? (toolCalls as any) : undefined;
+  const choice = data.choices?.[0]?.message;
+  return {
+    text: choice?.content ?? "",
+    toolCalls: choice?.tool_calls,
+  };
 }

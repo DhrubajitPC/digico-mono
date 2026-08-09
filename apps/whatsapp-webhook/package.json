@@ -8,16 +8,15 @@
     "start": "node --env-file=../../.env --env-file=.env --experimental-strip-types src/server.ts",
     "test": "vp test",
     "check": "vp check",
-    "seed": "node --env-file=../../.env --env-file=.env --experimental-strip-types src/db/seed.ts",
-    "db:generate": "drizzle-kit generate"
+    "seed": "pnpm --filter @digico/db seed"
   },
   "dependencies": {
-    "drizzle-orm": "^0.44.2",
+    "@digico/db": "workspace:*",
+    "fastify": "^5.2.0",
     "mysql2": "^3.12.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "drizzle-kit": "^0.31.1",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:"
