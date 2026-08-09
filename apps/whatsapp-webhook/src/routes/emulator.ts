@@ -22,6 +22,63 @@ export interface EmulatorChatMessage {
   rawPayload?: unknown;
 }
 
+async function fetchChatHistoryHandler(req: FastifyRequest, reply: FastifyReply) {
+  const query = req.query as Record<string, string>;
+  const fromPhone = query.phone || "+8801711000001";
+
+  await ensureMariaDbLogTables();
+  const pool = getMariaDbPool();
+  const [userMessages] = await pool.query<mysql.RowDataPacket[]>(
+    `SELECT * FROM joy_whatsapp_messages WHERE from_phone = ? ORDER BY received_at DESC, id DESC`,
+    [fromPhone],
+  );
+
+  const chatThread: EmulatorChatMessage[] = [];
+
+  for (const msg of userMessages || []) {
+    chatThread.push({
+      id: msg.id,
+      role: "user",
+      text: msg.resolved_text || msg.inbound_text || "—",
+      timestamp: new Date(msg.received_at).toISOString(),
+      status: msg.status,
+      error: msg.error,
+      rawPayload: msg.raw_payload ? JSON.parse(msg.raw_payload) : undefined,
+    });
+
+    const [calls] = await pool.query<mysql.RowDataPacket[]>(
+      `SELECT * FROM joy_whatsapp_ai_calls WHERE message_id = ? ORDER BY created_at ASC`,
+      [msg.id],
+    );
+    const [replies] = await pool.query<mysql.RowDataPacket[]>(
+      `SELECT * FROM joy_whatsapp_outbound_replies WHERE message_id = ? ORDER BY sent_at ASC`,
+      [msg.id],
+    );
+
+    const latestCall = calls?.[calls.length - 1];
+    const latestReply = replies?.[replies.length - 1];
+
+    if (latestReply || latestCall) {
+      chatThread.push({
+        id: latestReply?.id || msg.id * 1000,
+        role: "assistant",
+        text: latestReply?.reply_text || latestCall?.response_text || "No response generated.",
+        timestamp: new Date(
+          latestReply?.sent_at || latestCall?.created_at || msg.received_at,
+        ).toISOString(),
+        model: latestCall?.model || "deepseek-chat",
+        latencyMs: latestCall?.latency_ms || undefined,
+        status: latestReply?.status || "sent",
+        error: latestReply?.error || latestCall?.error || null,
+      });
+    }
+  }
+
+  chatThread.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+  return reply.send(chatThread);
+}
+
 export async function registerEmulatorRoutes(app: FastifyInstance) {
   // POST /api/emulator/send
   app.post("/api/emulator/send", async (req: FastifyRequest, reply: FastifyReply) => {
@@ -78,61 +135,7 @@ export async function registerEmulatorRoutes(app: FastifyInstance) {
     return reply.send({ success: true, messageId, metaPayload });
   });
 
-  // GET /api/emulator/history
-  app.get("/api/emulator/history", async (req: FastifyRequest, reply: FastifyReply) => {
-    const query = req.query as Record<string, string>;
-    const fromPhone = query.phone || "+8801711000001";
-
-    await ensureMariaDbLogTables();
-    const pool = getMariaDbPool();
-    const [userMessages] = await pool.query<mysql.RowDataPacket[]>(
-      `SELECT * FROM joy_whatsapp_messages WHERE from_phone = ? ORDER BY received_at DESC, id DESC`,
-      [fromPhone],
-    );
-
-    const chatThread: EmulatorChatMessage[] = [];
-
-    for (const msg of userMessages || []) {
-      chatThread.push({
-        id: msg.id,
-        role: "user",
-        text: msg.resolved_text || msg.inbound_text || "—",
-        timestamp: new Date(msg.received_at).toISOString(),
-        status: msg.status,
-        error: msg.error,
-        rawPayload: msg.raw_payload ? JSON.parse(msg.raw_payload) : undefined,
-      });
-
-      const [calls] = await pool.query<mysql.RowDataPacket[]>(
-        `SELECT * FROM joy_whatsapp_ai_calls WHERE message_id = ? ORDER BY created_at ASC`,
-        [msg.id],
-      );
-      const [replies] = await pool.query<mysql.RowDataPacket[]>(
-        `SELECT * FROM joy_whatsapp_outbound_replies WHERE message_id = ? ORDER BY sent_at ASC`,
-        [msg.id],
-      );
-
-      const latestCall = calls?.[calls.length - 1];
-      const latestReply = replies?.[replies.length - 1];
-
-      if (latestReply || latestCall) {
-        chatThread.push({
-          id: latestReply?.id || msg.id * 1000,
-          role: "assistant",
-          text: latestReply?.reply_text || latestCall?.response_text || "No response generated.",
-          timestamp: new Date(
-            latestReply?.sent_at || latestCall?.created_at || msg.received_at,
-          ).toISOString(),
-          model: latestCall?.model || "deepseek-chat",
-          latencyMs: latestCall?.latency_ms || undefined,
-          status: latestReply?.status || "sent",
-          error: latestReply?.error || latestCall?.error || null,
-        });
-      }
-    }
-
-    chatThread.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
-    return reply.send(chatThread);
-  });
+  // Support both GET /api/emulator/chat and GET /api/emulator/history
+  app.get("/api/emulator/chat", fetchChatHistoryHandler);
+  app.get("/api/emulator/history", fetchChatHistoryHandler);
 }
