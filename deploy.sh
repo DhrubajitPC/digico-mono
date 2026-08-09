@@ -25,8 +25,7 @@ echo "[1/2] Building and starting Docker containers..."
 docker compose up -d --build
 
 # 3. Verify status
-echo "[2/2] Checking container health..."
-sleep 3
+echo "[2/2] Checking container status..."
 docker compose ps
 
 echo "========================================="
