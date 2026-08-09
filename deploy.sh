@@ -32,11 +32,11 @@ fi
 
 # 3. Build and launch containers
 echo "[1/2] Building and starting Docker containers..."
-docker compose up -d --build
+make docker-up
 
 # 4. Verify status
-echo "[2/2] Checking container health..."
-docker compose ps
+echo "[2/2] Checking container status..."
+make docker-ps
 
 echo "========================================="
 echo "   SUCCESS: Digico Container Deploy Complete!"
