@@ -66,10 +66,10 @@ build:
 seed:
 	pnpm --filter whatsapp-webhook seed
 
-## clean-db: Delete local database data to re-seed fresh state
+## clean-db: Reset local MariaDB database container volume
 clean-db:
-	rm -rf ./data/db apps/whatsapp-webhook/data/db
-	@echo "Local database cleaned. Fresh data will seed on next server boot."
+	docker compose down -v
+	@echo "MariaDB database volume reset. Run 'make mariadb-up && make seed' to populate fresh data."
 
 ## deploy: Execute production container deployment script
 deploy:

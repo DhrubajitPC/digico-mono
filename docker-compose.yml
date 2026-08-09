@@ -49,8 +49,6 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=${PORT:-8787}
-      - DB_DATA_DIR=/app/data/db
-      - DATABASE_URL=${DATABASE_URL:-}
       - MARIADB_URL=${MARIADB_URL:-mysql://${MARIADB_USER:-wp}:${MARIADB_PASSWORD:-wp}@mariadb:3306/${MARIADB_DATABASE:-woocommerce_local}}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
@@ -58,8 +56,6 @@ services:
       - WHATSAPP_VERIFY_TOKEN=${WHATSAPP_VERIFY_TOKEN:-digico_default_verify_token_12345}
       - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN:-}
       - WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID:-}
-    volumes:
-      - pglite_data:/app/data/db
     healthcheck:
       test:
         [
@@ -96,8 +92,6 @@ services:
       - digico-network
 
 volumes:
-  pglite_data:
-    driver: local
   digico_mariadb_data:
     driver: local
 

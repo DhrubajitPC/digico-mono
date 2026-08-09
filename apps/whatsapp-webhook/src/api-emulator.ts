@@ -1,8 +1,8 @@
+import type mysql from "mysql2/promise";
 import type { Db } from "./db/client.ts";
-import { aiCalls, messages, outboundReplies } from "./db/schema.ts";
+import { ensureMariaDbLogTables } from "./db/mariadb.ts";
 import { handleIncomingMessage } from "./handle-message.ts";
 import { parseIncomingMessages } from "./parse-webhook.ts";
-import { eq, desc } from "drizzle-orm";
 
 export interface EmulatorSendInput {
   fromPhone: string;
@@ -79,57 +79,60 @@ export async function sendEmulatorMessage(input: EmulatorSendInput) {
   };
 }
 
-/** Fetches full chat history & DeepSeek diagnostics for a given phone number */
+/** Fetches full chat history & DeepSeek diagnostics for a given phone number from MariaDB */
 export async function getEmulatorChatHistory(db: Db, fromPhone: string) {
-  const userMessages = await db
-    .select()
-    .from(messages)
-    .where(eq(messages.fromPhone, fromPhone))
-    .orderBy(desc(messages.receivedAt));
+  await ensureMariaDbLogTables();
+  const pool = db;
+  const [userMessages] = await pool.query<mysql.RowDataPacket[]>(
+    `SELECT * FROM joy_whatsapp_messages WHERE from_phone = ? ORDER BY received_at DESC, id DESC`,
+    [fromPhone],
+  );
 
   const chatThread: EmulatorChatMessage[] = [];
 
-  for (const msg of userMessages) {
+  for (const msg of userMessages || []) {
     // Add User Bubble
     chatThread.push({
       id: msg.id,
       role: "user",
-      text: msg.resolvedText || msg.inboundText || "—",
-      timestamp: msg.receivedAt.toISOString(),
+      text: msg.resolved_text || msg.inbound_text || "—",
+      timestamp: new Date(msg.received_at).toISOString(),
       status: msg.status,
       error: msg.error,
-      rawPayload: msg.rawPayload,
+      rawPayload: msg.raw_payload ? JSON.parse(msg.raw_payload) : undefined,
     });
 
     // Fetch corresponding AI call & outbound reply
-    const calls = await db.select().from(aiCalls).where(eq(aiCalls.messageId, msg.id));
-    const replies = await db
-      .select()
-      .from(outboundReplies)
-      .where(eq(outboundReplies.messageId, msg.id));
+    const [calls] = await pool.query<mysql.RowDataPacket[]>(
+      `SELECT * FROM joy_whatsapp_ai_calls WHERE message_id = ? ORDER BY created_at ASC`,
+      [msg.id],
+    );
+    const [replies] = await pool.query<mysql.RowDataPacket[]>(
+      `SELECT * FROM joy_whatsapp_outbound_replies WHERE message_id = ? ORDER BY sent_at ASC`,
+      [msg.id],
+    );
 
-    const latestCall = calls[calls.length - 1];
-    const latestReply = replies[replies.length - 1];
+    const latestCall = calls?.[calls.length - 1];
+    const latestReply = replies?.[replies.length - 1];
 
     if (latestReply || latestCall) {
       chatThread.push({
         id: latestReply?.id || msg.id * 1000,
         role: "assistant",
-        text: latestReply?.replyText || latestCall?.responseText || "No response generated.",
-        timestamp: (latestReply?.sentAt || latestCall?.createdAt || msg.receivedAt).toISOString(),
+        text: latestReply?.reply_text || latestCall?.response_text || "No response generated.",
+        timestamp: new Date(
+          latestReply?.sent_at || latestCall?.created_at || msg.received_at,
+        ).toISOString(),
         model: latestCall?.model || "deepseek-chat",
-        latencyMs: latestCall?.latencyMs,
+        latencyMs: latestCall?.latency_ms || undefined,
         status: latestReply?.status || "sent",
-        error: latestReply?.error || latestCall?.error,
+        error: latestReply?.error || latestCall?.error || null,
       });
     }
   }
 
-  // Sort chronologically ascending
+  // Sort chronological
   chatThread.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-  return {
-    fromPhone,
-    messages: chatThread,
-  };
+  return chatThread;
 }

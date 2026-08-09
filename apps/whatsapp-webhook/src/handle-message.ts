@@ -13,8 +13,7 @@ import type { IncomingWhatsAppMessage } from "./parse-webhook.ts";
 import { transcribeAudio } from "./transcribe.ts";
 import { downloadWhatsAppMedia } from "./whatsapp-media.ts";
 import { sendWhatsAppText } from "./whatsapp-send.ts";
-import { fetchMariaDbOrders, searchMariaDbProducts, isMariaDbAvailable } from "./db/mariadb.ts";
-import { listProductsForApi } from "./api-orders.ts";
+import { fetchMariaDbOrders, searchMariaDbProducts } from "./db/mariadb.ts";
 import { routeIntent } from "./intent-router.ts";
 import { validateAndExecuteOrderTool } from "./tools/order-tools.ts";
 
@@ -182,15 +181,11 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
   let dealerInfo: any = null;
 
   try {
-    if (await isMariaDbAvailable()) {
-      productsList = await searchMariaDbProducts(userText, 10);
-      const mariaOrders = await fetchMariaDbOrders();
-      const matchOrder = mariaOrders.find((o) => o.dealer.phone === message.from);
-      if (matchOrder) {
-        dealerInfo = matchOrder.dealer;
-      }
-    } else {
-      productsList = await listProductsForApi(db);
+    productsList = await searchMariaDbProducts(userText, 10);
+    const mariaOrders = await fetchMariaDbOrders();
+    const matchOrder = mariaOrders.find((o) => o.dealer.phone === message.from);
+    if (matchOrder) {
+      dealerInfo = matchOrder.dealer;
     }
   } catch (err) {
     console.error("Failed to fetch database context for DeepSeek prompt", err);
