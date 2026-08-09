@@ -1,6 +1,37 @@
 name: digico-app
 
 services:
+  # MariaDB WooCommerce Database Service
+  mariadb:
+    image: mariadb:11.8
+    container_name: digico-mariadb
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    env_file:
+      - .env
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root}
+      MARIADB_DATABASE: ${MARIADB_DATABASE:-woocommerce_local}
+      MARIADB_USER: ${MARIADB_USER:-wp}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-wp}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_520_ci
+      - --max-allowed-packet=512M
+      - --innodb-buffer-pool-size=1G
+    volumes:
+      - digico_mariadb_data:/var/lib/mysql
+      - ./data/mariadb-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks:
+      - digico-network
+
   # Fastify REST API Backend Service
   backend:
     build:
@@ -10,25 +41,31 @@ services:
     restart: unless-stopped
     ports:
       - "8787:8787"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    env_file:
+      - .env
     environment:
-      - NODE_ENV=production
-      - PORT=8787
-      - DB_DATA_DIR=/app/data/db
-      - DATABASE_URL=${DATABASE_URL:-}
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${PORT:-8787}
+      - MARIADB_URL=mysql://${MARIADB_USER:-wp}:${MARIADB_PASSWORD:-wp}@mariadb:3306/${MARIADB_DATABASE:-woocommerce_local}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - WHATSAPP_VERIFY_TOKEN=${WHATSAPP_VERIFY_TOKEN}
-    volumes:
-      - pglite_data:/app/data/db
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - DEEPSEEK_MODEL=${DEEPSEEK_MODEL:-deepseek-chat}
+      - WHATSAPP_VERIFY_TOKEN=${WHATSAPP_VERIFY_TOKEN:-digico_default_verify_token_12345}
+      - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN:-}
+      - WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID:-}
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          'node -e "fetch(''http://localhost:8787/api/orders'').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"',
+          'node -e "fetch(''http://127.0.0.1:8787/health'').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"',
         ]
-      interval: 15s
+      interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 10s
+      retries: 5
+      start_period: 15s
     networks:
       - digico-network
 
@@ -55,7 +92,7 @@ services:
       - digico-network
 
 volumes:
-  pglite_data:
+  digico_mariadb_data:
     driver: local
 
 networks:

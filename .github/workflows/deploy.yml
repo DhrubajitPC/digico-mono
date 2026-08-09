@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, "feat/*", "fix/*"]
+    branches: [main, "feat/*", "fix/*", "feature/*"]
   pull_request:
     branches: [main]
 
@@ -46,16 +46,32 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy via SSH
+      - name: Deploy via SSH & Inject GitHub Secrets
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_SSH_PORT || '22' }}
+          envs: OPENAI_API_KEY,DEEPSEEK_API_KEY,DEEPSEEK_MODEL,WHATSAPP_ACCESS_TOKEN,WHATSAPP_PHONE_NUMBER_ID,WHATSAPP_VERIFY_TOKEN,MARIADB_URL,DATABASE_URL
           script: |
-            echo "Pulling latest changes and rebuilding containers..."
+            echo "Pulling latest code from main branch..."
             cd /opt/digico || cd ~/digico
             git pull origin main
+
+            echo "Injecting GitHub Secrets into production .env..."
+            cat <<EOF > .env
+            PORT=8787
+            NODE_ENV=production
+            OPENAI_API_KEY="$OPENAI_API_KEY"
+            DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY"
+            DEEPSEEK_MODEL="${DEEPSEEK_MODEL:-deepseek-chat}"
+            WHATSAPP_ACCESS_TOKEN="$WHATSAPP_ACCESS_TOKEN"
+            WHATSAPP_PHONE_NUMBER_ID="$WHATSAPP_PHONE_NUMBER_ID"
+            WHATSAPP_VERIFY_TOKEN="$WHATSAPP_VERIFY_TOKEN"
+            MARIADB_URL="$MARIADB_URL"
+            DATABASE_URL="$DATABASE_URL"
+            EOF
+
             chmod +x deploy.sh
             ./deploy.sh

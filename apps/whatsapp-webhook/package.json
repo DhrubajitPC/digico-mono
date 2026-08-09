@@ -4,23 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --env-file=.env --experimental-strip-types --watch src/server.ts",
-    "start": "node --env-file=.env --experimental-strip-types src/server.ts",
+    "dev": "node --env-file=../../.env --experimental-strip-types --watch src/server.ts",
+    "start": "node --env-file=../../.env --experimental-strip-types src/server.ts",
     "test": "vp test",
     "check": "vp check",
-    "seed": "node --env-file=.env --experimental-strip-types src/db/seed.ts",
-    "db:generate": "drizzle-kit generate"
+    "seed": "pnpm --filter @digico/db seed"
   },
   "dependencies": {
-    "@electric-sql/pglite": "^0.3.3",
-    "drizzle-orm": "^0.44.2",
-    "mysql2": "^3.12.0",
-    "pg": "^8.16.0"
+    "@digico/db": "workspace:*",
+    "fastify": "^5.2.0",
+    "mysql2": "^3.12.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "@types/pg": "^8.15.4",
-    "drizzle-kit": "^0.31.1",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:"

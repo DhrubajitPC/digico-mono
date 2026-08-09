@@ -1,15 +1,23 @@
 import { expect, test } from "vite-plus/test";
-import { extractAssistantContent } from "../src/deepseek.ts";
+import { buildSystemPrompt } from "../src/services/deepseek.ts";
 
-test("extracts assistant content from DeepSeek-shaped response", () => {
-  const content = extractAssistantContent({
-    choices: [{ message: { role: "assistant", content: "  HP 15s available. Which config?  " } }],
+test("builds system prompt with live MariaDB candidates", () => {
+  const prompt = buildSystemPrompt({
+    products: [
+      {
+        id: 1,
+        sku: "TEST-SKU",
+        brand: "Conion",
+        name: "Conion Test Item",
+        category: "Appliances",
+        model: null,
+        specifications: null,
+        unitPrice: 1500,
+        stockQuantity: 10,
+        aliases: ["Conion Test Item"],
+      },
+    ],
   });
-  expect(content).toBe("HP 15s available. Which config?");
-});
-
-test("returns null for empty / malformed payloads", () => {
-  expect(extractAssistantContent(null)).toBeNull();
-  expect(extractAssistantContent({ choices: [] })).toBeNull();
-  expect(extractAssistantContent({ choices: [{ message: { content: "" } }] })).toBeNull();
+  expect(prompt).toContain("Conion Test Item");
+  expect(prompt).toContain("1,500");
 });
