@@ -15,6 +15,9 @@ import {
   fetchMariaDbOrderById,
   fetchMariaDbProducts,
   fetchMariaDbDealers,
+  createMariaDbOrder,
+  updateMariaDbOrder,
+  updateMariaDbOrderStatus,
 } from "./db/mariadb.ts";
 
 export const CURRENCY_SYMBOL = "৳";
@@ -505,6 +508,21 @@ export async function getOrderForApi(db: Db, id: number) {
 
 // POST /api/orders (Create Manual Order)
 export async function createOrderForApi(db: Db, body: CreateOrderInput) {
+  if (await isMariaDbAvailable()) {
+    const firstItem = body.items[0];
+    const total = body.items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
+    const mariaRes = await createMariaDbOrder({
+      phone: "+8801700000000",
+      customerName: "Manual Sales Dealer",
+      productName: firstItem?.productName || "Product",
+      quantity: firstItem?.quantity || 1,
+      unitPrice: firstItem?.unitPrice || total,
+      totalAmount: total,
+      notes: body.notes,
+    });
+    if (mariaRes) return mariaRes;
+  }
+
   const orderNum = `#ORD-${Math.floor(1000 + Math.random() * 9000)}`;
   const total = body.items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
 
@@ -548,6 +566,11 @@ export async function createOrderForApi(db: Db, body: CreateOrderInput) {
 
 // PATCH /api/orders/:id (Edit Order)
 export async function updateOrderForApi(db: Db, id: number, body: UpdateOrderInput) {
+  if (await isMariaDbAvailable()) {
+    const updatedMaria = await updateMariaDbOrder(id, body);
+    if (updatedMaria) return updatedMaria;
+  }
+
   const order = await getOrderForApi(db, id);
   if (!order) return null;
 
@@ -595,6 +618,11 @@ export async function updateOrderStatusForApi(
   reason?: string,
   approvedMessage?: string,
 ) {
+  if (await isMariaDbAvailable()) {
+    const updatedMaria = await updateMariaDbOrderStatus(id, newStatus, reason, approvedMessage);
+    if (updatedMaria) return updatedMaria;
+  }
+
   const order = await getOrderForApi(db, id);
   if (!order) return null;
 

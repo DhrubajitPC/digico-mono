@@ -1,5 +1,6 @@
 import { and, count, desc, eq } from "drizzle-orm";
 import type { Db } from "../db/client.ts";
+import { isMariaDbAvailable, getMariaDbRecentConversationHistory } from "../db/mariadb.ts";
 import { aiCalls, messages, outboundReplies } from "../db/schema.ts";
 import type {
   AiCall,
@@ -208,6 +209,11 @@ export async function getRecentConversationHistory(
   fromPhone: string,
   limit = 8,
 ): Promise<Array<{ role: "user" | "assistant"; content: string }>> {
+  if (await isMariaDbAvailable()) {
+    const mariaHistory = await getMariaDbRecentConversationHistory(fromPhone, limit);
+    if (mariaHistory.length > 0) return mariaHistory;
+  }
+
   const recentMsgs = await db
     .select()
     .from(messages)

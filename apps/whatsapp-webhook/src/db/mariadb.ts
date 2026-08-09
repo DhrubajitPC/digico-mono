@@ -439,3 +439,188 @@ export async function createMariaDbOrder(input: CreateMariaDbOrderInput): Promis
     return null;
   }
 }
+
+export function mapDigicoStatusToWc(digicoStatus: string): string {
+  switch (digicoStatus) {
+    case "pending_review":
+      return "wc-pending";
+    case "confirmed":
+    case "completed":
+      return "wc-completed";
+    case "on_hold":
+      return "wc-on-hold";
+    case "processing":
+      return "wc-processing";
+    case "cancelled":
+      return "wc-cancelled";
+    default:
+      return `wc-${digicoStatus}`;
+  }
+}
+
+/** Update order status in MariaDB joy_posts */
+export async function updateMariaDbOrderStatus(
+  orderId: number,
+  newStatus: string,
+  _reason?: string,
+  proposedMessage?: string,
+): Promise<WcOrder | null> {
+  const p = getMariaDbPool();
+  const wcStatus = mapDigicoStatusToWc(newStatus);
+  const nowStr = new Date().toISOString().slice(0, 19).replace("T", " ");
+
+  try {
+    await p.query(
+      `UPDATE joy_posts SET post_status = ?, post_modified = ?, post_modified_gmt = ? WHERE ID = ? AND post_type = 'shop_order'`,
+      [wcStatus, nowStr, nowStr, orderId],
+    );
+
+    if (proposedMessage) {
+      await p.query(
+        `INSERT INTO joy_postmeta (post_id, meta_key, meta_value) VALUES (?, '_proposed_message', ?) ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)`,
+        [orderId, proposedMessage],
+      );
+    }
+
+    return await fetchMariaDbOrderById(orderId);
+  } catch (err) {
+    console.error("Failed to update MariaDB order status", err);
+    return null;
+  }
+}
+
+/** Update MariaDB order details */
+export async function updateMariaDbOrder(
+  orderId: number,
+  input: { notes?: string; proposedMessage?: string; items?: unknown[] },
+): Promise<WcOrder | null> {
+  const p = getMariaDbPool();
+  const nowStr = new Date().toISOString().slice(0, 19).replace("T", " ");
+
+  try {
+    if (input.notes !== undefined) {
+      await p.query(
+        `UPDATE joy_posts SET post_excerpt = ?, post_modified = ? WHERE ID = ? AND post_type = 'shop_order'`,
+        [input.notes, nowStr, orderId],
+      );
+    }
+    return await fetchMariaDbOrderById(orderId);
+  } catch (err) {
+    console.error("Failed to update MariaDB order", err);
+    return null;
+  }
+}
+
+/** Ensure WhatsApp message log tables exist in MariaDB */
+export async function ensureMariaDbLogTables(): Promise<void> {
+  const p = getMariaDbPool();
+  try {
+    await p.query(`
+      CREATE TABLE IF NOT EXISTS joy_whatsapp_messages (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        message_id VARCHAR(255) UNIQUE NOT NULL,
+        from_phone VARCHAR(64) NOT NULL,
+        contact_name VARCHAR(255),
+        kind VARCHAR(32) NOT NULL,
+        inbound_text TEXT,
+        resolved_text TEXT,
+        transcript TEXT,
+        status VARCHAR(32) DEFAULT 'received',
+        error TEXT,
+        received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        completed_at DATETIME
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await p.query(`
+      CREATE TABLE IF NOT EXISTS joy_whatsapp_ai_calls (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        message_id INT NOT NULL,
+        provider VARCHAR(64) NOT NULL,
+        model VARCHAR(64) NOT NULL,
+        request_messages LONGTEXT,
+        response_text LONGTEXT,
+        error TEXT,
+        latency_ms INT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await p.query(`
+      CREATE TABLE IF NOT EXISTS joy_whatsapp_outbound_replies (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        message_id INT NOT NULL,
+        to_phone VARCHAR(64) NOT NULL,
+        reply_text LONGTEXT NOT NULL,
+        status VARCHAR(32) NOT NULL,
+        error TEXT,
+        sent_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+  } catch (err) {
+    console.error("Failed to ensure MariaDB log tables", err);
+  }
+}
+
+/** Get conversation history for a phone number directly from MariaDB */
+export async function getMariaDbRecentConversationHistory(
+  fromPhone: string,
+  limit = 8,
+): Promise<Array<{ role: "user" | "assistant"; content: string }>> {
+  await ensureMariaDbLogTables();
+  const p = getMariaDbPool();
+  try {
+    const [msgs] = await p.query<mysql.RowDataPacket[]>(
+      `
+      SELECT id, inbound_text, resolved_text, received_at
+      FROM joy_whatsapp_messages
+      WHERE from_phone = ?
+      ORDER BY received_at DESC, id DESC
+      LIMIT ?
+    `,
+      [fromPhone, limit],
+    );
+
+    if (!msgs || msgs.length === 0) return [];
+
+    const msgIds = msgs.map((m) => m.id);
+    const [replies] = await p.query<mysql.RowDataPacket[]>(
+      `
+      SELECT message_id, reply_text, sent_at
+      FROM joy_whatsapp_outbound_replies
+      WHERE message_id IN (?)
+      ORDER BY sent_at ASC
+    `,
+      [msgIds],
+    );
+
+    const historyItems: Array<{ time: Date; role: "user" | "assistant"; content: string }> = [];
+
+    for (const m of msgs) {
+      const text = m.resolved_text || m.inbound_text;
+      if (text && text.trim().length > 0) {
+        historyItems.push({
+          time: new Date(m.received_at),
+          role: "user",
+          content: text.trim(),
+        });
+      }
+    }
+
+    for (const r of replies) {
+      if (r.reply_text && r.reply_text.trim().length > 0) {
+        historyItems.push({
+          time: new Date(r.sent_at),
+          role: "assistant",
+          content: r.reply_text.trim(),
+        });
+      }
+    }
+
+    historyItems.sort((a, b) => a.time.getTime() - b.time.getTime());
+    return historyItems.map((h) => ({ role: h.role, content: h.content }));
+  } catch (err) {
+    console.error("Failed to fetch conversation history from MariaDB", err);
+    return [];
+  }
+}
