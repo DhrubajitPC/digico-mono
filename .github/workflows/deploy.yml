@@ -6,9 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: digico-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   test:
-    name: Run Tests & Build Check
+    name: Test & Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -34,44 +38,87 @@ jobs:
           cache: false
           run-install: false
 
-      - name: Code Quality & Type Check
-        run: pnpm --filter whatsapp-webhook check && pnpm --filter website exec vp check
+      # Covers all five workspaces, not just website + whatsapp-webhook.
+      - name: Format, lint & typecheck
+        run: pnpm exec vp check
 
-      - name: Verify Frontend Production Build
+      - name: Unit tests
+        run: pnpm -r test
+
+      # Only `website` has a meaningful build: the backend runs TypeScript directly
+      # via --experimental-strip-types, and `packages/utils` is orphaned with a
+      # broken `vp pack` (missing @typescript/native-preview).
+      - name: Build frontend bundle
         run: pnpm --filter website build
+
+      # Exercises both Dockerfiles so a broken image fails here rather than
+      # halfway through a production deploy. compose requires .env to exist.
+      - name: Build production images
+        run: |
+          cp .env.example .env
+          docker compose build
 
   deploy:
     name: Deploy to Production Server
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
-      - name: Deploy via SSH & Inject GitHub Secrets
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_SSH_PORT || '22' }}
-          envs: OPENAI_API_KEY,DEEPSEEK_API_KEY,DEEPSEEK_MODEL,WHATSAPP_ACCESS_TOKEN,WHATSAPP_PHONE_NUMBER_ID,WHATSAPP_VERIFY_TOKEN,MARIADB_URL,DATABASE_URL
-          script: |
-            echo "Pulling latest code from main branch..."
-            cd /opt/digico || cd ~/digico
-            git pull origin main
+      # Fail before touching the server: a missing secret would otherwise be
+      # written to the server's .env as an empty value and break production.
+      - name: Verify required secrets are present
+        env:
+          DIGICO_DEPLOY_SSH_KEY: ${{ secrets.DIGICO_DEPLOY_SSH_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          WHATSAPP_ACCESS_TOKEN: ${{ secrets.WHATSAPP_ACCESS_TOKEN }}
+          WHATSAPP_PHONE_NUMBER_ID: ${{ secrets.WHATSAPP_PHONE_NUMBER_ID }}
+          WHATSAPP_VERIFY_TOKEN: ${{ secrets.WHATSAPP_VERIFY_TOKEN }}
+        run: |
+          missing=()
+          for key in DIGICO_DEPLOY_SSH_KEY DEEPSEEK_API_KEY WHATSAPP_ACCESS_TOKEN \
+                     WHATSAPP_PHONE_NUMBER_ID WHATSAPP_VERIFY_TOKEN; do
+            if [ -z "${!key}" ]; then missing+=("$key"); fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf 'Missing required repository secret: %s\n' "${missing[@]}" >&2
+            exit 1
+          fi
+          echo "All required secrets are present."
 
-            echo "Injecting GitHub Secrets into production .env..."
-            cat <<EOF > .env
-            PORT=8787
-            NODE_ENV=production
-            OPENAI_API_KEY="$OPENAI_API_KEY"
-            DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY"
-            DEEPSEEK_MODEL="${DEEPSEEK_MODEL:-deepseek-chat}"
-            WHATSAPP_ACCESS_TOKEN="$WHATSAPP_ACCESS_TOKEN"
-            WHATSAPP_PHONE_NUMBER_ID="$WHATSAPP_PHONE_NUMBER_ID"
-            WHATSAPP_VERIFY_TOKEN="$WHATSAPP_VERIFY_TOKEN"
-            MARIADB_URL="$MARIADB_URL"
-            DATABASE_URL="$DATABASE_URL"
-            EOF
+      - name: Configure restricted SSH credential
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DIGICO_DEPLOY_SSH_KEY }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/digico_deploy
+          chmod 600 ~/.ssh/digico_deploy
+          printf '%s\n' '[103.191.50.48]:44444 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFpOm4izPb8lFnXL2deniukzGxs1gfcLvhc5nOEMuipo' > ~/.ssh/known_hosts
 
-            chmod +x deploy.sh
-            ./deploy.sh
+      # No remote command is sent. The forced command in the deploy account's
+      # authorized_keys runs digico-ci-entrypoint, which reads this environment
+      # payload from stdin, validates every key against a whitelist, writes
+      # /srv/digico/.env (0600), then invokes the deployment routine via sudo.
+      - name: Deploy
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_MODEL: ${{ vars.DEEPSEEK_MODEL || 'deepseek-v4-pro' }}
+          WHATSAPP_ACCESS_TOKEN: ${{ secrets.WHATSAPP_ACCESS_TOKEN }}
+          WHATSAPP_PHONE_NUMBER_ID: ${{ secrets.WHATSAPP_PHONE_NUMBER_ID }}
+          WHATSAPP_VERIFY_TOKEN: ${{ secrets.WHATSAPP_VERIFY_TOKEN }}
+        run: |
+          {
+            printf 'PORT=8787\n'
+            printf 'NODE_ENV=production\n'
+            printf 'DEEPSEEK_MODEL=%s\n'          "$DEEPSEEK_MODEL"
+            printf 'DEEPSEEK_API_KEY=%s\n'        "$DEEPSEEK_API_KEY"
+            printf 'WHATSAPP_ACCESS_TOKEN=%s\n'   "$WHATSAPP_ACCESS_TOKEN"
+            printf 'WHATSAPP_PHONE_NUMBER_ID=%s\n' "$WHATSAPP_PHONE_NUMBER_ID"
+            printf 'WHATSAPP_VERIFY_TOKEN=%s\n'   "$WHATSAPP_VERIFY_TOKEN"
+          } | ssh -i ~/.ssh/digico_deploy -p 44444 \
+                -o IdentitiesOnly=yes \
+                -o StrictHostKeyChecking=yes \
+                -o UserKnownHostsFile=~/.ssh/known_hosts \
+                deploy@103.191.50.48
