@@ -83,7 +83,11 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost/health || exit 1"]
+      # Must be 127.0.0.1, not localhost: the container resolves localhost to ::1
+      # first, but this image's nginx binds 0.0.0.0:80 only (its default.conf has
+      # no `listen [::]:80;`, and 10-listen-on-ipv6-by-default.sh skips patching a
+      # customised config), so a localhost probe gets ECONNREFUSED forever.
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3

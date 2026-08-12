@@ -84,11 +84,23 @@ dnf install -y dnf-plugins-core iptables-nft
 dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-# Configure Docker Daemon for AlmaLinux 10 (disable direct legacy iptables manipulation)
+# Configure Docker Daemon for AlmaLinux 10.
+#
+# Do NOT set "iptables": false here. It stops Docker configuring any NAT at all,
+# which leaves containers with no outbound connectivity (image pulls and npm/apk
+# fetches fail during builds).
+#
+# Do NOT set "iptables": true either. That forces Docker's iptables backend, which
+# needs `-m addrtype` -> the xt_addrtype kernel module. AlmaLinux 10 ships no xt_*
+# modules in the stock kernel-modules package (they live in kernel-modules-extra),
+# so the bridge driver fails to initialise and dockerd refuses to start.
+#
+# The nftables backend does the same job natively, matches firewalld (already
+# nftables-backed on EL10), and needs no kernel-matched extra package.
 mkdir -p /etc/docker
 cat << 'EOF' > /etc/docker/daemon.json
 {
-  "iptables": false,
+  "firewall-backend": "nftables",
   "userland-proxy": true
 }
 EOF
