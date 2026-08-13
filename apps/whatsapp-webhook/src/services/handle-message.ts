@@ -7,15 +7,19 @@ import {
   recordMariaDbOutboundReply,
   searchMariaDbProducts,
   setMariaDbResolvedText,
+  type WcDealer,
+  type WcProduct,
 } from "@digico/db";
+import type { DeepSeekReplyResult } from "./deepseek.ts";
 import { buildChatMessages, deepSeekModel, replyWithDeepSeekFull } from "./deepseek.ts";
 import { routeIntent } from "./intent-router.ts";
 
 import type { IncomingWhatsAppMessage } from "./parse-webhook.ts";
+import { isEmulatorMessage } from "./parse-webhook.ts";
 import { transcribeAudio } from "./transcribe.ts";
 import { downloadWhatsAppMedia } from "./whatsapp-media.ts";
 import { sendWhatsAppText } from "./whatsapp-send.ts";
-import { validateAndExecuteOrderTool } from "./order-tools.ts";
+import { parseDraftOrderPayload, validateAndExecuteOrderTool } from "./order-tools.ts";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -150,8 +154,7 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
   const routeResult = await routeIntent(userText, message.from);
   if (routeResult.handled && routeResult.replyText) {
     console.log("[Intent Router] Intercepted deterministically without LLM call:", userText);
-    const isEmulator = message.phoneNumberId === "EMULATOR" || message.from.includes("EMULATOR");
-    await sendWhatsAppText(message.from, routeResult.replyText, isEmulator);
+    await sendWhatsAppText(message.from, routeResult.replyText, isEmulatorMessage(message));
     await log.outboundReply({
       toPhone: message.from,
       replyText: routeResult.replyText,
@@ -162,8 +165,8 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
   }
 
   // Step 2: RAG Catalog Search (Retrieve top candidate products for compressed LLM prompt)
-  let productsList: any[] = [];
-  let dealerInfo: any = null;
+  let productsList: WcProduct[] = [];
+  let dealerInfo: WcDealer | null = null;
 
   try {
     productsList = await searchMariaDbProducts(userText, 10);
@@ -177,13 +180,13 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
   }
 
   // Step 3: DeepSeek Completion with Tool Calling & Multi-Turn History
-  const isEmulator = message.phoneNumberId === "EMULATOR" || message.from.includes("EMULATOR");
+  const isEmulator = isEmulatorMessage(message);
   const chatHistory = await getMariaDbRecentConversationHistory(message.from, 8);
   const promptContext = { products: productsList, dealer: dealerInfo };
   const requestMessages = buildChatMessages(userText, promptContext, chatHistory);
   const startedAt = Date.now();
 
-  let deepseekResult: { text: string; toolCalls?: any[] };
+  let deepseekResult: DeepSeekReplyResult;
   try {
     deepseekResult = await replyWithDeepSeekFull(userText, promptContext, chatHistory);
   } catch (error) {
@@ -204,8 +207,12 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
   if (deepseekResult.toolCalls && deepseekResult.toolCalls.length > 0) {
     for (const call of deepseekResult.toolCalls) {
       if (call.function?.name === "draft_order") {
+        const payload = parseDraftOrderPayload(call.function.arguments);
+        if (!payload) {
+          console.warn("Skipping malformed draft_order tool call", call.function.arguments);
+          continue;
+        }
         try {
-          const payload = JSON.parse(call.function.arguments);
           const execResult = await validateAndExecuteOrderTool(payload);
           console.log("Tool execution result:", execResult);
         } catch (err) {
@@ -218,12 +225,16 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
   // Fallback: Check [ORDER_DATA: ...] tag if tool call wasn't directly generated
   const orderDataMatch = /\[ORDER_DATA:\s*(\{.*?\})\s*\]/s.exec(reply);
   if (orderDataMatch && orderDataMatch[1]) {
-    try {
-      const payload = JSON.parse(orderDataMatch[1]);
-      await validateAndExecuteOrderTool(payload);
-      reply = reply.replace(/\[ORDER_DATA:\s*\{.*?\}\s*\]/s, "").trim();
-    } catch (err) {
-      console.error("Failed to parse fallback [ORDER_DATA] tag", err);
+    const payload = parseDraftOrderPayload(orderDataMatch[1]);
+    if (!payload) {
+      console.warn("Skipping malformed [ORDER_DATA] tag", orderDataMatch[1]);
+    } else {
+      try {
+        await validateAndExecuteOrderTool(payload);
+        reply = reply.replace(/\[ORDER_DATA:\s*\{.*?\}\s*\]/s, "").trim();
+      } catch (err) {
+        console.error("Failed to execute fallback [ORDER_DATA] order", err);
+      }
     }
   }
 

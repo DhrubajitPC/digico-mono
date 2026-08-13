@@ -10,6 +10,63 @@ export interface OrderToolExecutionResult {
   validationWarnings?: string[];
 }
 
+/**
+ * Validated parse of a DraftOrderPayload from an untrusted source (tool-call
+ * arguments string or [ORDER_DATA: ...] tag). Returns null when the JSON is
+ * malformed or a required field is missing/out of range.
+ */
+export function parseDraftOrderPayload(json: unknown): DraftOrderPayload | null {
+  let data: unknown;
+  if (typeof json === "string") {
+    try {
+      data = JSON.parse(json);
+    } catch {
+      return null;
+    }
+  } else {
+    data = json;
+  }
+
+  if (typeof data !== "object" || data === null || Array.isArray(data)) return null;
+  const record = data as Record<string, unknown>;
+
+  if (typeof record.productName !== "string" || record.productName.trim() === "") return null;
+  const quantity = Number(record.quantity);
+  const unitPrice = Number(record.unitPrice);
+  const totalAmount = Number(record.totalAmount);
+  if (
+    !Number.isFinite(quantity) ||
+    quantity <= 0 ||
+    !Number.isFinite(unitPrice) ||
+    unitPrice < 0 ||
+    !Number.isFinite(totalAmount) ||
+    totalAmount < 0
+  ) {
+    return null;
+  }
+
+  return {
+    productName: record.productName,
+    quantity,
+    unitPrice,
+    totalAmount,
+    ...(typeof record.sku === "string" ? { sku: record.sku } : {}),
+    ...(typeof record.productId === "number" ? { productId: record.productId } : {}),
+    ...(typeof record.customerName === "string" ? { customerName: record.customerName } : {}),
+    ...(typeof record.deliveryAddress === "string"
+      ? { deliveryAddress: record.deliveryAddress }
+      : {}),
+    ...(typeof record.phone === "string" ? { phone: record.phone } : {}),
+    ...(typeof record.userConfirmation === "boolean"
+      ? { userConfirmation: record.userConfirmation }
+      : {}),
+  };
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export async function validateAndExecuteOrderTool(
   payload: DraftOrderPayload,
 ): Promise<OrderToolExecutionResult> {
@@ -42,18 +99,27 @@ export async function validateAndExecuteOrderTool(
   const calculatedTotal = payload.quantity * verifiedUnitPrice;
 
   // Execute database order insertion
-  const createdOrder = await createMariaDbOrder({
-    phone: payload.phone || "+8801700000000",
-    customerName: payload.customerName || "WhatsApp Dealer",
-    deliveryAddress: payload.deliveryAddress,
-    productName: payload.productName,
-    sku: payload.sku || matchProduct?.sku,
-    productId: verifiedProductId,
-    quantity: payload.quantity,
-    unitPrice: verifiedUnitPrice,
-    totalAmount: calculatedTotal,
-    notes: `WhatsApp AI Order | Confirmed: ${payload.userConfirmation ?? true}`,
-  });
+  let createdOrder: WcOrder | null = null;
+  try {
+    createdOrder = await createMariaDbOrder({
+      phone: payload.phone || "+8801700000000",
+      customerName: payload.customerName || "WhatsApp Dealer",
+      deliveryAddress: payload.deliveryAddress,
+      productName: payload.productName,
+      sku: payload.sku || matchProduct?.sku,
+      productId: verifiedProductId,
+      quantity: payload.quantity,
+      unitPrice: verifiedUnitPrice,
+      totalAmount: calculatedTotal,
+      notes: `WhatsApp AI Order | Confirmed: ${payload.userConfirmation ?? true}`,
+    });
+  } catch (err) {
+    return {
+      success: false,
+      message: `Failed to persist order to MariaDB database: ${errorMessage(err)}`,
+      validationWarnings: warnings,
+    };
+  }
 
   if (!createdOrder) {
     return {

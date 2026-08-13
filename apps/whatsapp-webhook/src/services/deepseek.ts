@@ -5,16 +5,18 @@ export interface DeepSeekPromptContext {
   dealer?: WcDealer | null;
 }
 
+export interface DeepSeekToolCall {
+  id: string;
+  type: string;
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
 export interface DeepSeekReplyResult {
   text: string;
-  toolCalls?: Array<{
-    id: string;
-    type: string;
-    function: {
-      name: string;
-      arguments: string;
-    };
-  }>;
+  toolCalls?: DeepSeekToolCall[];
 }
 
 const DEFAULT_BASE_URL = "https://api.deepseek.com";
@@ -148,11 +150,7 @@ export async function replyWithDeepSeekFull(
     choices?: Array<{
       message?: {
         content?: string;
-        tool_calls?: Array<{
-          id: string;
-          type: string;
-          function: { name: string; arguments: string };
-        }>;
+        tool_calls?: DeepSeekToolCall[];
       };
     }>;
   };

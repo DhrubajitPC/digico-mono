@@ -22,6 +22,11 @@ export interface IncomingWhatsAppMessage {
   audio: IncomingAudioPayload | null;
 }
 
+/** True when the message came from the WhatsApp emulator (phoneNumberId or from contains EMULATOR). */
+export function isEmulatorMessage(message: IncomingWhatsAppMessage): boolean {
+  return message.phoneNumberId === "EMULATOR" || message.from.includes("EMULATOR");
+}
+
 function extractContactName(value: any, waId: string): string | null {
   const contacts = value?.contacts;
   if (!Array.isArray(contacts)) return null;
