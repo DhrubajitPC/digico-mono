@@ -1,37 +1,10 @@
 import type mysql from "mysql2/promise";
+import type { Order, OrderItem, OrderOriginType, OrderStatusType } from "@digico/contracts";
 import { getMariaDbPool } from "./client.ts";
 
-export interface WcOrder {
-  id: number;
-  orderNumber: string;
-  status: string;
-  origin: string;
-  totalAmount: number;
-  notes: string | null;
-  proposedMessage: string | null;
-  approvedBy: string | null;
-  createdAt: string;
-  updatedAt: string;
-  dealer: {
-    id: number;
-    businessName: string;
-    phone: string;
-    contactPerson: string;
-    address?: string | null;
-  };
-  items?: WcOrderItem[];
-}
-
-export interface WcOrderItem {
-  id: number;
-  orderId: number;
-  productId: number | null;
-  sku: string;
-  productName: string;
-  quantity: number;
-  unitPrice: number;
-  lineTotal: number;
-}
+/** Canonical order shape lives in @digico/contracts; kept as an alias for existing call sites. */
+export type WcOrder = Order;
+export type WcOrderItem = OrderItem;
 
 export function mapWcStatusToDigico(wcStatus: string): string {
   const status = wcStatus.replace(/^wc-/, "");
@@ -179,8 +152,9 @@ export async function fetchMariaDbOrders(params?: {
     orders.push({
       id: r.id,
       orderNumber: `#ORD-${r.id}`,
-      status: digicoStatus,
-      origin: "woocommerce",
+      // Runtime values from the WooCommerce schema that fall outside the canonical unions.
+      status: digicoStatus as OrderStatusType,
+      origin: "woocommerce" as string as OrderOriginType,
       totalAmount,
       notes: r.customer_note || null,
       proposedMessage,

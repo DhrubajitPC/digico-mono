@@ -1,17 +1,7 @@
+import type { DraftOrderPayload } from "@digico/contracts";
 import { createMariaDbOrder, fetchMariaDbProducts, type WcOrder } from "@digico/db";
 
-export interface DraftOrderPayload {
-  productName: string;
-  sku?: string;
-  productId?: number;
-  quantity: number;
-  unitPrice: number;
-  totalAmount: number;
-  customerName?: string;
-  deliveryAddress?: string;
-  phone?: string;
-  userConfirmation?: boolean;
-}
+export type { DraftOrderPayload };
 
 export interface OrderToolExecutionResult {
   success: boolean;

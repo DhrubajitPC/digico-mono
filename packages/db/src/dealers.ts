@@ -1,13 +1,8 @@
+import type { Dealer } from "@digico/contracts";
 import { fetchMariaDbOrders } from "./orders.ts";
 
-export interface WcDealer {
-  id: number;
-  businessName: string;
-  contactPerson: string;
-  phone: string;
-  address: string | null;
-  status: string;
-}
+/** Canonical dealer shape lives in @digico/contracts; kept as an alias for existing call sites. */
+export type WcDealer = Dealer;
 
 /** Fetch Dealers list from MariaDB */
 export async function fetchMariaDbDealers(): Promise<WcDealer[]> {
@@ -22,7 +17,7 @@ export async function fetchMariaDbDealers(): Promise<WcDealer[]> {
         phone: o.dealer.phone,
         address: o.dealer.address || null,
         status: "active",
-      });
+      } as WcDealer);
     }
   }
   return Array.from(dealerMap.values());
