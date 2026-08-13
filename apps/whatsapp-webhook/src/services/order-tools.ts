@@ -31,17 +31,24 @@ export function parseDraftOrderPayload(json: unknown): DraftOrderPayload | null 
   const record = data as Record<string, unknown>;
 
   if (typeof record.productName !== "string" || record.productName.trim() === "") return null;
+
+  // Accept numbers or numeric strings only; Number(null) === 0 would otherwise
+  // smuggle null/booleans through the range checks below.
+  const isNumeric = (v: unknown): boolean =>
+    (typeof v === "number" && Number.isFinite(v)) ||
+    (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v)));
+
+  if (
+    !isNumeric(record.quantity) ||
+    !isNumeric(record.unitPrice) ||
+    !isNumeric(record.totalAmount)
+  ) {
+    return null;
+  }
   const quantity = Number(record.quantity);
   const unitPrice = Number(record.unitPrice);
   const totalAmount = Number(record.totalAmount);
-  if (
-    !Number.isFinite(quantity) ||
-    quantity <= 0 ||
-    !Number.isFinite(unitPrice) ||
-    unitPrice < 0 ||
-    !Number.isFinite(totalAmount) ||
-    totalAmount < 0
-  ) {
+  if (quantity <= 0 || unitPrice < 0 || totalAmount < 0) {
     return null;
   }
 
