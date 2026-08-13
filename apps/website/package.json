@@ -9,9 +9,13 @@
     "preview": "vp preview"
   },
   "dependencies": {
+    "@digico/api": "workspace:*",
     "@digico/contracts": "workspace:*",
     "@digico/design-system": "workspace:*",
     "@digico/utils": "workspace:*",
+    "@tanstack/react-query": "catalog:",
+    "@trpc/client": "catalog:",
+    "@trpc/react-query": "catalog:",
     "lucide-react": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"
