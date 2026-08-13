@@ -1,4 +1,4 @@
-import * as React from "react";
+import { useEffect, useRef } from "react";
 import { Bot, MessageCircleCode, Send, Sparkles } from "lucide-react";
 import type { EmulatorChatMessage } from "../../api.js";
 import { ChatBubble } from "./ChatBubble.js";
@@ -25,10 +25,10 @@ export function ChatWindow({
   onInputTextChange,
   onSend,
 }: ChatWindowProps) {
-  const chatEndRef = React.useRef<HTMLDivElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll chat to bottom
-  React.useEffect(() => {
+  useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isSending]);
 
@@ -56,7 +56,7 @@ export function ChatWindow({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-[11px] font-mono text-emerald-400">
+          <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-xs font-mono text-emerald-400">
             <Bot className="w-3 h-3" /> deepseek-chat
           </span>
         </div>

@@ -1,4 +1,3 @@
-import * as React from "react";
 import { Button } from "@digico/design-system";
 import type { Order } from "../../api.js";
 import { Save, XCircle, Clock, CheckCircle } from "lucide-react";

@@ -1,22 +1,36 @@
-import * as React from "react";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  type ButtonHTMLAttributes,
+  type HTMLAttributes,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { cn } from "../lib/utils.js";
 
 export interface TabsProps {
   value: string;
   onValueChange: (value: string) => void;
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
 }
 
 export function Tabs({ value, onValueChange, children, className }: TabsProps) {
   return (
     <div className={cn("w-full", className)}>
-      {React.Children.map(children, (child) => {
-        if (React.isValidElement(child)) {
-          return React.cloneElement(child as React.ReactElement<any>, {
-            activeValue: value,
-            onValueChange,
-          });
+      {Children.map(children, (child) => {
+        if (isValidElement(child)) {
+          return cloneElement(
+            child as ReactElement<{
+              activeValue?: string;
+              onValueChange?: (value: string) => void;
+            }>,
+            {
+              activeValue: value,
+              onValueChange,
+            },
+          );
         }
         return child;
       })}
@@ -24,7 +38,7 @@ export function Tabs({ value, onValueChange, children, className }: TabsProps) {
   );
 }
 
-export interface TabsListProps extends React.HTMLAttributes<HTMLDivElement> {
+export interface TabsListProps extends HTMLAttributes<HTMLDivElement> {
   activeValue?: string;
   onValueChange?: (value: string) => void;
 }
@@ -44,12 +58,18 @@ export function TabsList({
       )}
       {...props}
     >
-      {React.Children.map(children, (child) => {
-        if (React.isValidElement(child)) {
-          return React.cloneElement(child as React.ReactElement<any>, {
-            activeValue,
-            onValueChange,
-          });
+      {Children.map(children, (child) => {
+        if (isValidElement(child)) {
+          return cloneElement(
+            child as ReactElement<{
+              activeValue?: string;
+              onValueChange?: (value: string) => void;
+            }>,
+            {
+              activeValue,
+              onValueChange,
+            },
+          );
         }
         return child;
       })}
@@ -57,7 +77,7 @@ export function TabsList({
   );
 }
 
-export interface TabsTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface TabsTriggerProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   value: string;
   activeValue?: string;
   onValueChange?: (value: string) => void;

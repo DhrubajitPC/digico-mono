@@ -1,25 +1,25 @@
-import * as React from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "../lib/utils.js";
 
 export interface DropdownMenuItem {
   label: string;
   value: string;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
   variant?: "default" | "destructive" | "success" | "warning";
 }
 
 export interface DropdownMenuProps {
-  trigger: React.ReactNode;
+  trigger: ReactNode;
   items: DropdownMenuItem[];
   onSelect: (value: string) => void;
   className?: string;
 }
 
 export function DropdownMenu({ trigger, items, onSelect, className }: DropdownMenuProps) {
-  const [open, setOpen] = React.useState(false);
-  const menuRef = React.useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setOpen(false);

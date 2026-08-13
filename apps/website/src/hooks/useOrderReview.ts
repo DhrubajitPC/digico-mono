@@ -1,4 +1,4 @@
-import * as React from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   getOrder,
   updateOrder,
@@ -15,15 +15,15 @@ export function useOrderReview(
   orderId: number | null,
   options: { onRefresh: () => void; onClose: () => void },
 ) {
-  const [order, setOrder] = React.useState<Order | null>(null);
-  const [productsList, setProductsList] = React.useState<Product[]>([]);
-  const [editableItems, setEditableItems] = React.useState<OrderItem[]>([]);
-  const [proposedMsg, setProposedMsg] = React.useState("");
-  const [notes, setNotes] = React.useState("");
-  const [isSaving, setIsSaving] = React.useState(false);
-  const [selectedSku, setSelectedSku] = React.useState("");
+  const [order, setOrder] = useState<Order | null>(null);
+  const [productsList, setProductsList] = useState<Product[]>([]);
+  const [editableItems, setEditableItems] = useState<OrderItem[]>([]);
+  const [proposedMsg, setProposedMsg] = useState("");
+  const [notes, setNotes] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [selectedSku, setSelectedSku] = useState("");
 
-  const loadData = React.useCallback(async () => {
+  const loadData = useCallback(async () => {
     if (!orderId) return;
     try {
       const data = await getOrder(orderId);
@@ -43,7 +43,7 @@ export function useOrderReview(
     }
   }, [orderId]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (orderId) {
       void loadData();
     }

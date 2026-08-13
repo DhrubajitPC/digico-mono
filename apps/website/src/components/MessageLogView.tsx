@@ -1,16 +1,16 @@
-import * as React from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button, Input, Select } from "@digico/design-system";
 import { listMessages, type LogMessage } from "../api.js";
 import { RefreshCw } from "lucide-react";
 
 export function MessageLogView() {
-  const [messages, setMessages] = React.useState<LogMessage[]>([]);
-  const [phoneFilter, setPhoneFilter] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState("");
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [selectedMessage, setSelectedMessage] = React.useState<LogMessage | null>(null);
+  const [messages, setMessages] = useState<LogMessage[]>([]);
+  const [phoneFilter, setPhoneFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState<LogMessage | null>(null);
 
-  const fetchMessages = React.useCallback(async () => {
+  const fetchMessages = useCallback(async () => {
     try {
       setIsLoading(true);
       const data = await listMessages();
@@ -29,7 +29,7 @@ export function MessageLogView() {
     }
   }, [phoneFilter, statusFilter]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     void fetchMessages();
   }, [fetchMessages]);
 

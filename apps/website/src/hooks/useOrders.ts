@@ -1,21 +1,21 @@
-import * as React from "react";
+import { useCallback, useEffect, useState, type ChangeEvent } from "react";
 import { listOrders, bulkUpdateOrderStatus, type ListOrdersResult, type Order } from "../api.js";
 
 /** Fetch state, tab/search/origin filters, row selection, and bulk actions for the orders dashboard. */
 export function useOrders() {
-  const [ordersData, setOrdersData] = React.useState<ListOrdersResult | null>(null);
-  const [activeTab, setActiveTab] = React.useState<string>("all");
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [originFilter, setOriginFilter] = React.useState("");
-  const [selectedOrderIds, setSelectedOrderIds] = React.useState<number[]>([]);
-  const [bulkAction, setBulkAction] = React.useState("");
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [ordersData, setOrdersData] = useState<ListOrdersResult | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [originFilter, setOriginFilter] = useState("");
+  const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
+  const [bulkAction, setBulkAction] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   // Modal / Drawer state
-  const [reviewOrderId, setReviewOrderId] = React.useState<number | null>(null);
-  const [showCreateModal, setShowCreateModal] = React.useState(false);
+  const [reviewOrderId, setReviewOrderId] = useState<number | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const fetchOrders = React.useCallback(async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setIsLoading(true);
       const data = await listOrders({
@@ -31,11 +31,11 @@ export function useOrders() {
     }
   }, [activeTab, originFilter, searchQuery]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     void fetchOrders();
   }, [fetchOrders]);
 
-  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSelectAll = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked && ordersData) {
       setSelectedOrderIds(ordersData.items.map((o) => o.id));
     } else {

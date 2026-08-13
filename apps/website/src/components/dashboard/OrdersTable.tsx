@@ -1,4 +1,4 @@
-import * as React from "react";
+import type { ChangeEvent } from "react";
 import { Button, StatusBadge } from "@digico/design-system";
 import type { ListOrdersResult } from "../../api.js";
 import { CURRENCY_SYMBOL, formatCurrency } from "@digico/utils";
@@ -7,7 +7,7 @@ import { Eye } from "lucide-react";
 interface OrdersTableProps {
   ordersData: ListOrdersResult | null;
   selectedOrderIds: number[];
-  onSelectAll: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSelectAll: (e: ChangeEvent<HTMLInputElement>) => void;
   onToggleSelectOrder: (id: number) => void;
   onReviewOrder: (id: number) => void;
 }

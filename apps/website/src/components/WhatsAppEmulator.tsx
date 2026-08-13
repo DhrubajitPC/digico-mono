@@ -1,4 +1,4 @@
-import * as React from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MessageCircleCode, RefreshCw } from "lucide-react";
 import {
   getEmulatorChat,
@@ -41,20 +41,20 @@ const PRESET_DEALERS: Dealer[] = [
 
 /** WhatsApp emulator testbench: coordinates dealer selection, chat, and payload inspection. */
 export function WhatsAppEmulator() {
-  const [dealers, setDealers] = React.useState<Dealer[]>(PRESET_DEALERS);
-  const [selectedPhone, setSelectedPhone] = React.useState<string>("+8801711000001");
-  const [contactName, setContactName] = React.useState<string>("Souhardo Ahmed");
+  const [dealers, setDealers] = useState<Dealer[]>(PRESET_DEALERS);
+  const [selectedPhone, setSelectedPhone] = useState<string>("+8801711000001");
+  const [contactName, setContactName] = useState<string>("Souhardo Ahmed");
 
-  const [messages, setMessages] = React.useState<EmulatorChatMessage[]>([]);
-  const [inputText, setInputText] = React.useState<string>("");
-  const [isSending, setIsSending] = React.useState<boolean>(false);
-  const [isLoadingHistory, setIsLoadingHistory] = React.useState<boolean>(false);
+  const [messages, setMessages] = useState<EmulatorChatMessage[]>([]);
+  const [inputText, setInputText] = useState<string>("");
+  const [isSending, setIsSending] = useState<boolean>(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(false);
 
-  const [inspectingPayload, setInspectingPayload] = React.useState<unknown>(null);
-  const [showInspector, setShowInspector] = React.useState<boolean>(false);
+  const [inspectingPayload, setInspectingPayload] = useState<unknown>(null);
+  const [showInspector, setShowInspector] = useState<boolean>(false);
 
   // Fetch dealers on mount
-  React.useEffect(() => {
+  useEffect(() => {
     void listDealers()
       .then((data) => {
         if (data && data.length > 0) {
@@ -66,7 +66,7 @@ export function WhatsAppEmulator() {
       });
   }, []);
 
-  const loadChat = React.useCallback(async () => {
+  const loadChat = useCallback(async () => {
     setIsLoadingHistory(true);
     try {
       const res = await getEmulatorChat(selectedPhone);
@@ -79,7 +79,7 @@ export function WhatsAppEmulator() {
   }, [selectedPhone]);
 
   // Load chat history when selected phone changes
-  React.useEffect(() => {
+  useEffect(() => {
     void loadChat();
   }, [selectedPhone, loadChat]);
 

@@ -1,4 +1,3 @@
-import * as React from "react";
 import { Button, Input, Select } from "@digico/design-system";
 import { Search } from "lucide-react";
 

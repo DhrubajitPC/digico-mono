@@ -1,4 +1,4 @@
-import * as React from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Dialog, Button, Input, Select } from "@digico/design-system";
 import { createOrder, listDealers, listProducts, type Dealer, type Product } from "../api.js";
 import { LineItemsEditor } from "./shared/LineItemsEditor.js";
@@ -18,19 +18,19 @@ interface NewLineItem {
 }
 
 export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalProps) {
-  const [dealersList, setDealersList] = React.useState<Dealer[]>([]);
-  const [productsList, setProductsList] = React.useState<Product[]>([]);
-  const [selectedDealerId, setSelectedDealerId] = React.useState<number | "">("");
-  const [notes, setNotes] = React.useState("");
-  const [items, setItems] = React.useState<NewLineItem[]>([]);
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [dealersList, setDealersList] = useState<Dealer[]>([]);
+  const [productsList, setProductsList] = useState<Product[]>([]);
+  const [selectedDealerId, setSelectedDealerId] = useState<number | "">("");
+  const [notes, setNotes] = useState("");
+  const [items, setItems] = useState<NewLineItem[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Selected product state for adding
-  const [selectedSku, setSelectedSku] = React.useState("");
-  const [addQty, setAddQty] = React.useState(1);
-  const [addPrice, setAddPrice] = React.useState<number | "">("");
+  const [selectedSku, setSelectedSku] = useState("");
+  const [addQty, setAddQty] = useState(1);
+  const [addPrice, setAddPrice] = useState<number | "">("");
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (open) {
       void listDealers().then(setDealersList);
       void listProducts().then((prods) => {
@@ -75,7 +75,7 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
 
   const grandTotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedDealerId || items.length === 0) return;
 

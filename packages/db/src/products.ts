@@ -23,7 +23,7 @@ export async function fetchMariaDbProducts(): Promise<WcProduct[]> {
     LIMIT 200
   `);
 
-  return (rows || []).map((r: any) => ({
+  return (rows || []).map((r) => ({
     id: r.id,
     sku: r.sku || `SKU-${r.id}`,
     brand: "WooCommerce",

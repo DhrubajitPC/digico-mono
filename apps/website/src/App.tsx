@@ -1,11 +1,11 @@
-import * as React from "react";
+import { useState } from "react";
 import { OrdersDashboard } from "./components/OrdersDashboard.js";
 import { MessageLogView } from "./components/MessageLogView.js";
 import { WhatsAppEmulator } from "./components/WhatsAppEmulator.js";
 import { ShoppingBag, MessageSquare, MessageCircleCode, ShieldCheck } from "lucide-react";
 
 export function App() {
-  const [activeView, setActiveView] = React.useState<"orders" | "messages" | "emulator">("orders");
+  const [activeView, setActiveView] = useState<"orders" | "messages" | "emulator">("orders");
 
   return (
     <div className="min-h-screen bg-gray-50/50 flex flex-col font-sans">

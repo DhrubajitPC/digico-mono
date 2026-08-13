@@ -87,8 +87,11 @@ export async function recordMariaDbInboundMessage(
       ],
     );
     return { outcome: "created", message: { id: res.insertId, messageId: input.messageId } };
-  } catch (error: any) {
-    if (error?.code === "ER_DUP_ENTRY" || String(error).includes("Duplicate entry")) {
+  } catch (error: unknown) {
+    if (
+      (error instanceof Error && "code" in error && error.code === "ER_DUP_ENTRY") ||
+      String(error).includes("Duplicate entry")
+    ) {
       return { outcome: "duplicate" };
     }
     throw error;
@@ -178,7 +181,7 @@ export async function listMariaDbMessages(
   const offset = filter.offset ?? 0;
 
   let sql = `SELECT * FROM joy_whatsapp_messages`;
-  const params: any[] = [];
+  const params: (string | number)[] = [];
 
   if (filter.phone) {
     sql += ` WHERE from_phone = ?`;
@@ -190,7 +193,7 @@ export async function listMariaDbMessages(
 
   const [rows] = await pool.query<mysql.RowDataPacket[]>(sql, params);
 
-  const mappedItems = (rows || []).map((r: any) => ({
+  const mappedItems = (rows || []).map((r) => ({
     id: r.id,
     messageId: r.message_id,
     fromPhone: r.from_phone,
@@ -244,7 +247,7 @@ export async function getMariaDbMessageDetail(id: number) {
         : new Date().toISOString(),
       completedAt: message.completed_at ? new Date(message.completed_at).toISOString() : null,
     },
-    aiCalls: (aiCalls || []).map((c: any) => ({
+    aiCalls: (aiCalls || []).map((c) => ({
       id: c.id,
       messageId: c.message_id,
       provider: c.provider,
@@ -255,7 +258,7 @@ export async function getMariaDbMessageDetail(id: number) {
       latencyMs: c.latency_ms,
       createdAt: c.created_at ? new Date(c.created_at).toISOString() : new Date().toISOString(),
     })),
-    outboundReplies: (outboundReplies || []).map((r: any) => ({
+    outboundReplies: (outboundReplies || []).map((r) => ({
       id: r.id,
       messageId: r.message_id,
       toPhone: r.to_phone,
@@ -287,7 +290,7 @@ export async function getMariaDbRecentConversationHistory(
 
     if (!msgs || msgs.length === 0) return [];
 
-    const msgIds = msgs.map((m: any) => m.id);
+    const msgIds = msgs.map((m) => m.id);
     const [replies] = await p.query<mysql.RowDataPacket[]>(
       `
       SELECT message_id, reply_text, sent_at
