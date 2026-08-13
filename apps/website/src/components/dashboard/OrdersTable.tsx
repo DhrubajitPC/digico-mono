@@ -32,7 +32,7 @@ export function OrdersTable({
                   Boolean(ordersData?.items.length) &&
                   selectedOrderIds.length === ordersData?.items.length
                 }
-                className="rounded border-gray-300 text-[#ec2839] focus:ring-[#ec2839]"
+                className="rounded border-gray-300 text-primary focus:ring-primary"
               />
             </th>
             <th className="p-3 text-left">Order & Dealer</th>
@@ -67,11 +67,11 @@ export function OrdersTable({
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => onToggleSelectOrder(order.id)}
-                      className="rounded border-gray-300 text-[#ec2839] focus:ring-[#ec2839]"
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
                     />
                   </td>
                   <td className="p-3 font-semibold text-gray-900">
-                    <span className="text-[#ec2839]">{order.orderNumber}</span>{" "}
+                    <span className="text-primary">{order.orderNumber}</span>{" "}
                     {order.dealer.businessName}
                     <div className="text-xs font-normal text-gray-500">{order.dealer.phone}</div>
                   </td>

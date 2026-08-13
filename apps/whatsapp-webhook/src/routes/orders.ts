@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { MariaDbError } from "@digico/db";
 import {
   fetchMariaDbOrders,
   fetchMariaDbOrderById,
@@ -6,6 +7,31 @@ import {
   updateMariaDbOrder,
   updateMariaDbOrderStatus,
 } from "@digico/db";
+
+interface CreateOrderBody {
+  items?: Array<{
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+  }>;
+  notes?: string | null;
+}
+
+interface UpdateOrderBody {
+  notes?: string;
+  proposedMessage?: string;
+  items?: unknown[];
+}
+
+interface BulkStatusBody {
+  orderIds?: number[];
+  status: string;
+  reason?: string;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 export async function registerOrderRoutes(app: FastifyInstance) {
   // GET /api/orders
@@ -50,20 +76,25 @@ export async function registerOrderRoutes(app: FastifyInstance) {
 
   // POST /api/orders
   app.post("/api/orders", async (req: FastifyRequest, reply: FastifyReply) => {
-    const body = req.body as any;
+    const body = (req.body ?? {}) as CreateOrderBody;
     const items = body.items || [];
     const firstItem = items[0];
-    const total = items.reduce((sum: number, i: any) => sum + i.quantity * i.unitPrice, 0);
+    const total = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
 
-    const created = await createMariaDbOrder({
-      phone: "+8801700000000",
-      customerName: "Manual Sales Dealer",
-      productName: firstItem?.productName || "Product",
-      quantity: firstItem?.quantity || 1,
-      unitPrice: firstItem?.unitPrice || total,
-      totalAmount: total,
-      notes: body.notes,
-    });
+    let created;
+    try {
+      created = await createMariaDbOrder({
+        phone: "+8801700000000",
+        customerName: "Manual Sales Dealer",
+        productName: firstItem?.productName || "Product",
+        quantity: firstItem?.quantity || 1,
+        unitPrice: firstItem?.unitPrice || total,
+        totalAmount: total,
+        notes: body.notes,
+      });
+    } catch (err) {
+      return reply.code(500).send({ error: errorMessage(err) });
+    }
 
     return reply.code(201).send(created);
   });
@@ -75,7 +106,14 @@ export async function registerOrderRoutes(app: FastifyInstance) {
       const id = Number(req.params.id);
       if (!Number.isInteger(id)) return reply.code(400).send({ error: "Invalid order ID" });
 
-      const updated = await updateMariaDbOrder(id, req.body as any);
+      const body = (req.body ?? {}) as UpdateOrderBody;
+      let updated;
+      try {
+        updated = await updateMariaDbOrder(id, body);
+      } catch (err) {
+        if (err instanceof MariaDbError) return reply.code(500).send({ error: errorMessage(err) });
+        throw err;
+      }
       if (!updated) return reply.code(404).send({ error: "Order not found" });
 
       return reply.send(updated);
@@ -89,13 +127,23 @@ export async function registerOrderRoutes(app: FastifyInstance) {
       const id = Number(req.params.id);
       if (!Number.isInteger(id)) return reply.code(400).send({ error: "Invalid order ID" });
 
-      const body = req.body as { status: string; reason?: string; proposedMessage?: string };
-      const updated = await updateMariaDbOrderStatus(
-        id,
-        body.status,
-        body.reason,
-        body.proposedMessage,
-      );
+      const body = (req.body ?? {}) as {
+        status: string;
+        reason?: string;
+        proposedMessage?: string;
+      };
+      let updated;
+      try {
+        updated = await updateMariaDbOrderStatus(
+          id,
+          body.status,
+          body.reason,
+          body.proposedMessage,
+        );
+      } catch (err) {
+        if (err instanceof MariaDbError) return reply.code(500).send({ error: errorMessage(err) });
+        throw err;
+      }
 
       if (!updated) return reply.code(404).send({ error: "Order not found" });
 
@@ -105,9 +153,14 @@ export async function registerOrderRoutes(app: FastifyInstance) {
 
   // POST /api/orders/bulk-status
   app.post("/api/orders/bulk-status", async (req: FastifyRequest, reply: FastifyReply) => {
-    const body = req.body as { orderIds: number[]; status: string; reason?: string };
-    for (const id of body.orderIds || []) {
-      await updateMariaDbOrderStatus(id, body.status, body.reason);
+    const body = (req.body ?? {}) as BulkStatusBody;
+    try {
+      for (const id of body.orderIds || []) {
+        await updateMariaDbOrderStatus(id, body.status, body.reason);
+      }
+    } catch (err) {
+      if (err instanceof MariaDbError) return reply.code(500).send({ error: errorMessage(err) });
+      throw err;
     }
     return reply.send({ success: true, count: body.orderIds?.length || 0 });
   });

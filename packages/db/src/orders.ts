@@ -1,6 +1,7 @@
 import type mysql from "mysql2/promise";
 import type { Order, OrderItem, OrderOriginType, OrderStatusType } from "@digico/contracts";
 import { getMariaDbPool } from "./client.ts";
+import { MariaDbError } from "./errors.ts";
 
 /** Canonical order shape lives in @digico/contracts; kept as an alias for existing call sites. */
 export type WcOrder = Order;
@@ -349,8 +350,7 @@ export async function createMariaDbOrder(input: CreateMariaDbOrderInput): Promis
     const orders = await fetchMariaDbOrders();
     return orders.find((o) => o.id === orderId) || null;
   } catch (err) {
-    console.error("Failed to create MariaDB order", err);
-    return null;
+    throw new MariaDbError("Failed to create MariaDB order", { cause: err });
   }
 }
 
@@ -380,8 +380,7 @@ export async function updateMariaDbOrderStatus(
 
     return await fetchMariaDbOrderById(orderId);
   } catch (err) {
-    console.error("Failed to update MariaDB order status", err);
-    return null;
+    throw new MariaDbError("Failed to update MariaDB order status", { cause: err });
   }
 }
 
@@ -402,7 +401,6 @@ export async function updateMariaDbOrder(
     }
     return await fetchMariaDbOrderById(orderId);
   } catch (err) {
-    console.error("Failed to update MariaDB order", err);
-    return null;
+    throw new MariaDbError("Failed to update MariaDB order", { cause: err });
   }
 }
