@@ -1,23 +1,18 @@
 {
-  "name": "@digico/db",
+  "name": "@digico/contracts",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "main": "./src/index.ts",
+  "module": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
   },
   "scripts": {
-    "check": "vp check",
-    "seed": "node --env-file=../../.env --experimental-strip-types src/seed.ts"
-  },
-  "dependencies": {
-    "@digico/contracts": "workspace:*",
-    "mysql2": "^3.12.0"
+    "check": "vp check"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   }

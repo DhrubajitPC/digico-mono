@@ -1,64 +1,26 @@
-import type { OrderStatusType } from "@digico/design-system";
+import type {
+  Dealer,
+  EmulatorChatMessage,
+  LogMessage,
+  Order,
+  OrderOriginType,
+  OrderStatusType,
+  Product,
+} from "@digico/contracts";
 
-export type OrderOriginType = "whatsapp_ai" | "manual_sales";
-
-export interface Dealer {
-  id: number;
-  businessName: string;
-  phone: string;
-  contactPerson: string | null;
-  address?: string | null;
-}
-
-export interface Product {
-  id: number;
-  sku: string;
-  brand: string;
-  name: string;
-  category: string;
-  model: string | null;
-  specifications: string | null;
-  unitPrice: number;
-  stockQuantity: number;
-  aliases: string[];
-}
-
-export interface OrderItem {
-  id: number;
-  orderId: number;
-  productId: number | null;
-  sku: string;
-  productName: string;
-  quantity: number;
-  unitPrice: number;
-  lineTotal: number;
-}
-
-export interface OrderHistoryItem {
-  id: number;
-  orderId: number;
-  previousStatus: OrderStatusType | null;
-  newStatus: OrderStatusType;
-  changedBy: string;
-  reason: string | null;
-  createdAt: string;
-}
-
-export interface Order {
-  id: number;
-  orderNumber: string;
-  dealer: Dealer;
-  status: OrderStatusType;
-  origin: OrderOriginType;
-  totalAmount: number;
-  notes: string | null;
-  proposedMessage: string | null;
-  approvedBy: string | null;
-  createdAt: string;
-  updatedAt: string;
-  items: OrderItem[];
-  history?: OrderHistoryItem[];
-}
+// Canonical domain types live in @digico/contracts; re-exported here so existing
+// `import ... from "../api.js"` call sites keep compiling.
+export type {
+  Dealer,
+  EmulatorChatMessage,
+  LogMessage,
+  Order,
+  OrderHistoryItem,
+  OrderItem,
+  OrderOriginType,
+  OrderStatusType,
+  Product,
+} from "@digico/contracts";
 
 export interface ListOrdersResult {
   items: Order[];
@@ -70,23 +32,6 @@ export interface ListOrdersParams {
   status?: string;
   origin?: string;
   search?: string;
-}
-
-// Log Messages Types (for Message Log tab)
-export interface LogMessage {
-  id: number;
-  messageId: string;
-  fromPhone: string;
-  contactName: string | null;
-  kind: "text" | "audio";
-  rawPayload: unknown;
-  inboundText: string | null;
-  transcript: string | null;
-  resolvedText: string | null;
-  status: "received" | "completed" | "failed";
-  error: string | null;
-  receivedAt: string;
-  completedAt: string | null;
 }
 
 async function getJson<T>(url: string): Promise<T> {
@@ -190,18 +135,6 @@ export function listDealers(): Promise<Dealer[]> {
 
 export function listMessages(): Promise<{ items: LogMessage[]; total: number }> {
   return getJson<{ items: LogMessage[]; total: number }>("/api/messages");
-}
-
-export interface EmulatorChatMessage {
-  id: number;
-  role: "user" | "assistant";
-  text: string;
-  timestamp: string;
-  model?: string;
-  latencyMs?: number;
-  status?: string;
-  error?: string | null;
-  rawPayload?: unknown;
 }
 
 export function sendEmulatorMessage(data: {

@@ -1,4 +1,6 @@
-export type MessageKind = "text" | "audio" | "unsupported";
+import type { MessageKind } from "@digico/contracts";
+
+export type { MessageKind };
 
 export interface IncomingTextPayload {
   body: string;

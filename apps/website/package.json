@@ -9,6 +9,7 @@
     "preview": "vp preview"
   },
   "dependencies": {
+    "@digico/contracts": "workspace:*",
     "@digico/design-system": "workspace:*",
     "lucide-react": "catalog:",
     "react": "catalog:",
