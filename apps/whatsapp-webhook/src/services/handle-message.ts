@@ -8,9 +8,10 @@ import {
   searchMariaDbProducts,
   setMariaDbResolvedText,
   type WcDealer,
+  type WcOrder,
   type WcProduct,
 } from "@digico/db";
-import type { DeepSeekReplyResult } from "./deepseek.ts";
+import type { DeepSeekPromptContext, DeepSeekReplyResult, DeepSeekToolCall } from "./deepseek.ts";
 import { buildChatMessages, deepSeekModel, replyWithDeepSeekFull } from "./deepseek.ts";
 import { routeIntent } from "./intent-router.ts";
 
@@ -127,6 +128,148 @@ async function resolveUserText(
   throw new Error(`Unsupported message kind: ${message.kind}`);
 }
 
+export type ChatHistoryEntry = { role: "user" | "assistant"; content: string };
+
+export interface BuildPromptContextResult {
+  products: WcProduct[];
+  dealer: WcDealer | null;
+}
+
+/** RAG catalog search + dealer lookup for the compressed LLM prompt. */
+export async function buildPromptContext(
+  userText: string,
+  fromPhone: string,
+): Promise<BuildPromptContextResult> {
+  let products: WcProduct[] = [];
+  let dealer: WcDealer | null = null;
+
+  try {
+    products = await searchMariaDbProducts(userText, 10);
+    const mariaOrders = await fetchMariaDbOrders();
+    const matchOrder = mariaOrders.find((o) => o.dealer.phone === fromPhone);
+    if (matchOrder) {
+      dealer = matchOrder.dealer;
+    }
+  } catch (err) {
+    console.error("Failed to fetch database context for DeepSeek prompt", err);
+  }
+
+  return { products, dealer };
+}
+
+/** DeepSeek completion with tool calling; records the AI call (or its failure) in the pipeline log. */
+export async function generateReply(
+  log: PipelineLog,
+  userText: string,
+  context: DeepSeekPromptContext,
+  chatHistory: ChatHistoryEntry[],
+): Promise<DeepSeekReplyResult> {
+  const requestMessages = buildChatMessages(userText, context, chatHistory);
+  const startedAt = Date.now();
+
+  let deepseekResult: DeepSeekReplyResult;
+  try {
+    deepseekResult = await replyWithDeepSeekFull(userText, context, chatHistory);
+  } catch (error) {
+    await log.aiCall({
+      requestMessages,
+      error: errorMessage(error),
+      latencyMs: Date.now() - startedAt,
+    });
+    await log.status("failed", errorMessage(error));
+    throw error;
+  }
+
+  await log.aiCall({
+    requestMessages,
+    responseText: deepseekResult.text,
+    latencyMs: Date.now() - startedAt,
+  });
+  console.log("DeepSeek reply:", deepseekResult.text);
+  return deepseekResult;
+}
+
+export interface OrderPayloadExtractionResult {
+  /** Reply with any [ORDER_DATA] tag stripped. */
+  reply: string;
+  /** True when at least one order was validated and created. */
+  executed: boolean;
+  /** The last successfully created order, when any. */
+  order: WcOrder | null;
+  /** Non-fatal warnings (malformed payloads, tool failures). */
+  warnings: string[];
+}
+
+/**
+ * Unified order extraction: processes draft_order tool calls and the
+ * [ORDER_DATA: ...] tag fallback through parseDraftOrderPayload, and strips
+ * the tag from the reply text.
+ */
+export async function extractOrderPayload(
+  reply: string,
+  toolCalls?: DeepSeekToolCall[],
+): Promise<OrderPayloadExtractionResult> {
+  let order: WcOrder | null = null;
+  let executed = false;
+  const warnings: string[] = [];
+
+  /** Runs one payload; returns true when the payload was valid and execution finished without throwing. */
+  async function runOrder(
+    payload: ReturnType<typeof parseDraftOrderPayload>,
+    source: string,
+  ): Promise<boolean> {
+    if (!payload) {
+      warnings.push(`Skipping malformed ${source}`);
+      return false;
+    }
+    try {
+      const execResult = await validateAndExecuteOrderTool(payload);
+      console.log("Tool execution result:", execResult);
+      if (execResult.success && execResult.order) {
+        executed = true;
+        order = execResult.order;
+      }
+      return true;
+    } catch (err) {
+      warnings.push(`Failed to execute ${source}: ${errorMessage(err)}`);
+      return false;
+    }
+  }
+
+  // Path A: draft_order tool calls
+  for (const call of toolCalls ?? []) {
+    if (call.function?.name === "draft_order") {
+      await runOrder(parseDraftOrderPayload(call.function.arguments), "draft_order tool call");
+    }
+  }
+
+  // Path B: [ORDER_DATA: ...] tag fallback
+  const orderDataMatch = /\[ORDER_DATA:\s*(\{.*?\})\s*\]/s.exec(reply);
+  if (orderDataMatch && orderDataMatch[1]) {
+    const consumed = await runOrder(parseDraftOrderPayload(orderDataMatch[1]), "[ORDER_DATA] tag");
+    // Strip the tag whenever it was consumed (valid payload, no execution throw)
+    // so raw JSON never leaks into the reply sent to the dealer.
+    if (consumed) {
+      reply = reply.replace(/\[ORDER_DATA:\s*\{.*?\}\s*\]/s, "").trim();
+    }
+  }
+
+  return { reply, executed, order, warnings };
+}
+
+/** WhatsApp send + outbound-reply logging + final completed status. */
+export async function sendReply(
+  log: PipelineLog,
+  message: IncomingWhatsAppMessage,
+  reply: string,
+): Promise<void> {
+  if (reply.trim().length > 0) {
+    await sendWhatsAppText(message.from, reply, isEmulatorMessage(message));
+    await log.outboundReply({ toPhone: message.from, replyText: reply, status: "sent" });
+  }
+  await log.status("completed");
+}
+
 /** Process one inbound message: (transcribe) → LLM → WhatsApp reply. */
 export async function handleIncomingMessage(message: IncomingWhatsAppMessage): Promise<void> {
   console.log("Incoming WhatsApp message:", JSON.stringify(message, null, 2));
@@ -137,6 +280,7 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
     return;
   }
 
+  // Stage 1: Resolve user text (passthrough or audio transcription)
   let userText: string;
   try {
     userText = await resolveUserText(log, message);
@@ -150,99 +294,24 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
     return;
   }
 
-  // Step 1: Rule-Based Intent Interceptor (0 LLM Token Cost & 10ms Latency)
+  // Stage 2: Rule-Based Intent Interceptor (0 LLM Token Cost & 10ms Latency)
   const routeResult = await routeIntent(userText, message.from);
   if (routeResult.handled && routeResult.replyText) {
     console.log("[Intent Router] Intercepted deterministically without LLM call:", userText);
-    await sendWhatsAppText(message.from, routeResult.replyText, isEmulatorMessage(message));
-    await log.outboundReply({
-      toPhone: message.from,
-      replyText: routeResult.replyText,
-      status: "sent",
-    });
-    await log.status("completed");
+    await sendReply(log, message, routeResult.replyText);
     return;
   }
 
-  // Step 2: RAG Catalog Search (Retrieve top candidate products for compressed LLM prompt)
-  let productsList: WcProduct[] = [];
-  let dealerInfo: WcDealer | null = null;
+  // Stage 3: RAG catalog search + dealer lookup
+  const context = await buildPromptContext(userText, message.from);
 
-  try {
-    productsList = await searchMariaDbProducts(userText, 10);
-    const mariaOrders = await fetchMariaDbOrders();
-    const matchOrder = mariaOrders.find((o) => o.dealer.phone === message.from);
-    if (matchOrder) {
-      dealerInfo = matchOrder.dealer;
-    }
-  } catch (err) {
-    console.error("Failed to fetch database context for DeepSeek prompt", err);
-  }
-
-  // Step 3: DeepSeek Completion with Tool Calling & Multi-Turn History
-  const isEmulator = isEmulatorMessage(message);
+  // Stage 4: DeepSeek completion with tool calling & multi-turn history
   const chatHistory = await getMariaDbRecentConversationHistory(message.from, 8);
-  const promptContext = { products: productsList, dealer: dealerInfo };
-  const requestMessages = buildChatMessages(userText, promptContext, chatHistory);
-  const startedAt = Date.now();
+  const deepseekResult = await generateReply(log, userText, context, chatHistory);
 
-  let deepseekResult: DeepSeekReplyResult;
-  try {
-    deepseekResult = await replyWithDeepSeekFull(userText, promptContext, chatHistory);
-  } catch (error) {
-    await log.aiCall({
-      requestMessages,
-      error: errorMessage(error),
-      latencyMs: Date.now() - startedAt,
-    });
-    await log.status("failed", errorMessage(error));
-    throw error;
-  }
+  // Stage 5: Unified order extraction (tool calls + [ORDER_DATA] tag)
+  const { reply } = await extractOrderPayload(deepseekResult.text, deepseekResult.toolCalls);
 
-  let reply = deepseekResult.text;
-  await log.aiCall({ requestMessages, responseText: reply, latencyMs: Date.now() - startedAt });
-  console.log("DeepSeek reply:", reply);
-
-  // Step 4: Execute Tool Calls with Server-Side Guardrails (Confirmation + Stock/Price Truth)
-  if (deepseekResult.toolCalls && deepseekResult.toolCalls.length > 0) {
-    for (const call of deepseekResult.toolCalls) {
-      if (call.function?.name === "draft_order") {
-        const payload = parseDraftOrderPayload(call.function.arguments);
-        if (!payload) {
-          console.warn("Skipping malformed draft_order tool call", call.function.arguments);
-          continue;
-        }
-        try {
-          const execResult = await validateAndExecuteOrderTool(payload);
-          console.log("Tool execution result:", execResult);
-        } catch (err) {
-          console.error("Failed to execute draft_order tool call", err);
-        }
-      }
-    }
-  }
-
-  // Fallback: Check [ORDER_DATA: ...] tag if tool call wasn't directly generated
-  const orderDataMatch = /\[ORDER_DATA:\s*(\{.*?\})\s*\]/s.exec(reply);
-  if (orderDataMatch && orderDataMatch[1]) {
-    const payload = parseDraftOrderPayload(orderDataMatch[1]);
-    if (!payload) {
-      console.warn("Skipping malformed [ORDER_DATA] tag", orderDataMatch[1]);
-    } else {
-      try {
-        await validateAndExecuteOrderTool(payload);
-        reply = reply.replace(/\[ORDER_DATA:\s*\{.*?\}\s*\]/s, "").trim();
-      } catch (err) {
-        console.error("Failed to execute fallback [ORDER_DATA] order", err);
-      }
-    }
-  }
-
-  // Step 5: Send final formatted WhatsApp reply
-  if (reply.trim().length > 0) {
-    await sendWhatsAppText(message.from, reply, isEmulator);
-    await log.outboundReply({ toPhone: message.from, replyText: reply, status: "sent" });
-  }
-
-  await log.status("completed");
+  // Stage 6: Send final WhatsApp reply
+  await sendReply(log, message, reply);
 }
