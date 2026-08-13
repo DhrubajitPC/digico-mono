@@ -16,7 +16,7 @@ export function OrderContextPane({ order }: OrderContextPaneProps) {
           <span className="text-sm font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
             {order.origin === "whatsapp_ai" ? (
               <>
-                <MessageSquare className="w-4 h-4 text-[#ec2839]" /> WhatsApp Context
+                <MessageSquare className="w-4 h-4 text-primary" /> WhatsApp Context
               </>
             ) : (
               <>

@@ -133,7 +133,7 @@ export function LineItemsEditor({
               <td colSpan={3} className="p-3 text-right uppercase tracking-wider text-xs">
                 Total Order Amount:
               </td>
-              <td className="p-3 text-right font-mono text-base text-[#ec2839]">
+              <td className="p-3 text-right font-mono text-base text-primary">
                 {formatCurrency(total)}
               </td>
               <td />
@@ -169,7 +169,7 @@ export function LineItemsEditor({
       ) : (
         <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 space-y-3">
           <h4 className="text-sm font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-            <ShoppingBag className="w-4 h-4 text-[#ec2839]" /> Add Line Item
+            <ShoppingBag className="w-4 h-4 text-primary" /> Add Line Item
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
             <div className="md:col-span-6">
