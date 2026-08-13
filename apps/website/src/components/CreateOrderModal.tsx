@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Dialog, Button, Input, Select } from "@digico/design-system";
 import { createOrder, listDealers, listProducts, type Dealer, type Product } from "../api.js";
-import { CURRENCY_SYMBOL, formatCurrency } from "../format.js";
+import { CURRENCY_SYMBOL, formatCurrency } from "@digico/utils";
 import { Plus, Trash2, ShoppingBag } from "lucide-react";
 
 interface CreateOrderModalProps {

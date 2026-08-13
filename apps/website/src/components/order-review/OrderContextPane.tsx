@@ -1,7 +1,7 @@
 import * as React from "react";
 import { StatusBadge } from "@digico/design-system";
 import type { Order } from "../../api.js";
-import { formatCurrency } from "../../format.js";
+import { formatCurrency } from "@digico/utils";
 import { MessageSquare, ShoppingBag, Sparkles, User, Bot } from "lucide-react";
 
 interface OrderContextPaneProps {
