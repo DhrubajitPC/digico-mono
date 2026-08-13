@@ -29,9 +29,3 @@ export function getMariaDbPool(): mysql.Pool {
   }
   return pool;
 }
-
-export type Db = mysql.Pool;
-
-export function getDb(): Db {
-  return getMariaDbPool();
-}
