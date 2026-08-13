@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Button, Input, Select } from "@digico/design-system";
 import type { OrderItem, Product } from "../../api.js";
-import { formatCurrency } from "../../format.js";
+import { formatCurrency } from "@digico/utils";
 import { Plus, Trash2 } from "lucide-react";
 
 interface EditableLineItemsTableProps {

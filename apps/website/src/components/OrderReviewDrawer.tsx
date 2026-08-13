@@ -9,7 +9,7 @@ import {
   type OrderItem,
   type Product,
 } from "../api.js";
-import { formatCurrency } from "../format.js";
+import { formatCurrency } from "@digico/utils";
 import { OrderContextPane } from "./order-review/OrderContextPane.js";
 import { EditableLineItemsTable } from "./order-review/EditableLineItemsTable.js";
 import { WhatsAppPreviewBox } from "./order-review/WhatsAppPreviewBox.js";
