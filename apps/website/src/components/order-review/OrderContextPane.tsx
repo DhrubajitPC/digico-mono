@@ -1,5 +1,5 @@
 import { StatusBadge } from "@digico/design-system";
-import type { Order } from "../../api.js";
+import type { Order } from "@digico/contracts";
 import { formatCurrency } from "@digico/utils";
 import { MessageSquare, ShoppingBag, Sparkles, User, Bot } from "lucide-react";
 

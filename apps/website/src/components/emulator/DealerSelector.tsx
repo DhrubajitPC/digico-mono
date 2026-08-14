@@ -1,5 +1,5 @@
 import { User } from "lucide-react";
-import type { Dealer } from "../../api.js";
+import type { Dealer } from "@digico/contracts";
 
 interface DealerSelectorProps {
   dealers: Dealer[];

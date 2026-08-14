@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Bot, MessageCircleCode, Send, Sparkles } from "lucide-react";
-import type { EmulatorChatMessage } from "../../api.js";
+import type { EmulatorChatMessage } from "@digico/contracts";
 import { ChatBubble } from "./ChatBubble.js";
 
 interface ChatWindowProps {

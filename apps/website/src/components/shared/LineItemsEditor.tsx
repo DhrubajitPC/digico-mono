@@ -1,5 +1,5 @@
 import { Button, Input, Select } from "@digico/design-system";
-import type { Product } from "../../api.js";
+import type { Product } from "@digico/contracts";
 import { CURRENCY_SYMBOL, formatCurrency } from "@digico/utils";
 import { Plus, ShoppingBag, Trash2 } from "lucide-react";
 

@@ -1,5 +1,5 @@
 import { Bot, CheckCheck, Clock } from "lucide-react";
-import type { EmulatorChatMessage } from "../../api.js";
+import type { EmulatorChatMessage } from "@digico/contracts";
 
 interface ChatBubbleProps {
   message: EmulatorChatMessage;

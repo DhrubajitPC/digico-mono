@@ -1,6 +1,8 @@
 import type { ChangeEvent } from "react";
 import { Button, StatusBadge } from "@digico/design-system";
-import type { ListOrdersResult } from "../../api.js";
+import type { RouterOutputs } from "@digico/api";
+
+type ListOrdersResult = RouterOutputs["orders"]["list"];
 import { CURRENCY_SYMBOL, formatCurrency } from "@digico/utils";
 import { Eye } from "lucide-react";
 

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Dialog, Button, Input, Select } from "@digico/design-system";
-import { createOrder, listDealers, listProducts, type Dealer, type Product } from "../api.js";
+import { trpc } from "../trpc.js";
+import type { Dealer, Product } from "@digico/contracts";
 import { LineItemsEditor } from "./shared/LineItemsEditor.js";
 
 interface CreateOrderModalProps {
@@ -30,18 +31,27 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
   const [addQty, setAddQty] = useState(1);
   const [addPrice, setAddPrice] = useState<number | "">("");
 
+  const dealersQuery = trpc.dealers.list.useQuery();
+  const productsQuery = trpc.products.list.useQuery();
+  const createMutation = trpc.orders.create.useMutation({
+    onSuccess: () => {
+      setItems([]);
+      setSelectedSku("");
+      setAddQty(1);
+      setAddPrice("");
+      setNotes("");
+      setSelectedDealerId("");
+      onSuccess();
+      onClose();
+    },
+  });
+
   useEffect(() => {
-    if (open) {
-      void listDealers().then(setDealersList);
-      void listProducts().then((prods) => {
-        setProductsList(prods);
-        if (prods.length > 0 && prods[0]) {
-          setSelectedSku(prods[0].sku);
-          setAddPrice(prods[0].unitPrice);
-        }
-      });
-    }
-  }, [open]);
+    if (dealersQuery.data) setDealersList(dealersQuery.data);
+  }, [dealersQuery.data]);
+  useEffect(() => {
+    if (productsQuery.data) setProductsList(productsQuery.data);
+  }, [productsQuery.data]);
 
   const handleSelectSkuChange = (sku: string) => {
     setSelectedSku(sku);
@@ -81,17 +91,12 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
 
     try {
       setIsSubmitting(true);
-      await createOrder({
+      await createMutation.mutateAsync({
         dealerId: Number(selectedDealerId),
         origin: "manual_sales",
         notes,
         items,
       });
-      onSuccess();
-      onClose();
-      // Reset form
-      setItems([]);
-      setNotes("");
     } catch (err) {
       console.error("Failed to create order", err);
     } finally {

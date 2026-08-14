@@ -12,7 +12,7 @@ const listMessagesInputSchema = z.object({
 
 export const messagesRouter = router({
   list: publicProcedure
-    .input(listMessagesInputSchema)
+    .input(listMessagesInputSchema.optional())
     .query(({ input }) => listMariaDbMessages(input)),
   get: publicProcedure
     .input(z.object({ id: z.number().int().positive() }))

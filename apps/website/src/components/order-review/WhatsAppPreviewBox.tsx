@@ -1,5 +1,5 @@
 import { Send } from "lucide-react";
-import type { Order } from "../../api.js";
+import type { Order } from "@digico/contracts";
 
 interface WhatsAppPreviewBoxProps {
   origin: Order["origin"];

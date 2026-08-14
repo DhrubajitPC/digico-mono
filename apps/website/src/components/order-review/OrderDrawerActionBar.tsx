@@ -1,5 +1,5 @@
 import { Button } from "@digico/design-system";
-import type { Order } from "../../api.js";
+import type { Order } from "@digico/contracts";
 import { Save, XCircle, Clock, CheckCircle } from "lucide-react";
 
 interface OrderDrawerActionBarProps {
