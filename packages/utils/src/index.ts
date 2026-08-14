@@ -1,3 +1,6 @@
+export { getPageSelectionState, setPageSelection } from "./selection.ts";
+export type { PageSelectionState } from "./selection.ts";
+
 export const CURRENCY_SYMBOL = "৳";
 
 export function formatCurrency(amount: number): string {

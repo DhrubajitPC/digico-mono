@@ -14,6 +14,7 @@
     "@digico/design-system": "workspace:*",
     "@digico/utils": "workspace:*",
     "@tanstack/react-query": "catalog:",
+    "@tanstack/react-table": "catalog:",
     "@trpc/client": "catalog:",
     "@trpc/react-query": "catalog:",
     "lucide-react": "catalog:",
