@@ -11,6 +11,7 @@ export default defineConfig({
     // Dashboard proxy to Fastify backend API on 8787
     proxy: {
       "/api": "http://localhost:8787",
+      "/trpc": "http://localhost:8787",
     },
   },
 });

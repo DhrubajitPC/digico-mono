@@ -1,43 +1,42 @@
-import { useCallback, useEffect, useState, type ChangeEvent } from "react";
-import { listOrders, bulkUpdateOrderStatus, type ListOrdersResult, type Order } from "../api.js";
+import { useState, type ChangeEvent } from "react";
+import { trpc } from "../trpc.js";
+import type { Order, OrderOriginType } from "@digico/contracts";
+
+const BULK_ACTION_STATUS: Record<string, Order["status"] | null> = {
+  processing: "processing",
+  on_hold: "on_hold",
+  completed: "completed",
+  cancelled: "cancelled",
+};
 
 /** Fetch state, tab/search/origin filters, row selection, and bulk actions for the orders dashboard. */
 export function useOrders() {
-  const [ordersData, setOrdersData] = useState<ListOrdersResult | null>(null);
-  const [activeTab, setActiveTab] = useState<string>("all");
+  const utils = trpc.useUtils();
+  const [activeTab, setActiveTab] = useState<"all" | Order["status"]>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [originFilter, setOriginFilter] = useState("");
+  const [originFilter, setOriginFilter] = useState<OrderOriginType | "">("");
   const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
   const [bulkAction, setBulkAction] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  // Modal / Drawer state
   const [reviewOrderId, setReviewOrderId] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const fetchOrders = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const data = await listOrders({
-        status: activeTab,
-        origin: originFilter || undefined,
-        search: searchQuery || undefined,
-      });
-      setOrdersData(data);
-    } catch (err) {
-      console.error("Failed to fetch orders", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeTab, originFilter, searchQuery]);
+  const ordersQuery = trpc.orders.list.useQuery({
+    status: activeTab,
+    origin: originFilter || undefined,
+    search: searchQuery || undefined,
+  });
 
-  useEffect(() => {
-    void fetchOrders();
-  }, [fetchOrders]);
+  const bulkStatusMutation = trpc.orders.bulkSetStatus.useMutation({
+    onSuccess: () => void utils.orders.list.invalidate(),
+  });
+
+  const fetchOrders = () => {
+    void utils.orders.list.invalidate();
+  };
 
   const handleSelectAll = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked && ordersData) {
-      setSelectedOrderIds(ordersData.items.map((o) => o.id));
+    if (e.target.checked && ordersQuery.data) {
+      setSelectedOrderIds(ordersQuery.data.items.map((o) => o.id));
     } else {
       setSelectedOrderIds([]);
     }
@@ -51,29 +50,25 @@ export function useOrders() {
 
   const handleApplyBulkAction = async () => {
     if (!bulkAction || selectedOrderIds.length === 0) return;
-
-    let targetStatus: Order["status"] | null = null;
-    if (bulkAction === "processing") targetStatus = "processing";
-    if (bulkAction === "on_hold") targetStatus = "on_hold";
-    if (bulkAction === "completed") targetStatus = "completed";
-    if (bulkAction === "cancelled") targetStatus = "cancelled";
-
-    if (targetStatus) {
-      await bulkUpdateOrderStatus(selectedOrderIds, targetStatus, `Bulk action: ${bulkAction}`);
-      setSelectedOrderIds([]);
-      setBulkAction("");
-      void fetchOrders();
-    }
+    const targetStatus = BULK_ACTION_STATUS[bulkAction];
+    if (!targetStatus) return;
+    await bulkStatusMutation.mutateAsync({
+      orderIds: selectedOrderIds,
+      status: targetStatus,
+      reason: `Bulk action: ${bulkAction}`,
+    });
+    setSelectedOrderIds([]);
+    setBulkAction("");
   };
 
   return {
-    ordersData,
+    ordersData: ordersQuery.data ?? null,
     activeTab,
     searchQuery,
     originFilter,
     selectedOrderIds,
     bulkAction,
-    isLoading,
+    isLoading: ordersQuery.isFetching,
     reviewOrderId,
     showCreateModal,
     setActiveTab,
@@ -87,6 +82,6 @@ export function useOrders() {
     handleSelectAll,
     handleToggleSelectOrder,
     handleApplyBulkAction,
-    counts: ordersData?.counts ?? {},
+    counts: ordersQuery.data?.counts ?? {},
   };
 }

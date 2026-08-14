@@ -78,7 +78,8 @@ export interface LogMessage {
   fromPhone: string;
   contactName: string | null;
   kind: "text" | "audio";
-  rawPayload: unknown;
+  // Raw webhook payloads are not persisted; absent on listed/loaded messages.
+  rawPayload?: unknown;
   inboundText: string | null;
   transcript: string | null;
   resolvedText: string | null;

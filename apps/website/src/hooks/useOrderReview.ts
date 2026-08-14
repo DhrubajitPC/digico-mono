@@ -1,13 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import {
-  getOrder,
-  updateOrder,
-  updateOrderStatus,
-  listProducts,
-  type Order,
-  type OrderItem,
-  type Product,
-} from "../api.js";
+import { useEffect, useState } from "react";
+import { trpc } from "../trpc.js";
+import type { Order, OrderItem } from "@digico/contracts";
 import { formatCurrency } from "@digico/utils";
 
 /** Order + product loading, editable line items, message/notes, and the five mutation handlers. */
@@ -15,39 +8,47 @@ export function useOrderReview(
   orderId: number | null,
   options: { onRefresh: () => void; onClose: () => void },
 ) {
-  const [order, setOrder] = useState<Order | null>(null);
-  const [productsList, setProductsList] = useState<Product[]>([]);
+  const utils = trpc.useUtils();
   const [editableItems, setEditableItems] = useState<OrderItem[]>([]);
   const [proposedMsg, setProposedMsg] = useState("");
   const [notes, setNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [selectedSku, setSelectedSku] = useState("");
 
-  const loadData = useCallback(async () => {
-    if (!orderId) return;
-    try {
-      const data = await getOrder(orderId);
-      setOrder(data);
-      setEditableItems(data.items.map((i) => ({ ...i })));
-      setProposedMsg(
-        data.proposedMessage ??
-          `Dear ${data.dealer.businessName}, your order ${data.orderNumber} for total ${formatCurrency(data.totalAmount)} has been confirmed.`,
-      );
-      setNotes(data.notes ?? "");
+  const orderQuery = trpc.orders.get.useQuery({ id: orderId ?? 0 }, { enabled: orderId !== null });
+  const productsQuery = trpc.products.list.useQuery();
+  const order = orderQuery.data ?? null;
+  const productsList = productsQuery.data ?? [];
 
-      const prods = await listProducts();
-      setProductsList(prods);
-      if (prods.length > 0 && prods[0]) setSelectedSku(prods[0].sku);
-    } catch (err) {
-      console.error("Failed to load order details", err);
-    }
-  }, [orderId]);
+  // Sync local editable state whenever the order (re)loads — same behavior as the old loadData().
+  useEffect(() => {
+    if (!order) return;
+    setEditableItems(order.items.map((i) => ({ ...i })));
+    setProposedMsg(
+      order.proposedMessage ??
+        `Dear ${order.dealer.businessName}, your order ${order.orderNumber} for total ${formatCurrency(order.totalAmount)} has been confirmed.`,
+    );
+    setNotes(order.notes ?? "");
+  }, [order]);
 
   useEffect(() => {
-    if (orderId) {
-      void loadData();
-    }
-  }, [orderId, loadData]);
+    const first = productsList[0];
+    if (first) setSelectedSku(first.sku);
+  }, [productsList]);
+
+  const updateMutation = trpc.orders.update.useMutation({
+    onSuccess: () => {
+      void utils.orders.get.invalidate();
+      void utils.products.list.invalidate();
+      options.onRefresh();
+    },
+  });
+  const statusMutation = trpc.orders.setStatus.useMutation({
+    onSuccess: () => {
+      void utils.orders.get.invalidate();
+      options.onRefresh();
+    },
+  });
 
   const calculatedTotal = editableItems.reduce(
     (sum, item) => sum + item.quantity * item.unitPrice,
@@ -119,13 +120,12 @@ export function useOrderReview(
     if (!order) return;
     try {
       setIsSaving(true);
-      await updateOrder(order.id, {
+      await updateMutation.mutateAsync({
+        id: order.id,
         notes,
         proposedMessage: proposedMsg,
         items: buildItemsPayload(),
       });
-      await loadData();
-      options.onRefresh();
     } catch (err) {
       console.error("Failed to update order", err);
     } finally {
@@ -137,13 +137,18 @@ export function useOrderReview(
     if (!order) return;
     try {
       setIsSaving(true);
-      await updateOrder(order.id, {
+      await updateMutation.mutateAsync({
+        id: order.id,
         notes,
         proposedMessage: proposedMsg,
         items: buildItemsPayload(),
       });
-      await updateOrderStatus(order.id, "confirmed", "Approved by Sales Admin", proposedMsg);
-      options.onRefresh();
+      await statusMutation.mutateAsync({
+        id: order.id,
+        status: "confirmed",
+        reason: "Approved by Sales Admin",
+        proposedMessage: proposedMsg,
+      });
       options.onClose();
     } catch (err) {
       console.error("Failed to approve order", err);
@@ -156,8 +161,7 @@ export function useOrderReview(
     if (!order) return;
     try {
       setIsSaving(true);
-      await updateOrderStatus(order.id, status, reason);
-      options.onRefresh();
+      await statusMutation.mutateAsync({ id: order.id, status, reason });
       options.onClose();
     } catch (err) {
       console.error("Failed to change order status", err);
@@ -174,14 +178,18 @@ export function useOrderReview(
         JSON.stringify(editableItems) !== JSON.stringify(order.items) ||
         proposedMsg !== (order.proposedMessage ?? "");
       if (isModified) {
-        await updateOrder(order.id, {
+        await updateMutation.mutateAsync({
+          id: order.id,
           notes,
           proposedMessage: proposedMsg,
           items: buildItemsPayload(),
         });
       }
-      await updateOrderStatus(order.id, "completed", "Marked as completed by Sales Admin");
-      options.onRefresh();
+      await statusMutation.mutateAsync({
+        id: order.id,
+        status: "completed",
+        reason: "Marked as completed by Sales Admin",
+      });
       options.onClose();
     } catch (err) {
       console.error("Failed to complete order", err);

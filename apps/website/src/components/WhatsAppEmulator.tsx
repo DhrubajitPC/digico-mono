@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { MessageCircleCode, RefreshCw } from "lucide-react";
-import {
-  getEmulatorChat,
-  listDealers,
-  sendEmulatorMessage,
-  type Dealer,
-  type EmulatorChatMessage,
-} from "../api.js";
+import { trpc } from "../trpc.js";
+import { getEmulatorChat, sendEmulatorMessage } from "../emulator-api.js";
+import type { Dealer, EmulatorChatMessage } from "@digico/contracts";
 import { DealerSelector } from "./emulator/DealerSelector.js";
 import { QuickPresets } from "./emulator/QuickPresets.js";
 import { PayloadInspector } from "./emulator/PayloadInspector.js";
@@ -53,18 +49,14 @@ export function WhatsAppEmulator() {
   const [inspectingPayload, setInspectingPayload] = useState<unknown>(null);
   const [showInspector, setShowInspector] = useState<boolean>(false);
 
-  // Fetch dealers on mount
+  const dealersQuery = trpc.dealers.list.useQuery();
+
+  // Sync dealers from tRPC; fall back to presets when the query has no data
   useEffect(() => {
-    void listDealers()
-      .then((data) => {
-        if (data && data.length > 0) {
-          setDealers(data);
-        }
-      })
-      .catch(() => {
-        // Fallback to preset dealers
-      });
-  }, []);
+    if (dealersQuery.data && dealersQuery.data.length > 0) {
+      setDealers(dealersQuery.data);
+    }
+  }, [dealersQuery.data]);
 
   const loadChat = useCallback(async () => {
     setIsLoadingHistory(true);

@@ -1,6 +1,6 @@
 # Digico Code Structure & Readability Plan
 
-**Status:** Approved design — implementation happens later, one phase per PR.
+**Status:** ✅ Implemented — all phases 0–8 + lint enforcement landed as individual PRs (2026-08-14). Archived; superseded by [2026-08-14-trpc-tanstack-query-migration.md](../2026-08-14-trpc-tanstack-query-migration.md).
 **Date:** 2026-08-14
 **Scope:** Behavior-preserving restructuring of the monorepo (no API shape changes, no visual changes).
 

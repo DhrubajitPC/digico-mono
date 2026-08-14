@@ -1,4 +1,4 @@
-import type { EmulatorChatMessage } from "@digico/contracts";
+import type { EmulatorChatMessage, LogMessage } from "@digico/contracts";
 import type mysql from "mysql2/promise";
 import { getMariaDbPool } from "./client.ts";
 
@@ -193,12 +193,13 @@ export async function listMariaDbMessages(
 
   const [rows] = await pool.query<mysql.RowDataPacket[]>(sql, params);
 
-  const mappedItems = (rows || []).map((r) => ({
+  const mappedItems: LogMessage[] = (rows || []).map((r) => ({
     id: r.id,
     messageId: r.message_id,
     fromPhone: r.from_phone,
     contactName: r.contact_name,
     kind: r.kind,
+    rawPayload: null, // raw payloads are not persisted in joy_whatsapp_messages
     inboundText: r.inbound_text,
     resolvedText: r.resolved_text,
     transcript: r.transcript,

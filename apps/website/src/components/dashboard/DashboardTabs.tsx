@@ -1,12 +1,14 @@
+import type { Order } from "@digico/contracts";
+
 interface TabItem {
-  id: string;
+  id: "all" | Order["status"];
   label: string;
   count: number;
 }
 
 interface DashboardTabsProps {
-  activeTab: string;
-  onTabChange: (tabId: string) => void;
+  activeTab: "all" | Order["status"];
+  onTabChange: (tabId: "all" | Order["status"]) => void;
   counts: Record<string, number>;
 }
 

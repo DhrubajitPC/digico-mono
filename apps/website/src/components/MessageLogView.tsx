@@ -1,37 +1,27 @@
-import { useCallback, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button, Input, Select } from "@digico/design-system";
-import { listMessages, type LogMessage } from "../api.js";
+import { trpc } from "../trpc.js";
+import type { LogMessage } from "@digico/contracts";
 import { RefreshCw } from "lucide-react";
 
 export function MessageLogView() {
-  const [messages, setMessages] = useState<LogMessage[]>([]);
+  const utils = trpc.useUtils();
   const [phoneFilter, setPhoneFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<LogMessage | null>(null);
 
-  const fetchMessages = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const data = await listMessages();
-      let filtered = data.items;
-      if (phoneFilter) {
-        filtered = filtered.filter((m) => m.fromPhone.includes(phoneFilter));
-      }
-      if (statusFilter) {
-        filtered = filtered.filter((m) => m.status === statusFilter);
-      }
-      setMessages(filtered);
-    } catch (err) {
-      console.error("Failed to fetch messages", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [phoneFilter, statusFilter]);
+  const messagesQuery = trpc.messages.list.useQuery();
 
-  useEffect(() => {
-    void fetchMessages();
-  }, [fetchMessages]);
+  const messages = useMemo(() => {
+    let filtered = messagesQuery.data?.items ?? [];
+    if (phoneFilter) filtered = filtered.filter((m) => m.fromPhone.includes(phoneFilter));
+    if (statusFilter) filtered = filtered.filter((m) => m.status === statusFilter);
+    return filtered;
+  }, [messagesQuery.data, phoneFilter, statusFilter]);
+
+  const fetchMessages = () => {
+    void utils.messages.list.invalidate();
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -42,8 +32,9 @@ export function MessageLogView() {
             Inbound WhatsApp → AI Interpretation → Outbound Reply
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => void fetchMessages()}>
-          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} /> Refresh
+        <Button variant="outline" size="sm" onClick={() => fetchMessages()}>
+          <RefreshCw className={`w-3.5 h-3.5 ${messagesQuery.isFetching ? "animate-spin" : ""}`} />{" "}
+          Refresh
         </Button>
       </div>
 
