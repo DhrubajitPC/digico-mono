@@ -14,3 +14,9 @@ Docs are local at `node_modules/vite-plus/docs` or online at https://viteplus.de
 - [ ] If setup, runtime, or package-manager behavior looks wrong, run `vp env doctor` and include its output when asking for help.
 
 <!--VITE PLUS END-->
+
+## Coding Rules (enforced by lint)
+
+- **No explicit `any`** — type boundaries must be named, not erased. Use `unknown` + narrowing or a structural interface (lint: `no-explicit-any`).
+- **Destructured imports over full-module imports** — use named imports (`import { useState } from "react"`), never `import * as React from "react"` (lint: `import/no-namespace`). Type-only members go in the same statement as `type X`.
+- **Barrel imports only** — import from package roots (`@digico/contracts`, `@digico/db`), never internal paths like `@digico/db/src/...` (lint: `no-restricted-imports`).

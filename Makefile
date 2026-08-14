@@ -27,15 +27,19 @@ help:
 	@echo "====================================================================="
 
 ## dev: Run both backend and frontend concurrently
-dev:
+dev: mariadb-up
+	@docker compose stop backend frontend 2>/dev/null || true
+	@echo "Stale Docker app containers stopped (mariadb kept running)."
 	pnpm --filter whatsapp-webhook dev & pnpm --filter website dev
 
 ## backend: Run backend Fastify API
 backend:
+	@docker compose stop backend frontend 2>/dev/null || true
 	pnpm --filter whatsapp-webhook dev
 
 ## frontend: Run frontend React 19 web app
 frontend:
+	@docker compose stop backend frontend 2>/dev/null || true
 	pnpm --filter website dev
 
 ## mariadb-up: Launch MariaDB container with docker compose

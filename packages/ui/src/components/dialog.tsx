@@ -1,4 +1,4 @@
-import * as React from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { cn } from "../lib/utils.js";
 import { useFocusTrap } from "../lib/use-focus-trap.js";
@@ -8,7 +8,7 @@ export interface DialogProps {
   onClose: () => void;
   title?: string;
   description?: string;
-  children: React.ReactNode;
+  children: ReactNode;
   maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl" | "4xl";
 }
 
@@ -20,9 +20,9 @@ export function Dialog({
   children,
   maxWidth = "lg",
 }: DialogProps) {
-  const panelRef = React.useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && open) onClose();
     };

@@ -11,7 +11,10 @@
     "seed": "pnpm --filter @digico/db seed"
   },
   "dependencies": {
+    "@digico/api": "workspace:*",
+    "@digico/contracts": "workspace:*",
     "@digico/db": "workspace:*",
+    "@trpc/server": "catalog:",
     "fastify": "^5.2.0",
     "mysql2": "^3.12.0"
   },

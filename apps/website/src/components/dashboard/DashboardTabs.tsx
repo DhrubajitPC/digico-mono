@@ -1,14 +1,14 @@
-import * as React from "react";
+import type { Order } from "@digico/contracts";
 
 interface TabItem {
-  id: string;
+  id: "all" | Order["status"];
   label: string;
   count: number;
 }
 
 interface DashboardTabsProps {
-  activeTab: string;
-  onTabChange: (tabId: string) => void;
+  activeTab: "all" | Order["status"];
+  onTabChange: (tabId: "all" | Order["status"]) => void;
   counts: Record<string, number>;
 }
 
@@ -33,16 +33,16 @@ export function DashboardTabs({ activeTab, onTabChange, counts }: DashboardTabsP
               key={tab.id}
               type="button"
               onClick={() => onTabChange(tab.id)}
-              className={`pb-3 px-1 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ec2839] focus-visible:ring-offset-2 rounded-t-sm ${
+              className={`pb-3 px-1 border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
                 isSelected
-                  ? "border-[#ec2839] text-[#ec2839] font-bold"
+                  ? "border-primary text-primary font-bold"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
               {tab.label}
               <span
                 className={`rounded-full px-2 py-0.5 text-xs ${
-                  isSelected ? "bg-[#ec2839]/10 text-[#ec2839]" : "bg-gray-100 text-gray-600"
+                  isSelected ? "bg-primary/10 text-primary" : "bg-gray-100 text-gray-600"
                 }`}
               >
                 {tab.count}

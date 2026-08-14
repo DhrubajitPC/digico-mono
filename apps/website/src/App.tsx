@@ -1,11 +1,11 @@
-import * as React from "react";
+import { useState } from "react";
 import { OrdersDashboard } from "./components/OrdersDashboard.js";
 import { MessageLogView } from "./components/MessageLogView.js";
 import { WhatsAppEmulator } from "./components/WhatsAppEmulator.js";
 import { ShoppingBag, MessageSquare, MessageCircleCode, ShieldCheck } from "lucide-react";
 
 export function App() {
-  const [activeView, setActiveView] = React.useState<"orders" | "messages" | "emulator">("orders");
+  const [activeView, setActiveView] = useState<"orders" | "messages" | "emulator">("orders");
 
   return (
     <div className="min-h-screen bg-gray-50/50 flex flex-col font-sans">
@@ -15,7 +15,7 @@ export function App() {
           <div className="flex items-center gap-6">
             {/* Digico Brand */}
             <div className="flex items-center gap-2">
-              <div className="size-8 rounded-lg bg-[#ec2839] text-white flex items-center justify-center font-bold tracking-tighter text-xl shadow-sm">
+              <div className="size-8 rounded-lg bg-primary text-white flex items-center justify-center font-bold tracking-tighter text-xl shadow-sm">
                 D
               </div>
               <div>
@@ -32,9 +32,9 @@ export function App() {
                 type="button"
                 onClick={() => setActiveView("orders")}
                 aria-label="Order Dashboard"
-                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ec2839] focus-visible:ring-offset-2 ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
                   activeView === "orders"
-                    ? "bg-white text-[#ec2839] shadow-xs"
+                    ? "bg-white text-primary shadow-xs"
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
@@ -45,9 +45,9 @@ export function App() {
                 type="button"
                 onClick={() => setActiveView("emulator")}
                 aria-label="WhatsApp Emulator"
-                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ec2839] focus-visible:ring-offset-2 ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
                   activeView === "emulator"
-                    ? "bg-white text-[#ec2839] shadow-xs"
+                    ? "bg-white text-primary shadow-xs"
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
@@ -58,9 +58,9 @@ export function App() {
                 type="button"
                 onClick={() => setActiveView("messages")}
                 aria-label="WhatsApp Logs"
-                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ec2839] focus-visible:ring-offset-2 ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
                   activeView === "messages"
-                    ? "bg-white text-[#ec2839] shadow-xs"
+                    ? "bg-white text-primary shadow-xs"
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >

@@ -1,13 +1,15 @@
-import * as React from "react";
+import type { ChangeEvent } from "react";
 import { Button, StatusBadge } from "@digico/design-system";
-import type { ListOrdersResult } from "../../api.js";
-import { CURRENCY_SYMBOL, formatCurrency } from "../../format.js";
+import type { RouterOutputs } from "@digico/api";
+
+type ListOrdersResult = RouterOutputs["orders"]["list"];
+import { CURRENCY_SYMBOL, formatCurrency } from "@digico/utils";
 import { Eye } from "lucide-react";
 
 interface OrdersTableProps {
   ordersData: ListOrdersResult | null;
   selectedOrderIds: number[];
-  onSelectAll: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSelectAll: (e: ChangeEvent<HTMLInputElement>) => void;
   onToggleSelectOrder: (id: number) => void;
   onReviewOrder: (id: number) => void;
 }
@@ -32,7 +34,7 @@ export function OrdersTable({
                   Boolean(ordersData?.items.length) &&
                   selectedOrderIds.length === ordersData?.items.length
                 }
-                className="rounded border-gray-300 text-[#ec2839] focus:ring-[#ec2839]"
+                className="rounded border-gray-300 text-primary focus:ring-primary"
               />
             </th>
             <th className="p-3 text-left">Order & Dealer</th>
@@ -67,11 +69,11 @@ export function OrdersTable({
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => onToggleSelectOrder(order.id)}
-                      className="rounded border-gray-300 text-[#ec2839] focus:ring-[#ec2839]"
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
                     />
                   </td>
                   <td className="p-3 font-semibold text-gray-900">
-                    <span className="text-[#ec2839]">{order.orderNumber}</span>{" "}
+                    <span className="text-primary">{order.orderNumber}</span>{" "}
                     {order.dealer.businessName}
                     <div className="text-xs font-normal text-gray-500">{order.dealer.phone}</div>
                   </td>

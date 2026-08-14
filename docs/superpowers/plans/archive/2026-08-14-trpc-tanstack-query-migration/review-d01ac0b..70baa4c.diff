@@ -1,0 +1,573 @@
+# Review package: d01ac0b1905592618595bddc9c4f14bd5176d17a..70baa4c
+
+## Commits
+70baa4c feat(trpc): migrate components off api.js
+
+## Files changed
+ apps/website/src/components/CreateOrderModal.tsx   | 41 +++++++++++---------
+ apps/website/src/components/MessageLogView.tsx     | 45 +++++++++-------------
+ apps/website/src/components/WhatsAppEmulator.tsx   | 28 +++++---------
+ .../src/components/dashboard/OrdersTable.tsx       |  4 +-
+ .../website/src/components/emulator/ChatBubble.tsx |  2 +-
+ .../website/src/components/emulator/ChatWindow.tsx |  2 +-
+ .../src/components/emulator/DealerSelector.tsx     |  2 +-
+ .../components/order-review/OrderContextPane.tsx   |  2 +-
+ .../order-review/OrderDrawerActionBar.tsx          |  2 +-
+ .../components/order-review/WhatsAppPreviewBox.tsx |  2 +-
+ .../src/components/shared/LineItemsEditor.tsx      |  2 +-
+ apps/website/src/emulator-api.ts                   | 43 +++++++++++++++++++++
+ packages/api/src/routers/messages.ts               |  2 +-
+ packages/contracts/src/index.ts                    |  3 +-
+ packages/db/src/logs.ts                            |  5 ++-
+ 15 files changed, 110 insertions(+), 75 deletions(-)
+
+## Diff
+diff --git a/apps/website/src/components/CreateOrderModal.tsx b/apps/website/src/components/CreateOrderModal.tsx
+index 8ee66bd..3606fa1 100644
+--- a/apps/website/src/components/CreateOrderModal.tsx
++++ b/apps/website/src/components/CreateOrderModal.tsx
+@@ -1,13 +1,14 @@
+ import { useEffect, useState, type FormEvent } from "react";
+ import { Dialog, Button, Input, Select } from "@digico/design-system";
+-import { createOrder, listDealers, listProducts, type Dealer, type Product } from "../api.js";
++import { trpc } from "../trpc.js";
++import type { Dealer, Product } from "@digico/contracts";
+ import { LineItemsEditor } from "./shared/LineItemsEditor.js";
+ 
+ interface CreateOrderModalProps {
+   open: boolean;
+   onClose: () => void;
+   onSuccess: () => void;
+ }
+ 
+ interface NewLineItem {
+   productId: number;
+@@ -23,32 +24,41 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
+   const [selectedDealerId, setSelectedDealerId] = useState<number | "">("");
+   const [notes, setNotes] = useState("");
+   const [items, setItems] = useState<NewLineItem[]>([]);
+   const [isSubmitting, setIsSubmitting] = useState(false);
+ 
+   // Selected product state for adding
+   const [selectedSku, setSelectedSku] = useState("");
+   const [addQty, setAddQty] = useState(1);
+   const [addPrice, setAddPrice] = useState<number | "">("");
+ 
++  const dealersQuery = trpc.dealers.list.useQuery();
++  const productsQuery = trpc.products.list.useQuery();
++  const createMutation = trpc.orders.create.useMutation({
++    onSuccess: () => {
++      setItems([]);
++      setSelectedSku("");
++      setAddQty(1);
++      setAddPrice("");
++      setNotes("");
++      setSelectedDealerId("");
++      onSuccess();
++      onClose();
++    },
++  });
++
+   useEffect(() => {
+-    if (open) {
+-      void listDealers().then(setDealersList);
+-      void listProducts().then((prods) => {
+-        setProductsList(prods);
+-        if (prods.length > 0 && prods[0]) {
+-          setSelectedSku(prods[0].sku);
+-          setAddPrice(prods[0].unitPrice);
+-        }
+-      });
+-    }
+-  }, [open]);
++    if (dealersQuery.data) setDealersList(dealersQuery.data);
++  }, [dealersQuery.data]);
++  useEffect(() => {
++    if (productsQuery.data) setProductsList(productsQuery.data);
++  }, [productsQuery.data]);
+ 
+   const handleSelectSkuChange = (sku: string) => {
+     setSelectedSku(sku);
+     const found = productsList.find((p) => p.sku === sku);
+     if (found) {
+       setAddPrice(found.unitPrice);
+     }
+   };
+ 
+   const handleAddItem = () => {
+@@ -74,31 +84,26 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
+   };
+ 
+   const grandTotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+ 
+   const handleSubmit = async (e: FormEvent) => {
+     e.preventDefault();
+     if (!selectedDealerId || items.length === 0) return;
+ 
+     try {
+       setIsSubmitting(true);
+-      await createOrder({
++      await createMutation.mutateAsync({
+         dealerId: Number(selectedDealerId),
+         origin: "manual_sales",
+         notes,
+         items,
+       });
+-      onSuccess();
+-      onClose();
+-      // Reset form
+-      setItems([]);
+-      setNotes("");
+     } catch (err) {
+       console.error("Failed to create order", err);
+     } finally {
+       setIsSubmitting(false);
+     }
+   };
+ 
+   return (
+     <Dialog
+       open={open}
+diff --git a/apps/website/src/components/MessageLogView.tsx b/apps/website/src/components/MessageLogView.tsx
+index 8c9dc5e..c13c72a 100644
+--- a/apps/website/src/components/MessageLogView.tsx
++++ b/apps/website/src/components/MessageLogView.tsx
+@@ -1,56 +1,47 @@
+-import { useCallback, useEffect, useState } from "react";
++import { useMemo, useState } from "react";
+ import { Button, Input, Select } from "@digico/design-system";
+-import { listMessages, type LogMessage } from "../api.js";
++import { trpc } from "../trpc.js";
++import type { LogMessage } from "@digico/contracts";
+ import { RefreshCw } from "lucide-react";
+ 
+ export function MessageLogView() {
+-  const [messages, setMessages] = useState<LogMessage[]>([]);
++  const utils = trpc.useUtils();
+   const [phoneFilter, setPhoneFilter] = useState("");
+   const [statusFilter, setStatusFilter] = useState("");
+-  const [isLoading, setIsLoading] = useState(false);
+   const [selectedMessage, setSelectedMessage] = useState<LogMessage | null>(null);
+ 
+-  const fetchMessages = useCallback(async () => {
+-    try {
+-      setIsLoading(true);
+-      const data = await listMessages();
+-      let filtered = data.items;
+-      if (phoneFilter) {
+-        filtered = filtered.filter((m) => m.fromPhone.includes(phoneFilter));
+-      }
+-      if (statusFilter) {
+-        filtered = filtered.filter((m) => m.status === statusFilter);
+-      }
+-      setMessages(filtered);
+-    } catch (err) {
+-      console.error("Failed to fetch messages", err);
+-    } finally {
+-      setIsLoading(false);
+-    }
+-  }, [phoneFilter, statusFilter]);
++  const messagesQuery = trpc.messages.list.useQuery();
+ 
+-  useEffect(() => {
+-    void fetchMessages();
+-  }, [fetchMessages]);
++  const messages = useMemo(() => {
++    let filtered = messagesQuery.data?.items ?? [];
++    if (phoneFilter) filtered = filtered.filter((m) => m.fromPhone.includes(phoneFilter));
++    if (statusFilter) filtered = filtered.filter((m) => m.status === statusFilter);
++    return filtered;
++  }, [messagesQuery.data, phoneFilter, statusFilter]);
++
++  const fetchMessages = () => {
++    void utils.messages.list.invalidate();
++  };
+ 
+   return (
+     <div className="p-6 space-y-6">
+       <div className="flex items-center justify-between border-b border-gray-200 pb-4">
+         <div>
+           <h1 className="text-3xl font-bold text-gray-900">WhatsApp Message Log</h1>
+           <p className="text-sm text-gray-500">
+             Inbound WhatsApp → AI Interpretation → Outbound Reply
+           </p>
+         </div>
+-        <Button variant="outline" size="sm" onClick={() => void fetchMessages()}>
+-          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} /> Refresh
++        <Button variant="outline" size="sm" onClick={() => fetchMessages()}>
++          <RefreshCw className={`w-3.5 h-3.5 ${messagesQuery.isFetching ? "animate-spin" : ""}`} />{" "}
++          Refresh
+         </Button>
+       </div>
+ 
+       <div className="flex gap-3">
+         <Input
+           placeholder="Filter by phone..."
+           value={phoneFilter}
+           onChange={(e) => setPhoneFilter(e.target.value)}
+           className="w-48 text-sm"
+         />
+diff --git a/apps/website/src/components/WhatsAppEmulator.tsx b/apps/website/src/components/WhatsAppEmulator.tsx
+index 90dea18..42dd9ff 100644
+--- a/apps/website/src/components/WhatsAppEmulator.tsx
++++ b/apps/website/src/components/WhatsAppEmulator.tsx
+@@ -1,19 +1,15 @@
+ import { useCallback, useEffect, useState } from "react";
+ import { MessageCircleCode, RefreshCw } from "lucide-react";
+-import {
+-  getEmulatorChat,
+-  listDealers,
+-  sendEmulatorMessage,
+-  type Dealer,
+-  type EmulatorChatMessage,
+-} from "../api.js";
++import { trpc } from "../trpc.js";
++import { getEmulatorChat, sendEmulatorMessage } from "../emulator-api.js";
++import type { Dealer, EmulatorChatMessage } from "@digico/contracts";
+ import { DealerSelector } from "./emulator/DealerSelector.js";
+ import { QuickPresets } from "./emulator/QuickPresets.js";
+ import { PayloadInspector } from "./emulator/PayloadInspector.js";
+ import { ChatWindow } from "./emulator/ChatWindow.js";
+ 
+ const PRESET_DEALERS: Dealer[] = [
+   {
+     id: 1,
+     businessName: "Souhardo Ahmed",
+     phone: "+8801711000001",
+@@ -46,32 +42,28 @@ export function WhatsAppEmulator() {
+   const [contactName, setContactName] = useState<string>("Souhardo Ahmed");
+ 
+   const [messages, setMessages] = useState<EmulatorChatMessage[]>([]);
+   const [inputText, setInputText] = useState<string>("");
+   const [isSending, setIsSending] = useState<boolean>(false);
+   const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(false);
+ 
+   const [inspectingPayload, setInspectingPayload] = useState<unknown>(null);
+   const [showInspector, setShowInspector] = useState<boolean>(false);
+ 
+-  // Fetch dealers on mount
++  const dealersQuery = trpc.dealers.list.useQuery();
++
++  // Sync dealers from tRPC; fall back to presets when the query has no data
+   useEffect(() => {
+-    void listDealers()
+-      .then((data) => {
+-        if (data && data.length > 0) {
+-          setDealers(data);
+-        }
+-      })
+-      .catch(() => {
+-        // Fallback to preset dealers
+-      });
+-  }, []);
++    if (dealersQuery.data && dealersQuery.data.length > 0) {
++      setDealers(dealersQuery.data);
++    }
++  }, [dealersQuery.data]);
+ 
+   const loadChat = useCallback(async () => {
+     setIsLoadingHistory(true);
+     try {
+       const res = await getEmulatorChat(selectedPhone);
+       setMessages(res.messages || []);
+     } catch (err) {
+       console.error("Failed to load chat history", err);
+     } finally {
+       setIsLoadingHistory(false);
+diff --git a/apps/website/src/components/dashboard/OrdersTable.tsx b/apps/website/src/components/dashboard/OrdersTable.tsx
+index eacb9cc..aa3a217 100644
+--- a/apps/website/src/components/dashboard/OrdersTable.tsx
++++ b/apps/website/src/components/dashboard/OrdersTable.tsx
+@@ -1,13 +1,15 @@
+ import type { ChangeEvent } from "react";
+ import { Button, StatusBadge } from "@digico/design-system";
+-import type { ListOrdersResult } from "../../api.js";
++import type { RouterOutputs } from "@digico/api";
++
++type ListOrdersResult = RouterOutputs["orders"]["list"];
+ import { CURRENCY_SYMBOL, formatCurrency } from "@digico/utils";
+ import { Eye } from "lucide-react";
+ 
+ interface OrdersTableProps {
+   ordersData: ListOrdersResult | null;
+   selectedOrderIds: number[];
+   onSelectAll: (e: ChangeEvent<HTMLInputElement>) => void;
+   onToggleSelectOrder: (id: number) => void;
+   onReviewOrder: (id: number) => void;
+ }
+diff --git a/apps/website/src/components/emulator/ChatBubble.tsx b/apps/website/src/components/emulator/ChatBubble.tsx
+index 521896b..ca48e41 100644
+--- a/apps/website/src/components/emulator/ChatBubble.tsx
++++ b/apps/website/src/components/emulator/ChatBubble.tsx
+@@ -1,12 +1,12 @@
+ import { Bot, CheckCheck, Clock } from "lucide-react";
+-import type { EmulatorChatMessage } from "../../api.js";
++import type { EmulatorChatMessage } from "@digico/contracts";
+ 
+ interface ChatBubbleProps {
+   message: EmulatorChatMessage;
+ }
+ 
+ /** One WhatsApp-style message bubble (user right, assistant left). */
+ export function ChatBubble({ message }: ChatBubbleProps) {
+   const isUser = message.role === "user";
+   return (
+     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+diff --git a/apps/website/src/components/emulator/ChatWindow.tsx b/apps/website/src/components/emulator/ChatWindow.tsx
+index f691fdf..9eeef49 100644
+--- a/apps/website/src/components/emulator/ChatWindow.tsx
++++ b/apps/website/src/components/emulator/ChatWindow.tsx
+@@ -1,13 +1,13 @@
+ import { useEffect, useRef } from "react";
+ import { Bot, MessageCircleCode, Send, Sparkles } from "lucide-react";
+-import type { EmulatorChatMessage } from "../../api.js";
++import type { EmulatorChatMessage } from "@digico/contracts";
+ import { ChatBubble } from "./ChatBubble.js";
+ 
+ interface ChatWindowProps {
+   contactName: string;
+   selectedPhone: string;
+   messages: EmulatorChatMessage[];
+   isSending: boolean;
+   isLoadingHistory: boolean;
+   inputText: string;
+   onInputTextChange: (text: string) => void;
+diff --git a/apps/website/src/components/emulator/DealerSelector.tsx b/apps/website/src/components/emulator/DealerSelector.tsx
+index b1a57c0..b39d322 100644
+--- a/apps/website/src/components/emulator/DealerSelector.tsx
++++ b/apps/website/src/components/emulator/DealerSelector.tsx
+@@ -1,12 +1,12 @@
+ import { User } from "lucide-react";
+-import type { Dealer } from "../../api.js";
++import type { Dealer } from "@digico/contracts";
+ 
+ interface DealerSelectorProps {
+   dealers: Dealer[];
+   selectedPhone: string;
+   contactName: string;
+   onSelectDealer: (phone: string) => void;
+   onPhoneChange: (phone: string) => void;
+   onContactNameChange: (name: string) => void;
+ }
+ 
+diff --git a/apps/website/src/components/order-review/OrderContextPane.tsx b/apps/website/src/components/order-review/OrderContextPane.tsx
+index 8f6da0b..04a245f 100644
+--- a/apps/website/src/components/order-review/OrderContextPane.tsx
++++ b/apps/website/src/components/order-review/OrderContextPane.tsx
+@@ -1,12 +1,12 @@
+ import { StatusBadge } from "@digico/design-system";
+-import type { Order } from "../../api.js";
++import type { Order } from "@digico/contracts";
+ import { formatCurrency } from "@digico/utils";
+ import { MessageSquare, ShoppingBag, Sparkles, User, Bot } from "lucide-react";
+ 
+ // PLACEHOLDER: real data from joy_whatsapp_messages not yet wired into this drawer.
+ // The intent line and WhatsApp thread shown for whatsapp_ai orders are static demo content.
+ const MOCK_AI_INTENT = "ORDER_CREATION (Confidence 94%)";
+ 
+ const MOCK_WHATSAPP_TRANSCRIPT = [
+   {
+     role: "user",
+diff --git a/apps/website/src/components/order-review/OrderDrawerActionBar.tsx b/apps/website/src/components/order-review/OrderDrawerActionBar.tsx
+index a102cc5..5feea3b 100644
+--- a/apps/website/src/components/order-review/OrderDrawerActionBar.tsx
++++ b/apps/website/src/components/order-review/OrderDrawerActionBar.tsx
+@@ -1,12 +1,12 @@
+ import { Button } from "@digico/design-system";
+-import type { Order } from "../../api.js";
++import type { Order } from "@digico/contracts";
+ import { Save, XCircle, Clock, CheckCircle } from "lucide-react";
+ 
+ interface OrderDrawerActionBarProps {
+   order: Order;
+   editableItemsLength: number;
+   isSaving: boolean;
+   onSaveEdits: () => void;
+   onSetStatus: (status: Order["status"], reason?: string) => void;
+   onMarkCompleted: () => void;
+   onApproveAndSend: () => void;
+diff --git a/apps/website/src/components/order-review/WhatsAppPreviewBox.tsx b/apps/website/src/components/order-review/WhatsAppPreviewBox.tsx
+index 07c5495..0cb72ad 100644
+--- a/apps/website/src/components/order-review/WhatsAppPreviewBox.tsx
++++ b/apps/website/src/components/order-review/WhatsAppPreviewBox.tsx
+@@ -1,12 +1,12 @@
+ import { Send } from "lucide-react";
+-import type { Order } from "../../api.js";
++import type { Order } from "@digico/contracts";
+ 
+ interface WhatsAppPreviewBoxProps {
+   origin: Order["origin"];
+   proposedMsg: string;
+   onProposedMsgChange: (msg: string) => void;
+ }
+ 
+ export function WhatsAppPreviewBox({
+   origin,
+   proposedMsg,
+diff --git a/apps/website/src/components/shared/LineItemsEditor.tsx b/apps/website/src/components/shared/LineItemsEditor.tsx
+index db226fe..e047c82 100644
+--- a/apps/website/src/components/shared/LineItemsEditor.tsx
++++ b/apps/website/src/components/shared/LineItemsEditor.tsx
+@@ -1,12 +1,12 @@
+ import { Button, Input, Select } from "@digico/design-system";
+-import type { Product } from "../../api.js";
++import type { Product } from "@digico/contracts";
+ import { CURRENCY_SYMBOL, formatCurrency } from "@digico/utils";
+ import { Plus, ShoppingBag, Trash2 } from "lucide-react";
+ 
+ export interface LineItemLike {
+   productId?: number | null;
+   sku: string;
+   productName: string;
+   quantity: number;
+   unitPrice: number;
+   lineTotal?: number;
+diff --git a/apps/website/src/emulator-api.ts b/apps/website/src/emulator-api.ts
+new file mode 100644
+index 0000000..bee32e5
+--- /dev/null
++++ b/apps/website/src/emulator-api.ts
+@@ -0,0 +1,43 @@
++import type { EmulatorChatMessage } from "@digico/contracts";
++
++// The emulator endpoints feed the webhook AI pipeline and stay REST (spec §2.4).
++
++async function getJson<T>(url: string): Promise<T> {
++  const response = await fetch(url);
++  if (!response.ok) {
++    throw new Error(`Request to ${url} failed with ${response.status}`);
++  }
++  return response.json() as Promise<T>;
++}
++
++async function sendJson<T>(url: string, body: unknown): Promise<T> {
++  const response = await fetch(url, {
++    method: "POST",
++    headers: { "Content-Type": "application/json" },
++    body: JSON.stringify(body),
++  });
++  if (!response.ok) {
++    throw new Error(`Request to ${url} failed with ${response.status}`);
++  }
++  return response.json() as Promise<T>;
++}
++
++export function getEmulatorChat(
++  phone: string,
++): Promise<{ fromPhone: string; messages: EmulatorChatMessage[] }> {
++  const params = new URLSearchParams({ phone });
++  return getJson<{ fromPhone: string; messages: EmulatorChatMessage[] }>(
++    `/api/emulator/chat?${params.toString()}`,
++  );
++}
++
++export function sendEmulatorMessage(data: {
++  fromPhone: string;
++  contactName?: string;
++  text: string;
++}): Promise<{ success: boolean; messageId: string; metaPayload: unknown }> {
++  return sendJson<{ success: boolean; messageId: string; metaPayload: unknown }>(
++    "/api/emulator/send",
++    data,
++  );
++}
+diff --git a/packages/api/src/routers/messages.ts b/packages/api/src/routers/messages.ts
+index bf1a22b..c0a567c 100644
+--- a/packages/api/src/routers/messages.ts
++++ b/packages/api/src/routers/messages.ts
+@@ -5,20 +5,20 @@ import { publicProcedure, router } from "../trpc.ts";
+ 
+ const listMessagesInputSchema = z.object({
+   phone: z.string().optional(),
+   status: z.string().optional(),
+   limit: z.number().int().positive().optional(),
+   offset: z.number().int().nonnegative().optional(),
+ });
+ 
+ export const messagesRouter = router({
+   list: publicProcedure
+-    .input(listMessagesInputSchema)
++    .input(listMessagesInputSchema.optional())
+     .query(({ input }) => listMariaDbMessages(input)),
+   get: publicProcedure
+     .input(z.object({ id: z.number().int().positive() }))
+     .query(async ({ input }) => {
+       const detail = await getMariaDbMessageDetail(input.id);
+       if (!detail) throw new TRPCError({ code: "NOT_FOUND", message: "Message detail not found" });
+       return detail;
+     }),
+ });
+diff --git a/packages/contracts/src/index.ts b/packages/contracts/src/index.ts
+index 64f5afd..8ce016d 100644
+--- a/packages/contracts/src/index.ts
++++ b/packages/contracts/src/index.ts
+@@ -71,21 +71,22 @@ export interface Order {
+   items: OrderItem[];
+   history?: OrderHistoryItem[];
+ }
+ 
+ export interface LogMessage {
+   id: number;
+   messageId: string;
+   fromPhone: string;
+   contactName: string | null;
+   kind: "text" | "audio";
+-  rawPayload: unknown;
++  // Raw webhook payloads are not persisted; absent on listed/loaded messages.
++  rawPayload?: unknown;
+   inboundText: string | null;
+   transcript: string | null;
+   resolvedText: string | null;
+   status: "received" | "completed" | "failed";
+   error: string | null;
+   receivedAt: string;
+   completedAt: string | null;
+ }
+ 
+ export interface EmulatorChatMessage {
+diff --git a/packages/db/src/logs.ts b/packages/db/src/logs.ts
+index a2308ea..2d1ccd7 100644
+--- a/packages/db/src/logs.ts
++++ b/packages/db/src/logs.ts
+@@ -1,11 +1,11 @@
+-import type { EmulatorChatMessage } from "@digico/contracts";
++import type { EmulatorChatMessage, LogMessage } from "@digico/contracts";
+ import type mysql from "mysql2/promise";
+ import { getMariaDbPool } from "./client.ts";
+ 
+ /** Ensure WhatsApp message log tables exist in MariaDB */
+ export async function ensureMariaDbLogTables(): Promise<void> {
+   const p = getMariaDbPool();
+   try {
+     await p.query(`
+       CREATE TABLE IF NOT EXISTS joy_whatsapp_messages (
+         id INT AUTO_INCREMENT PRIMARY KEY,
+@@ -186,26 +186,27 @@ export async function listMariaDbMessages(
+   if (filter.phone) {
+     sql += ` WHERE from_phone = ?`;
+     params.push(filter.phone);
+   }
+ 
+   sql += ` ORDER BY received_at DESC, id DESC LIMIT ? OFFSET ?`;
+   params.push(limit, offset);
+ 
+   const [rows] = await pool.query<mysql.RowDataPacket[]>(sql, params);
+ 
+-  const mappedItems = (rows || []).map((r) => ({
++  const mappedItems: LogMessage[] = (rows || []).map((r) => ({
+     id: r.id,
+     messageId: r.message_id,
+     fromPhone: r.from_phone,
+     contactName: r.contact_name,
+     kind: r.kind,
++    rawPayload: null, // raw payloads are not persisted in joy_whatsapp_messages
+     inboundText: r.inbound_text,
+     resolvedText: r.resolved_text,
+     transcript: r.transcript,
+     status: r.status,
+     error: r.error,
+     receivedAt: r.received_at ? new Date(r.received_at).toISOString() : new Date().toISOString(),
+     completedAt: r.completed_at ? new Date(r.completed_at).toISOString() : null,
+   }));
+ 
+   return { items: mappedItems, total: mappedItems.length };

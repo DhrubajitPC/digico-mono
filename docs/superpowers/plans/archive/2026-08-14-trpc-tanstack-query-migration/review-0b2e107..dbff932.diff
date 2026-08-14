@@ -1,0 +1,40 @@
+# Review package: 0b2e107..dbff932
+
+## Commits
+dbff932 fix(trpc): restore error logging for failed queries
+
+## Files changed
+ apps/website/src/main.tsx | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+## Diff
+diff --git a/apps/website/src/main.tsx b/apps/website/src/main.tsx
+index cc0dd45..f37d8e8 100644
+--- a/apps/website/src/main.tsx
++++ b/apps/website/src/main.tsx
+@@ -1,19 +1,23 @@
+ import { StrictMode } from "react";
+ import { createRoot } from "react-dom/client";
+-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
++import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+ import { App } from "./App.js";
+ import { trpc, trpcClient } from "./trpc.js";
+ import "./theme.css";
+ import "./style.css";
+ 
+-const queryClient = new QueryClient();
++const queryClient = new QueryClient({
++  queryCache: new QueryCache({
++    onError: (err) => console.error("Query failed", err),
++  }),
++});
+ 
+ const rootElement = document.getElementById("root")!;
+ const root = createRoot(rootElement);
+ root.render(
+   <StrictMode>
+     <trpc.Provider client={trpcClient} queryClient={queryClient}>
+       <QueryClientProvider client={queryClient}>
+         <App />
+       </QueryClientProvider>
+     </trpc.Provider>

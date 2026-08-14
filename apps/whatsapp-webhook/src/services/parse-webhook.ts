@@ -1,4 +1,6 @@
-export type MessageKind = "text" | "audio" | "unsupported";
+import type { MessageKind } from "@digico/contracts";
+
+export type { MessageKind };
 
 export interface IncomingTextPayload {
   body: string;
@@ -20,7 +22,30 @@ export interface IncomingWhatsAppMessage {
   audio: IncomingAudioPayload | null;
 }
 
-function extractContactName(value: any, waId: string): string | null {
+/** Minimal structural view of the Meta WhatsApp Cloud API webhook payload we read. */
+interface MetaWebhookValue {
+  metadata?: { phone_number_id?: string | null };
+  contacts?: Array<{ wa_id?: string; profile?: { name?: string } }>;
+  messages?: Array<{
+    id: string;
+    from: string;
+    timestamp?: string;
+    type?: string;
+    text?: { body?: string };
+    audio?: { id?: string; mime_type?: string };
+  }>;
+}
+
+interface MetaWebhookEntry {
+  changes?: Array<{ value?: MetaWebhookValue }>;
+}
+
+/** True when the message came from the WhatsApp emulator (phoneNumberId or from contains EMULATOR). */
+export function isEmulatorMessage(message: IncomingWhatsAppMessage): boolean {
+  return message.phoneNumberId === "EMULATOR" || message.from.includes("EMULATOR");
+}
+
+function extractContactName(value: MetaWebhookValue | undefined, waId: string): string | null {
   const contacts = value?.contacts;
   if (!Array.isArray(contacts)) return null;
   const match = contacts.find((c) => c.wa_id === waId);
@@ -31,15 +56,15 @@ function extractContactName(value: any, waId: string): string | null {
 export function parseIncomingMessages(rawPayload: unknown): IncomingWhatsAppMessage[] {
   const results: IncomingWhatsAppMessage[] = [];
 
-  const entry = (rawPayload as any)?.entry;
+  const entry = (rawPayload as { entry?: MetaWebhookEntry[] } | null)?.entry;
   if (!Array.isArray(entry)) return results;
 
   for (const item of entry) {
-    const changes = item?.changes;
+    const changes = item.changes;
     if (!Array.isArray(changes)) continue;
 
     for (const change of changes) {
-      const val = change?.value;
+      const val = change.value;
       const phoneNumberId = val?.metadata?.phone_number_id ?? null;
       const msgs = val?.messages;
       if (!Array.isArray(msgs)) continue;

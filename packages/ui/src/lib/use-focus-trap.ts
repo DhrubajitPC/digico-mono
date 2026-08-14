@@ -1,4 +1,4 @@
-import * as React from "react";
+import { useEffect, type RefObject } from "react";
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -8,8 +8,8 @@ const FOCUSABLE_SELECTOR =
  * cycling within it, and restores focus to whatever triggered it on close.
  * Without this, keyboard users can tab past a modal into the page behind it.
  */
-export function useFocusTrap(open: boolean, containerRef: React.RefObject<HTMLElement | null>) {
-  React.useEffect(() => {
+export function useFocusTrap(open: boolean, containerRef: RefObject<HTMLElement | null>) {
+  useEffect(() => {
     if (!open) return;
 
     const previouslyFocused = document.activeElement as HTMLElement | null;

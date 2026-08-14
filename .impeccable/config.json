@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "bounce-easing",
+        "value": "animate-bounce",
+        "createdAt": "2026-08-13T19:02:23.616Z",
+        "reason": "User confirmed animate-bounce is intentional"
+      }
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-import { fetchMariaDbOrderById, getMariaDbPool } from "@digico/db";
+import { cancelMariaDbOrder, fetchMariaDbOrderById } from "@digico/db";
 
 export interface IntentRouteResult {
   handled: boolean;
@@ -34,8 +34,7 @@ export async function routeIntent(
   if (cancelMatch && cancelMatch[1]) {
     const orderId = Number(cancelMatch[1]);
     try {
-      const pool = getMariaDbPool();
-      await pool.query("UPDATE joy_posts SET post_status = 'wc-cancelled' WHERE ID = ?", [orderId]);
+      await cancelMariaDbOrder(orderId);
       return {
         handled: true,
         replyText: `Order #ORD-${orderId} has been successfully cancelled in MariaDB.`,

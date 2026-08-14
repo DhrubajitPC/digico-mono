@@ -1,0 +1,246 @@
+# Review package: 93fe298..9071e1a
+
+## Commits
+9071e1a feat(trpc): mount router on Fastify at /trpc with remaining procedures
+
+## Files changed
+ apps/website/vite.config.ts             |  1 +
+ apps/whatsapp-webhook/src/server.ts     |  8 ++++
+ packages/api/src/index.ts               |  1 +
+ packages/api/src/router.ts              |  9 +++++
+ packages/api/src/routers/dealers.ts     |  6 +++
+ packages/api/src/routers/messages.ts    | 24 +++++++++++
+ packages/api/src/routers/products.ts    |  6 +++
+ packages/api/tests/read-routers.test.ts | 71 +++++++++++++++++++++++++++++++++
+ 8 files changed, 126 insertions(+)
+
+## Diff
+diff --git a/apps/website/vite.config.ts b/apps/website/vite.config.ts
+index 9a8831c..3903d95 100644
+--- a/apps/website/vite.config.ts
++++ b/apps/website/vite.config.ts
+@@ -4,13 +4,14 @@ import { defineConfig } from "vite-plus";
+ 
+ export default defineConfig({
+   envDir: "../../",
+   plugins: [react(), tailwindcss()],
+   server: {
+     port: 5173,
+     strictPort: true,
+     // Dashboard proxy to Fastify backend API on 8787
+     proxy: {
+       "/api": "http://localhost:8787",
++      "/trpc": "http://localhost:8787",
+     },
+   },
+ });
+diff --git a/apps/whatsapp-webhook/src/server.ts b/apps/whatsapp-webhook/src/server.ts
+index bd6715e..bdaef8c 100644
+--- a/apps/whatsapp-webhook/src/server.ts
++++ b/apps/whatsapp-webhook/src/server.ts
+@@ -1,11 +1,13 @@
+ import Fastify from "fastify";
++import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
++import { appRouter, createContext } from "@digico/api";
+ import { registerDealerRoutes } from "./routes/dealers.ts";
+ import { registerEmulatorRoutes } from "./routes/emulator.ts";
+ import { registerMessageRoutes } from "./routes/messages.ts";
+ import { registerOrderRoutes } from "./routes/orders.ts";
+ import { registerProductRoutes } from "./routes/products.ts";
+ import { registerWebhookRoutes } from "./routes/webhook.ts";
+ 
+ const PORT = Number(process.env.PORT ?? 8787);
+ 
+ async function startServer() {
+@@ -17,20 +19,26 @@ async function startServer() {
+   });
+ 
+   // Register Route Modules
+   await registerWebhookRoutes(app);
+   await registerOrderRoutes(app);
+   await registerProductRoutes(app);
+   await registerDealerRoutes(app);
+   await registerMessageRoutes(app);
+   await registerEmulatorRoutes(app);
+ 
++  // tRPC router — all dashboard API procedures live here
++  await app.register(fastifyTRPCPlugin, {
++    prefix: "/trpc",
++    trpcOptions: { router: appRouter, createContext },
++  });
++
+   function checkEnv(name: string) {
+     if (!process.env[name]) {
+       console.warn(`Warning: ${name} is not set — replies will fail until it is.`);
+     }
+   }
+ 
+   checkEnv("DEEPSEEK_API_KEY");
+   checkEnv("WHATSAPP_ACCESS_TOKEN");
+   checkEnv("WHATSAPP_PHONE_NUMBER_ID");
+   checkEnv("OPENAI_API_KEY");
+diff --git a/packages/api/src/index.ts b/packages/api/src/index.ts
+index 26af9d4..f14b909 100644
+--- a/packages/api/src/index.ts
++++ b/packages/api/src/index.ts
+@@ -1,4 +1,5 @@
+ export { createContext } from "./context.ts";
+ export type { TrpcContext } from "./context.ts";
+ export { appRouter } from "./router.ts";
+ export type { AppRouter } from "./router.ts";
++export type { RouterInputs, RouterOutputs } from "./router.ts";
+diff --git a/packages/api/src/router.ts b/packages/api/src/router.ts
+index fdf26c6..d0a367a 100644
+--- a/packages/api/src/router.ts
++++ b/packages/api/src/router.ts
+@@ -1,10 +1,19 @@
++import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
+ import { router } from "./trpc.ts";
++import { dealersRouter } from "./routers/dealers.ts";
+ import { healthRouter } from "./routers/health.ts";
++import { messagesRouter } from "./routers/messages.ts";
+ import { ordersRouter } from "./routers/orders.ts";
++import { productsRouter } from "./routers/products.ts";
+ 
+ export const appRouter = router({
+   health: healthRouter,
+   orders: ordersRouter,
++  products: productsRouter,
++  dealers: dealersRouter,
++  messages: messagesRouter,
+ });
+ 
+ export type AppRouter = typeof appRouter;
++export type RouterInputs = inferRouterInputs<typeof appRouter>;
++export type RouterOutputs = inferRouterOutputs<typeof appRouter>;
+diff --git a/packages/api/src/routers/dealers.ts b/packages/api/src/routers/dealers.ts
+new file mode 100644
+index 0000000..ee5afdd
+--- /dev/null
++++ b/packages/api/src/routers/dealers.ts
+@@ -0,0 +1,6 @@
++import { fetchMariaDbDealers } from "@digico/db";
++import { publicProcedure, router } from "../trpc.ts";
++
++export const dealersRouter = router({
++  list: publicProcedure.query(() => fetchMariaDbDealers()),
++});
+diff --git a/packages/api/src/routers/messages.ts b/packages/api/src/routers/messages.ts
+new file mode 100644
+index 0000000..bf1a22b
+--- /dev/null
++++ b/packages/api/src/routers/messages.ts
+@@ -0,0 +1,24 @@
++import { TRPCError } from "@trpc/server";
++import { getMariaDbMessageDetail, listMariaDbMessages } from "@digico/db";
++import { z } from "zod";
++import { publicProcedure, router } from "../trpc.ts";
++
++const listMessagesInputSchema = z.object({
++  phone: z.string().optional(),
++  status: z.string().optional(),
++  limit: z.number().int().positive().optional(),
++  offset: z.number().int().nonnegative().optional(),
++});
++
++export const messagesRouter = router({
++  list: publicProcedure
++    .input(listMessagesInputSchema)
++    .query(({ input }) => listMariaDbMessages(input)),
++  get: publicProcedure
++    .input(z.object({ id: z.number().int().positive() }))
++    .query(async ({ input }) => {
++      const detail = await getMariaDbMessageDetail(input.id);
++      if (!detail) throw new TRPCError({ code: "NOT_FOUND", message: "Message detail not found" });
++      return detail;
++    }),
++});
+diff --git a/packages/api/src/routers/products.ts b/packages/api/src/routers/products.ts
+new file mode 100644
+index 0000000..18f88dd
+--- /dev/null
++++ b/packages/api/src/routers/products.ts
+@@ -0,0 +1,6 @@
++import { fetchMariaDbProducts } from "@digico/db";
++import { publicProcedure, router } from "../trpc.ts";
++
++export const productsRouter = router({
++  list: publicProcedure.query(() => fetchMariaDbProducts()),
++});
+diff --git a/packages/api/tests/read-routers.test.ts b/packages/api/tests/read-routers.test.ts
+new file mode 100644
+index 0000000..efdd6d8
+--- /dev/null
++++ b/packages/api/tests/read-routers.test.ts
+@@ -0,0 +1,71 @@
++import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
++import type { Dealer, Product } from "@digico/contracts";
++
++const db = vi.hoisted(() => ({
++  fetchMariaDbProducts: vi.fn(),
++  fetchMariaDbDealers: vi.fn(),
++  listMariaDbMessages: vi.fn(),
++  getMariaDbMessageDetail: vi.fn(),
++}));
++
++vi.mock("@digico/db", () => db);
++
++import { dealersRouter } from "../src/routers/dealers.ts";
++import { messagesRouter } from "../src/routers/messages.ts";
++import { productsRouter } from "../src/routers/products.ts";
++
++const productFixture: Product = {
++  id: 1,
++  sku: "LN-TP",
++  brand: "Lenovo",
++  name: "ThinkPad T14",
++  category: "Laptop",
++  model: "T14",
++  specifications: null,
++  unitPrice: 600,
++  stockQuantity: 10,
++  aliases: [],
++};
++
++const dealerFixture: Dealer = {
++  id: 1,
++  businessName: "Acme Trading",
++  phone: "+8801711000001",
++  contactPerson: "Acme Person",
++};
++
++describe("read routers", () => {
++  beforeEach(() => {
++    vi.clearAllMocks();
++  });
++
++  it("products.list returns the product list", async () => {
++    db.fetchMariaDbProducts.mockResolvedValue([productFixture]);
++    await expect(productsRouter.createCaller({}).list()).resolves.toEqual([productFixture]);
++  });
++
++  it("dealers.list returns the dealer list", async () => {
++    db.fetchMariaDbDealers.mockResolvedValue([dealerFixture]);
++    await expect(dealersRouter.createCaller({}).list()).resolves.toEqual([dealerFixture]);
++  });
++
++  it("messages.list passes filters through to the db", async () => {
++    db.listMariaDbMessages.mockResolvedValue({ items: [], total: 0 });
++    const caller = messagesRouter.createCaller({});
++    await caller.list({ phone: "+8801", limit: 25, offset: 0 });
++    expect(db.listMariaDbMessages).toHaveBeenCalledWith({ phone: "+8801", limit: 25, offset: 0 });
++  });
++
++  it("messages.list rejects a NaN limit", async () => {
++    await expect(
++      messagesRouter.createCaller({}).list({ limit: NaN } as never),
++    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
++  });
++
++  it("messages.get throws NOT_FOUND for a missing message", async () => {
++    db.getMariaDbMessageDetail.mockResolvedValue(null);
++    await expect(messagesRouter.createCaller({}).get({ id: 999 })).rejects.toMatchObject({
++      code: "NOT_FOUND",
++    });
++  });
++});

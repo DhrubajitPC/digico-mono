@@ -1,4 +1,4 @@
-import * as React from "react";
+import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../lib/utils.js";
 
@@ -7,13 +7,13 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-[#ec2839] text-white hover:bg-[#d41f30] focus-visible:ring-[#ec2839]",
+        default: "bg-primary text-white hover:bg-primary-hover focus-visible:ring-primary",
         destructive: "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600",
         outline:
           "border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 focus-visible:ring-gray-400",
         secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200 focus-visible:ring-gray-300",
         ghost: "hover:bg-gray-100 hover:text-gray-900 text-gray-600",
-        link: "text-[#ec2839] underline-offset-4 hover:underline",
+        link: "text-primary underline-offset-4 hover:underline",
         success: "bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-600",
         warning: "bg-amber-500 text-white hover:bg-amber-600 focus-visible:ring-amber-500",
       },
@@ -32,11 +32,11 @@ const buttonVariants = cva(
 );
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
+  extends ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
   asChild?: boolean;
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, ...props }, ref) => {
     return (
       <button className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />

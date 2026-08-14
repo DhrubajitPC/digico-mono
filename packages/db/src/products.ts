@@ -1,18 +1,9 @@
 import type mysql from "mysql2/promise";
+import type { Product } from "@digico/contracts";
 import { getMariaDbPool } from "./client.ts";
 
-export interface WcProduct {
-  id: number;
-  sku: string;
-  brand: string;
-  name: string;
-  category: string;
-  model: string | null;
-  specifications: string | null;
-  unitPrice: number;
-  stockQuantity: number;
-  aliases: string[];
-}
+/** Canonical product shape lives in @digico/contracts; kept as an alias for existing call sites. */
+export type WcProduct = Product;
 
 /** Fetch Products list from MariaDB */
 export async function fetchMariaDbProducts(): Promise<WcProduct[]> {
@@ -32,7 +23,7 @@ export async function fetchMariaDbProducts(): Promise<WcProduct[]> {
     LIMIT 200
   `);
 
-  return (rows || []).map((r: any) => ({
+  return (rows || []).map((r) => ({
     id: r.id,
     sku: r.sku || `SKU-${r.id}`,
     brand: "WooCommerce",

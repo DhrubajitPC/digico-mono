@@ -1,8 +1,24 @@
-import * as React from "react";
 import { StatusBadge } from "@digico/design-system";
-import type { Order } from "../../api.js";
-import { formatCurrency } from "../../format.js";
+import type { Order } from "@digico/contracts";
+import { formatCurrency } from "@digico/utils";
 import { MessageSquare, ShoppingBag, Sparkles, User, Bot } from "lucide-react";
+
+// PLACEHOLDER: real data from joy_whatsapp_messages not yet wired into this drawer.
+// The intent line and WhatsApp thread shown for whatsapp_ai orders are static demo content.
+const MOCK_AI_INTENT = "ORDER_CREATION (Confidence 94%)";
+
+const MOCK_WHATSAPP_TRANSCRIPT = [
+  {
+    role: "user",
+    label: "Dealer Message",
+    text: '"Bhai HP i5 laptop ta koto? 3 ta lagbe ar Samsung 24 inch monitor 4 ta lagbe."',
+  },
+  {
+    role: "assistant",
+    label: "Digico Sales AI",
+    text: `"Sir, HP 15s Core i5 price ${formatCurrency(68500)} and Samsung 24 IPS Monitor price ${formatCurrency(12095)}."`,
+  },
+] as const;
 
 interface OrderContextPaneProps {
   order: Order;
@@ -16,7 +32,7 @@ export function OrderContextPane({ order }: OrderContextPaneProps) {
           <span className="text-sm font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
             {order.origin === "whatsapp_ai" ? (
               <>
-                <MessageSquare className="w-4 h-4 text-[#ec2839]" /> WhatsApp Context
+                <MessageSquare className="w-4 h-4 text-primary" /> WhatsApp Context
               </>
             ) : (
               <>
@@ -45,41 +61,42 @@ export function OrderContextPane({ order }: OrderContextPaneProps) {
                 <Sparkles className="w-4 h-4 text-emerald-600" /> AI Intent Extraction
               </div>
               <p className="text-emerald-800 leading-relaxed text-xs">
-                Intent: <span className="font-semibold">ORDER_CREATION</span> (Confidence 94%). AI
-                extracted <span className="font-semibold">{order.items.length} SKU(s)</span> from
-                catalog aliases.
+                Intent: <span className="font-semibold">{MOCK_AI_INTENT}</span>. AI extracted{" "}
+                <span className="font-semibold">{order.items.length} SKU(s)</span> from catalog
+                aliases.
               </p>
             </div>
 
             <div className="space-y-2 pt-2">
               <span className="text-sm font-semibold text-gray-500">Recent WhatsApp Thread</span>
               <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-3 max-h-[260px] overflow-y-auto text-sm">
-                {/* Dealer message */}
-                <div className="flex gap-2 items-start">
-                  <div className="size-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold shrink-0">
-                    <User className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="bg-emerald-50 rounded-lg rounded-tl-none p-2.5 text-emerald-900 border border-emerald-100 flex-1">
-                    <div className="font-semibold text-emerald-800 text-xs mb-0.5">
-                      Dealer Message
+                {MOCK_WHATSAPP_TRANSCRIPT.map((entry, idx) =>
+                  entry.role === "user" ? (
+                    <div key={idx} className="flex gap-2 items-start">
+                      <div className="size-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold shrink-0">
+                        <User className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="bg-emerald-50 rounded-lg rounded-tl-none p-2.5 text-emerald-900 border border-emerald-100 flex-1">
+                        <div className="font-semibold text-emerald-800 text-xs mb-0.5">
+                          {entry.label}
+                        </div>
+                        {entry.text}
+                      </div>
                     </div>
-                    "Bhai HP i5 laptop ta koto? 3 ta lagbe ar Samsung 24 inch monitor 4 ta lagbe."
-                  </div>
-                </div>
-
-                {/* AI response */}
-                <div className="flex gap-2 items-start justify-end">
-                  <div className="bg-gray-100 rounded-lg rounded-tr-none p-2.5 text-gray-800 border border-gray-200 flex-1 text-right">
-                    <div className="font-semibold text-gray-700 text-xs mb-0.5">
-                      Digico Sales AI
+                  ) : (
+                    <div key={idx} className="flex gap-2 items-start justify-end">
+                      <div className="bg-gray-100 rounded-lg rounded-tr-none p-2.5 text-gray-800 border border-gray-200 flex-1 text-right">
+                        <div className="font-semibold text-gray-700 text-xs mb-0.5">
+                          {entry.label}
+                        </div>
+                        {entry.text}
+                      </div>
+                      <div className="size-6 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold shrink-0">
+                        <Bot className="w-3.5 h-3.5" />
+                      </div>
                     </div>
-                    "Sir, HP 15s Core i5 price {formatCurrency(68500)} and Samsung 24 IPS Monitor
-                    price {formatCurrency(12095)}."
-                  </div>
-                  <div className="size-6 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold shrink-0">
-                    <Bot className="w-3.5 h-3.5" />
-                  </div>
-                </div>
+                  ),
+                )}
               </div>
             </div>
           </>

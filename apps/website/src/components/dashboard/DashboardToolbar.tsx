@@ -1,5 +1,5 @@
-import * as React from "react";
 import { Button, Input, Select } from "@digico/design-system";
+import type { OrderOriginType } from "@digico/contracts";
 import { Search } from "lucide-react";
 
 interface DashboardToolbarProps {
@@ -7,8 +7,8 @@ interface DashboardToolbarProps {
   onBulkActionChange: (action: string) => void;
   selectedOrderIdsCount: number;
   onApplyBulkAction: () => void;
-  originFilter: string;
-  onOriginFilterChange: (origin: string) => void;
+  originFilter: OrderOriginType | "";
+  onOriginFilterChange: (origin: OrderOriginType | "") => void;
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;
 }
@@ -52,7 +52,10 @@ export function DashboardToolbar({
         {/* Sales Channel Filter */}
         <Select
           value={originFilter}
-          onChange={(e) => onOriginFilterChange(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            onOriginFilterChange(value === "whatsapp_ai" || value === "manual_sales" ? value : "");
+          }}
           className="w-44 text-sm h-8"
         >
           <option value="">All sales channels</option>

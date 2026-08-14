@@ -13,6 +13,7 @@
     "seed": "node --env-file=../../.env --experimental-strip-types src/seed.ts"
   },
   "dependencies": {
+    "@digico/contracts": "workspace:*",
     "mysql2": "^3.12.0"
   },
   "devDependencies": {
