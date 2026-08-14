@@ -51,7 +51,7 @@ export function OrdersDashboard() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => void fetchOrders()}>
+          <Button variant="outline" size="sm" onClick={() => fetchOrders()}>
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} /> Refresh
           </Button>
         </div>
