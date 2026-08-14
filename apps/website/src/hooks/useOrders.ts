@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from "react";
+import { useState } from "react";
 import { trpc } from "../trpc.js";
 import type { Order, OrderOriginType } from "@digico/contracts";
 
@@ -32,14 +32,6 @@ export function useOrders() {
 
   const fetchOrders = () => {
     void utils.orders.list.invalidate();
-  };
-
-  const handleSelectAll = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked && ordersQuery.data) {
-      setSelectedOrderIds(ordersQuery.data.items.map((o) => o.id));
-    } else {
-      setSelectedOrderIds([]);
-    }
   };
 
   const handleToggleSelectOrder = (id: number) => {
@@ -79,7 +71,6 @@ export function useOrders() {
     setReviewOrderId,
     setShowCreateModal,
     fetchOrders,
-    handleSelectAll,
     handleToggleSelectOrder,
     handleApplyBulkAction,
     counts: ordersQuery.data?.counts ?? {},

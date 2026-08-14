@@ -27,7 +27,6 @@ export function OrdersDashboard() {
     setReviewOrderId,
     setShowCreateModal,
     fetchOrders,
-    handleSelectAll,
     handleToggleSelectOrder,
     handleApplyBulkAction,
     counts,
@@ -83,7 +82,7 @@ export function OrdersDashboard() {
       <OrdersTable
         ordersData={ordersData}
         selectedOrderIds={selectedOrderIds}
-        onSelectAll={handleSelectAll}
+        onSetSelectedIds={setSelectedOrderIds}
         onToggleSelectOrder={handleToggleSelectOrder}
         onReviewOrder={setReviewOrderId}
       />
