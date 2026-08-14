@@ -1,4 +1,6 @@
 import Fastify from "fastify";
+import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
+import { appRouter, createContext } from "@digico/api";
 import { registerDealerRoutes } from "./routes/dealers.ts";
 import { registerEmulatorRoutes } from "./routes/emulator.ts";
 import { registerMessageRoutes } from "./routes/messages.ts";
@@ -23,6 +25,12 @@ async function startServer() {
   await registerDealerRoutes(app);
   await registerMessageRoutes(app);
   await registerEmulatorRoutes(app);
+
+  // tRPC router — all dashboard API procedures live here
+  await app.register(fastifyTRPCPlugin, {
+    prefix: "/trpc",
+    trpcOptions: { router: appRouter, createContext },
+  });
 
   function checkEnv(name: string) {
     if (!process.env[name]) {
