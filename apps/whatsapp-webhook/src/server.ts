@@ -1,11 +1,7 @@
 import Fastify from "fastify";
 import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
 import { appRouter, createContext } from "@digico/api";
-import { registerDealerRoutes } from "./routes/dealers.ts";
 import { registerEmulatorRoutes } from "./routes/emulator.ts";
-import { registerMessageRoutes } from "./routes/messages.ts";
-import { registerOrderRoutes } from "./routes/orders.ts";
-import { registerProductRoutes } from "./routes/products.ts";
 import { registerWebhookRoutes } from "./routes/webhook.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -18,12 +14,8 @@ async function startServer() {
     return reply.send("ok");
   });
 
-  // Register Route Modules
+  // Webhook ingestion + emulator ingress stay REST (spec §2.4)
   await registerWebhookRoutes(app);
-  await registerOrderRoutes(app);
-  await registerProductRoutes(app);
-  await registerDealerRoutes(app);
-  await registerMessageRoutes(app);
   await registerEmulatorRoutes(app);
 
   // tRPC router — all dashboard API procedures live here
@@ -44,10 +36,10 @@ async function startServer() {
   checkEnv("OPENAI_API_KEY");
 
   await app.listen({ port: PORT, host: "0.0.0.0" });
-  console.log(`Digico Fastify REST API & Webhook listening on http://0.0.0.0:${PORT}`);
+  console.log(`Digico Fastify API & Webhook listening on http://0.0.0.0:${PORT}`);
+  console.log(`- tRPC:     /trpc`);
   console.log(`- Webhook:  GET/POST /webhook`);
-  console.log(`- Health:   GET /health`);
-  console.log(`- Orders:   GET/POST/PATCH /api/orders`);
+  console.log(`- Emulator: GET/POST /api/emulator/*`);
 }
 
 startServer().catch((err) => {
