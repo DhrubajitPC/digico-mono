@@ -1,0 +1,612 @@
+# Review package: e8ca120ebd7146a312b9243d802ce14803262eb7..e09b93f
+
+## Commits
+e09b93f feat(trpc): scaffold @digico/api package and catalog deps
+
+## Files changed
+ apps/website/package.json          |   4 ++
+ apps/website/tsconfig.json         |   1 +
+ apps/whatsapp-webhook/package.json |   2 +
+ packages/api/package.json          |  26 +++++++++
+ packages/api/src/context.ts        |   6 ++
+ packages/api/src/index.ts          |   4 ++
+ packages/api/src/router.ts         |   8 +++
+ packages/api/src/routers/health.ts |   5 ++
+ packages/api/src/trpc.ts           |   7 +++
+ packages/api/tsconfig.json         |   9 +++
+ packages/api/vite.config.ts        |  11 ++++
+ pnpm-lock.yaml                     | 114 +++++++++++++++++++++++++++++++++++++
+ pnpm-workspace.yaml                |   5 ++
+ 13 files changed, 202 insertions(+)
+
+## Diff
+diff --git a/apps/website/package.json b/apps/website/package.json
+index ebafd00..deae088 100644
+--- a/apps/website/package.json
++++ b/apps/website/package.json
+@@ -2,23 +2,27 @@
+   "name": "website",
+   "version": "0.0.0",
+   "private": true,
+   "type": "module",
+   "scripts": {
+     "dev": "vp dev",
+     "build": "tsc && vp build",
+     "preview": "vp preview"
+   },
+   "dependencies": {
++    "@digico/api": "workspace:*",
+     "@digico/contracts": "workspace:*",
+     "@digico/design-system": "workspace:*",
+     "@digico/utils": "workspace:*",
++    "@tanstack/react-query": "catalog:",
++    "@trpc/client": "catalog:",
++    "@trpc/react-query": "catalog:",
+     "lucide-react": "catalog:",
+     "react": "catalog:",
+     "react-dom": "catalog:"
+   },
+   "devDependencies": {
+     "@tailwindcss/vite": "catalog:",
+     "@types/react": "catalog:",
+     "@types/react-dom": "catalog:",
+     "@vitejs/plugin-react": "catalog:",
+     "playwright": "catalog:",
+diff --git a/apps/website/tsconfig.json b/apps/website/tsconfig.json
+index a61b955..6a5a180 100644
+--- a/apps/website/tsconfig.json
++++ b/apps/website/tsconfig.json
+@@ -1,19 +1,20 @@
+ {
+   "compilerOptions": {
+     "target": "es2023",
+     "module": "esnext",
+     "lib": ["ES2023", "DOM", "DOM.Iterable"],
+     "jsx": "react-jsx",
+     "types": ["vite/client"],
+     "allowArbitraryExtensions": true,
+     "skipLibCheck": true,
++    "strict": true,
+ 
+     /* Bundler mode */
+     "moduleResolution": "bundler",
+     "allowImportingTsExtensions": true,
+     "verbatimModuleSyntax": true,
+     "moduleDetection": "force",
+     "noEmit": true,
+ 
+     /* Linting */
+     "noUnusedLocals": false,
+diff --git a/apps/whatsapp-webhook/package.json b/apps/whatsapp-webhook/package.json
+index 2356d11..5611682 100644
+--- a/apps/whatsapp-webhook/package.json
++++ b/apps/whatsapp-webhook/package.json
+@@ -4,22 +4,24 @@
+   "private": true,
+   "type": "module",
+   "scripts": {
+     "dev": "node --env-file=../../.env --experimental-strip-types --watch src/server.ts",
+     "start": "node --env-file=../../.env --experimental-strip-types src/server.ts",
+     "test": "vp test",
+     "check": "vp check",
+     "seed": "pnpm --filter @digico/db seed"
+   },
+   "dependencies": {
++    "@digico/api": "workspace:*",
+     "@digico/contracts": "workspace:*",
+     "@digico/db": "workspace:*",
++    "@trpc/server": "catalog:",
+     "fastify": "^5.2.0",
+     "mysql2": "^3.12.0"
+   },
+   "devDependencies": {
+     "@types/node": "catalog:",
+     "typescript": "catalog:",
+     "vite": "catalog:",
+     "vite-plus": "catalog:"
+   }
+ }
+diff --git a/packages/api/package.json b/packages/api/package.json
+new file mode 100644
+index 0000000..537236d
+--- /dev/null
++++ b/packages/api/package.json
+@@ -0,0 +1,26 @@
++{
++  "name": "@digico/api",
++  "version": "0.0.0",
++  "private": true,
++  "type": "module",
++  "main": "./src/index.ts",
++  "module": "./src/index.ts",
++  "types": "./src/index.ts",
++  "exports": {
++    ".": "./src/index.ts"
++  },
++  "scripts": {
++    "check": "vp check",
++    "test": "vp test"
++  },
++  "dependencies": {
++    "@digico/contracts": "workspace:*",
++    "@digico/db": "workspace:*",
++    "@trpc/server": "catalog:",
++    "zod": "catalog:"
++  },
++  "devDependencies": {
++    "typescript": "catalog:",
++    "vite-plus": "catalog:"
++  }
++}
+diff --git a/packages/api/src/context.ts b/packages/api/src/context.ts
+new file mode 100644
+index 0000000..d3eafdb
+--- /dev/null
++++ b/packages/api/src/context.ts
+@@ -0,0 +1,6 @@
++/** Empty for now — auth middleware slots in here later (spec §7). */
++export interface TrpcContext {}
++
++export function createContext(): TrpcContext {
++  return {};
++}
+diff --git a/packages/api/src/index.ts b/packages/api/src/index.ts
+new file mode 100644
+index 0000000..26af9d4
+--- /dev/null
++++ b/packages/api/src/index.ts
+@@ -0,0 +1,4 @@
++export { createContext } from "./context.ts";
++export type { TrpcContext } from "./context.ts";
++export { appRouter } from "./router.ts";
++export type { AppRouter } from "./router.ts";
+diff --git a/packages/api/src/router.ts b/packages/api/src/router.ts
+new file mode 100644
+index 0000000..96f3c56
+--- /dev/null
++++ b/packages/api/src/router.ts
+@@ -0,0 +1,8 @@
++import { router } from "./trpc.ts";
++import { healthRouter } from "./routers/health.ts";
++
++export const appRouter = router({
++  health: healthRouter,
++});
++
++export type AppRouter = typeof appRouter;
+diff --git a/packages/api/src/routers/health.ts b/packages/api/src/routers/health.ts
+new file mode 100644
+index 0000000..a30a134
+--- /dev/null
++++ b/packages/api/src/routers/health.ts
+@@ -0,0 +1,5 @@
++import { publicProcedure, router } from "../trpc.ts";
++
++export const healthRouter = router({
++  ping: publicProcedure.query(() => ({ ok: true as const })),
++});
+diff --git a/packages/api/src/trpc.ts b/packages/api/src/trpc.ts
+new file mode 100644
+index 0000000..1a775b6
+--- /dev/null
++++ b/packages/api/src/trpc.ts
+@@ -0,0 +1,7 @@
++import { initTRPC } from "@trpc/server";
++import type { TrpcContext } from "./context.ts";
++
++const t = initTRPC.context<TrpcContext>().create();
++
++export const router = t.router;
++export const publicProcedure = t.procedure;
+diff --git a/packages/api/tsconfig.json b/packages/api/tsconfig.json
+new file mode 100644
+index 0000000..23eba90
+--- /dev/null
++++ b/packages/api/tsconfig.json
+@@ -0,0 +1,9 @@
++{
++  "extends": "../../tsconfig.json",
++  "compilerOptions": {
++    "strict": true,
++    "skipLibCheck": true,
++    "noEmit": true
++  },
++  "include": ["src", "tests"]
++}
+diff --git a/packages/api/vite.config.ts b/packages/api/vite.config.ts
+new file mode 100644
+index 0000000..168a023
+--- /dev/null
++++ b/packages/api/vite.config.ts
+@@ -0,0 +1,11 @@
++import { defineConfig } from "vite-plus";
++
++export default defineConfig({
++  lint: {
++    options: {
++      typeAware: true,
++      typeCheck: true,
++    },
++  },
++  fmt: {},
++});
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index 64010d9..81e2e1f 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -201,20 +201,32 @@ lockfileVersion: '9.0'
+ 
+ settings:
+   autoInstallPeers: true
+   excludeLinksFromLockfile: false
+ 
+ catalogs:
+   default:
+     '@tailwindcss/vite':
+       specifier: ^4.3.3
+       version: 4.3.3
++    '@tanstack/react-query':
++      specifier: ^5.62.0
++      version: 5.101.4
++    '@trpc/client':
++      specifier: ^11.0.0
++      version: 11.18.0
++    '@trpc/react-query':
++      specifier: ^11.0.0
++      version: 11.18.0
++    '@trpc/server':
++      specifier: ^11.0.0
++      version: 11.18.0
+     '@types/node':
+       specifier: ^24
+       version: 24.13.3
+     '@types/react':
+       specifier: ^19.0.0
+       version: 19.2.17
+     '@types/react-dom':
+       specifier: ^19.0.0
+       version: 19.2.3
+     '@vitejs/plugin-react':
+@@ -243,49 +255,64 @@ catalogs:
+       version: 3.6.0
+     tailwindcss:
+       specifier: ^4.3.3
+       version: 4.3.3
+     typescript:
+       specifier: ^5
+       version: 5.9.3
+     vite-plus:
+       specifier: 0.2.4
+       version: 0.2.4
++    zod:
++      specifier: ^4.0.0
++      version: 4.4.3
+ 
+ overrides:
+   vite: npm:@voidzero-dev/vite-plus-core@0.2.4
+ 
+ importers:
+ 
+   .:
+     devDependencies:
+       playwright:
+         specifier: 'catalog:'
+         version: 1.62.0
+       vite:
+         specifier: npm:@voidzero-dev/vite-plus-core@0.2.4
+         version: '@voidzero-dev/vite-plus-core@0.2.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)'
+       vite-plus:
+         specifier: 'catalog:'
+         version: 0.2.4(@types/node@26.1.1)(@voidzero-dev/vite-plus-core@0.2.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0))(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
+ 
+   apps/website:
+     dependencies:
++      '@digico/api':
++        specifier: workspace:*
++        version: link:../../packages/api
+       '@digico/contracts':
+         specifier: workspace:*
+         version: link:../../packages/contracts
+       '@digico/design-system':
+         specifier: workspace:*
+         version: link:../../packages/ui
+       '@digico/utils':
+         specifier: workspace:*
+         version: link:../../packages/utils
++      '@tanstack/react-query':
++        specifier: 'catalog:'
++        version: 5.101.4(react@19.2.8)
++      '@trpc/client':
++        specifier: 'catalog:'
++        version: 11.18.0(@trpc/server@11.18.0(typescript@5.9.3))(typescript@5.9.3)
++      '@trpc/react-query':
++        specifier: 'catalog:'
++        version: 11.18.0(@tanstack/react-query@5.101.4(react@19.2.8))(@trpc/client@11.18.0(@trpc/server@11.18.0(typescript@5.9.3))(typescript@5.9.3))(@trpc/server@11.18.0(typescript@5.9.3))(react@19.2.8)(typescript@5.9.3)
+       lucide-react:
+         specifier: 'catalog:'
+         version: 0.475.0(react@19.2.8)
+       react:
+         specifier: 'catalog:'
+         version: 19.2.8
+       react-dom:
+         specifier: 'catalog:'
+         version: 19.2.8(react@19.2.8)
+     devDependencies:
+@@ -312,46 +339,74 @@ importers:
+         version: 5.9.3
+       vite:
+         specifier: npm:@voidzero-dev/vite-plus-core@0.2.4
+         version: '@voidzero-dev/vite-plus-core@0.2.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)'
+       vite-plus:
+         specifier: 'catalog:'
+         version: 0.2.4(@types/node@26.1.1)(@voidzero-dev/vite-plus-core@0.2.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0))(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
+ 
+   apps/whatsapp-webhook:
+     dependencies:
++      '@digico/api':
++        specifier: workspace:*
++        version: link:../../packages/api
+       '@digico/contracts':
+         specifier: workspace:*
+         version: link:../../packages/contracts
+       '@digico/db':
+         specifier: workspace:*
+         version: link:../../packages/db
++      '@trpc/server':
++        specifier: 'catalog:'
++        version: 11.18.0(typescript@5.9.3)
+       fastify:
+         specifier: ^5.2.0
+         version: 5.11.2
+       mysql2:
+         specifier: ^3.12.0
+         version: 3.23.2(@types/node@24.13.3)
+     devDependencies:
+       '@types/node':
+         specifier: 'catalog:'
+         version: 24.13.3
+       typescript:
+         specifier: 'catalog:'
+         version: 5.9.3
+       vite:
+         specifier: npm:@voidzero-dev/vite-plus-core@0.2.4
+         version: '@voidzero-dev/vite-plus-core@0.2.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)'
+       vite-plus:
+         specifier: 'catalog:'
+         version: 0.2.4(@types/node@24.13.3)(@voidzero-dev/vite-plus-core@0.2.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0))(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
+ 
++  packages/api:
++    dependencies:
++      '@digico/contracts':
++        specifier: workspace:*
++        version: link:../contracts
++      '@digico/db':
++        specifier: workspace:*
++        version: link:../db
++      '@trpc/server':
++        specifier: 'catalog:'
++        version: 11.18.0(typescript@5.9.3)
++      zod:
++        specifier: 'catalog:'
++        version: 4.4.3
++    devDependencies:
++      typescript:
++        specifier: 'catalog:'
++        version: 5.9.3
++      vite-plus:
++        specifier: 'catalog:'
++        version: 0.2.4(@types/node@26.1.1)(@voidzero-dev/vite-plus-core@0.2.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0))(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
++
+   packages/contracts:
+     devDependencies:
+       typescript:
+         specifier: 'catalog:'
+         version: 5.9.3
+       vite-plus:
+         specifier: 'catalog:'
+         version: 0.2.4(@types/node@26.1.1)(@voidzero-dev/vite-plus-core@0.2.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0))(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
+ 
+   packages/db:
+@@ -1094,30 +1149,60 @@ packages:
+ 
+   '@tailwindcss/oxide@4.3.3':
+     resolution: {integrity: sha512-krXjAikiaFSPaK/FkAQT5UTx3VormQaiZ5hBFlJZ9UFQGB/rwg1MZIhHAG9smMQRTdyJxP6Qt5MwMtdyU5FWrA==}
+     engines: {node: '>= 20'}
+ 
+   '@tailwindcss/vite@4.3.3':
+     resolution: {integrity: sha512-yYU8cogLeSh/ms2jh8Fj7jaba/EWa7Ja6GoUqYZaraEuCI5YS6ms6ObZgjjedm+jm6XZjdNRWBpPP6Z86oOxcw==}
+     peerDependencies:
+       vite: ^5.2.0 || ^6 || ^7 || ^8
+ 
++  '@tanstack/query-core@5.101.4':
++    resolution: {integrity: sha512-gNwcvOJcRbLWPOLG/2OBm+zM+Yv+MKsXKEOWC57USuZDEsI71hEErQsiEGx5wX9rzWWkfwM0fVSPoiIFSsxfiw==}
++
++  '@tanstack/react-query@5.101.4':
++    resolution: {integrity: sha512-yRg2pfOCxIs4ZJW3XYYHU/WgtD04FHSnfHlpRT7h7pR77hwkdRG4wxbKe4aq6P0RvXUTBSQpQeadS1SUYUe+KA==}
++    peerDependencies:
++      react: ^18 || ^19
++
+   '@testing-library/dom@10.4.1':
+     resolution: {integrity: sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg==}
+     engines: {node: '>=18'}
+ 
+   '@testing-library/user-event@14.6.1':
+     resolution: {integrity: sha512-vq7fv0rnt+QTXgPxr5Hjc210p6YKq2kmdziLgnsZGgLJ9e6VAShx1pACLuRjd/AS/sr7phAR58OIIpf0LlmQNw==}
+     engines: {node: '>=12', npm: '>=6'}
+     peerDependencies:
+       '@testing-library/dom': '>=7.21.4'
+ 
++  '@trpc/client@11.18.0':
++    resolution: {integrity: sha512-wOqeg3Fvl25V1ZisQhUD3K8G60ZJDlSGJNSyeXrLH24xAo5w6GSR2Kzb1cSNY9Y+IQ2YZvYGZstBU+V/ulo/ow==}
++    hasBin: true
++    peerDependencies:
++      '@trpc/server': 11.18.0
++      typescript: '>=5.7.2'
++
++  '@trpc/react-query@11.18.0':
++    resolution: {integrity: sha512-C1+Wwm2pCeUJucI+bnFpxGYjNuvV+ko1BC1T9tUxBVdrhHRCdn9ubxdevdLSAa49XRJRJiZnSuzl3Ys/yvs1vg==}
++    peerDependencies:
++      '@tanstack/react-query': ^5.80.3
++      '@trpc/client': 11.18.0
++      '@trpc/server': 11.18.0
++      react: '>=18.2.0'
++      typescript: '>=5.7.2'
++
++  '@trpc/server@11.18.0':
++    resolution: {integrity: sha512-JAvXOuNTxgXjIDfQaOvDq1j66LMNfDJUH1IU7Slfn8EvRv2EkH6ehu3A7zpYhjO0syHHiYg77v2lG2JFJgvw7Q==}
++    hasBin: true
++    peerDependencies:
++      typescript: '>=5.7.2'
++
+   '@types/aria-query@5.0.4':
+     resolution: {integrity: sha512-rfT93uj5s0PRL7EzccGMs3brplhcrghnDoV26NqKhCAS1hVo+WdNsPvE/yb6ilfr5hi2MEk6d5EWJTKdxg8jVw==}
+ 
+   '@types/babel__core@7.20.5':
+     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
+ 
+   '@types/babel__generator@7.27.0':
+     resolution: {integrity: sha512-ufFd2Xi92OAVPYsy+P4n7/U7e68fex0+Ee8gSG9KX7eo084CWiQ4sdxktvdl0bOPupXtVJPY19zk6EwWqUQ8lg==}
+ 
+   '@types/babel__template@7.4.4':
+@@ -2036,20 +2121,23 @@ packages:
+         optional: true
+ 
+   yallist@3.1.1:
+     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
+ 
+   yaml@2.9.0:
+     resolution: {integrity: sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA==}
+     engines: {node: '>= 14.6'}
+     hasBin: true
+ 
++  zod@4.4.3:
++    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
++
+ snapshots:
+ 
+   '@babel/code-frame@7.29.7':
+     dependencies:
+       '@babel/helper-validator-identifier': 7.29.7
+       js-tokens: 4.0.0
+       picocolors: 1.1.1
+ 
+   '@babel/compat-data@7.29.7': {}
+ 
+@@ -2488,35 +2576,59 @@ snapshots:
+       '@tailwindcss/oxide-win32-arm64-msvc': 4.3.3
+       '@tailwindcss/oxide-win32-x64-msvc': 4.3.3
+ 
+   '@tailwindcss/vite@4.3.3(@voidzero-dev/vite-plus-core@0.2.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0))':
+     dependencies:
+       '@tailwindcss/node': 4.3.3
+       '@tailwindcss/oxide': 4.3.3
+       tailwindcss: 4.3.3
+       vite: '@voidzero-dev/vite-plus-core@0.2.4(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)'
+ 
++  '@tanstack/query-core@5.101.4': {}
++
++  '@tanstack/react-query@5.101.4(react@19.2.8)':
++    dependencies:
++      '@tanstack/query-core': 5.101.4
++      react: 19.2.8
++
+   '@testing-library/dom@10.4.1':
+     dependencies:
+       '@babel/code-frame': 7.29.7
+       '@babel/runtime': 7.29.7
+       '@types/aria-query': 5.0.4
+       aria-query: 5.3.0
+       dom-accessibility-api: 0.5.16
+       lz-string: 1.5.0
+       picocolors: 1.1.1
+       pretty-format: 27.5.1
+ 
+   '@testing-library/user-event@14.6.1(@testing-library/dom@10.4.1)':
+     dependencies:
+       '@testing-library/dom': 10.4.1
+ 
++  '@trpc/client@11.18.0(@trpc/server@11.18.0(typescript@5.9.3))(typescript@5.9.3)':
++    dependencies:
++      '@trpc/server': 11.18.0(typescript@5.9.3)
++      typescript: 5.9.3
++
++  '@trpc/react-query@11.18.0(@tanstack/react-query@5.101.4(react@19.2.8))(@trpc/client@11.18.0(@trpc/server@11.18.0(typescript@5.9.3))(typescript@5.9.3))(@trpc/server@11.18.0(typescript@5.9.3))(react@19.2.8)(typescript@5.9.3)':
++    dependencies:
++      '@tanstack/react-query': 5.101.4(react@19.2.8)
++      '@trpc/client': 11.18.0(@trpc/server@11.18.0(typescript@5.9.3))(typescript@5.9.3)
++      '@trpc/server': 11.18.0(typescript@5.9.3)
++      react: 19.2.8
++      typescript: 5.9.3
++
++  '@trpc/server@11.18.0(typescript@5.9.3)':
++    dependencies:
++      typescript: 5.9.3
++
+   '@types/aria-query@5.0.4': {}
+ 
+   '@types/babel__core@7.20.5':
+     dependencies:
+       '@babel/parser': 7.29.7
+       '@babel/types': 7.29.7
+       '@types/babel__generator': 7.27.0
+       '@types/babel__template': 7.4.4
+       '@types/babel__traverse': 7.28.0
+ 
+@@ -3533,10 +3645,12 @@ snapshots:
+     dependencies:
+       siginfo: 2.0.0
+       stackback: 0.0.2
+ 
+   ws@8.21.1: {}
+ 
+   yallist@3.1.1: {}
+ 
+   yaml@2.9.0:
+     optional: true
++
++  zod@4.4.3: {}
+diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+index 75980d3..920554b 100644
+--- a/pnpm-workspace.yaml
++++ b/pnpm-workspace.yaml
+@@ -1,35 +1,40 @@
+ packages:
+   - apps/*
+   - packages/*
+   - tools/*
+ 
+ allowBuilds:
+   esbuild: true
+ 
+ catalog:
+   "@tailwindcss/vite": ^4.3.3
++  "@tanstack/react-query": ^5.62.0
++  "@trpc/client": ^11.0.0
++  "@trpc/react-query": ^11.0.0
++  "@trpc/server": ^11.0.0
+   "@types/node": ^24
+   "@types/react": ^19.0.0
+   "@types/react-dom": ^19.0.0
+   "@vitejs/plugin-react": ^4.3.4
+   class-variance-authority: ^0.7.1
+   clsx: ^2.1.1
+   lucide-react: ^0.475.0
+   playwright: 1.62.0
+   react: ^19.0.0
+   react-dom: ^19.0.0
+   tailwind-merge: ^3.0.1
+   tailwindcss: ^4.3.3
+   typescript: ^5
+   vite: npm:@voidzero-dev/vite-plus-core@0.2.4
+   vite-plus: 0.2.4
++  zod: ^4.0.0
+ 
+ catalogMode: prefer
+ 
+ overrides:
+   vite: "catalog:"
+ 
+ peerDependencyRules:
+   allowAny:
+     - vite
+   allowedVersions:
