@@ -33,7 +33,7 @@ async function startServer() {
   checkEnv("DEEPSEEK_API_KEY");
   checkEnv("WHATSAPP_ACCESS_TOKEN");
   checkEnv("WHATSAPP_PHONE_NUMBER_ID");
-  checkEnv("OPENAI_API_KEY");
+  checkEnv("ELEVENLABS_API_KEY");
 
   await app.listen({ port: PORT, host: "0.0.0.0" });
   console.log(`Digico Fastify API & Webhook listening on http://0.0.0.0:${PORT}`);

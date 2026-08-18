@@ -37,6 +37,74 @@ export async function fetchMariaDbProducts(): Promise<WcProduct[]> {
   }));
 }
 
+/**
+ * Filler words dropped before scoring, in English and romanized Bengali.
+ * Bengali-script equivalents are absent on purpose: they cost nothing to leave
+ * in, since they will not match any Latin-script catalog row anyway.
+ */
+const STOP_WORDS = new Set([
+  "what",
+  "is",
+  "the",
+  "current",
+  "stock",
+  "price",
+  "and",
+  "for",
+  "with",
+  "want",
+  "need",
+  "order",
+  "units",
+  "please",
+  "have",
+  "has",
+  "you",
+  "your",
+  "are",
+  "any",
+  "some",
+  "can",
+  "er",
+  "ki",
+  "ponno",
+  "ache",
+  "koto",
+  "dam",
+  "dami",
+  "dorkar",
+  "lagbe",
+  "nibo",
+  "khujchi",
+  "chaichilam",
+  "apnader",
+  "kache",
+  "bhai",
+  "sir",
+  "kono",
+  "somoy",
+]);
+
+/**
+ * Splits a dealer message into scoreable search terms.
+ *
+ * `\w` is ASCII-only, so the original `[^\w\s]` strip erased every Bengali
+ * codepoint and returned an empty list for any Bengali-script voice-note
+ * transcript. `\p{L}\p{N}` keeps letters and digits in any script while still
+ * dropping punctuation.
+ *
+ * Note this does not make Bengali script *match* the English catalog — that is
+ * what the transcription keyterms are for. It only stops a Bengali transcript
+ * from silently degrading into "no terms at all".
+ */
+export function extractSearchTerms(userQuery: string): string[] {
+  return userQuery
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((t) => t.length >= 2 && !STOP_WORDS.has(t));
+}
+
 /** RAG Search: Retrieve top candidate products matching user query keywords for compressed LLM prompt */
 export async function searchMariaDbProducts(userQuery: string, limit = 10): Promise<WcProduct[]> {
   const all = await fetchMariaDbProducts();
@@ -44,56 +112,12 @@ export async function searchMariaDbProducts(userQuery: string, limit = 10): Prom
     return all.slice(0, limit);
   }
 
-  const stopWords = new Set([
-    "what",
-    "is",
-    "the",
-    "current",
-    "stock",
-    "price",
-    "and",
-    "for",
-    "with",
-    "want",
-    "need",
-    "order",
-    "units",
-    "please",
-    "have",
-    "has",
-    "you",
-    "your",
-    "are",
-    "any",
-    "some",
-    "can",
-    "er",
-    "ki",
-    "ponno",
-    "ache",
-    "koto",
-    "dam",
-    "dami",
-    "dorkar",
-    "lagbe",
-    "nibo",
-    "khujchi",
-    "chaichilam",
-    "apnader",
-    "kache",
-    "bhai",
-    "sir",
-    "kono",
-    "somoy",
-  ]);
-
-  const terms = userQuery
-    .toLowerCase()
-    .replace(/[^\w\s]/g, " ")
-    .split(/\s+/)
-    .filter((t) => t.length >= 2 && !stopWords.has(t));
+  const terms = extractSearchTerms(userQuery);
 
   if (terms.length === 0) {
+    console.warn("Product search found no usable terms; returning unranked catalog slice", {
+      userQuery,
+    });
     return all.slice(0, limit);
   }
 
@@ -111,5 +135,11 @@ export async function searchMariaDbProducts(userQuery: string, limit = 10): Prom
     return matches.slice(0, limit).map((m) => m.product);
   }
 
+  // Returning arbitrary products silently is how a mis-scripted transcript turns
+  // into a confidently wrong draft order. Make it visible.
+  console.warn("Product search matched nothing; returning unranked catalog slice", {
+    userQuery,
+    terms,
+  });
   return all.slice(0, limit);
 }

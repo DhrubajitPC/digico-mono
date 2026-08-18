@@ -29,7 +29,7 @@ digico-mono/
 │               ├── order-tools.ts     # Function tools with catalog price/stock guardrails
 │               ├── parse-webhook.ts   # Meta Cloud API payload parser
 │               ├── handle-message.ts  # Multi-turn pipeline orchestrator
-│               ├── transcribe.ts      # OpenAI Whisper voice note transcription
+│               ├── transcribe.ts      # ElevenLabs Scribe voice note transcription
 │               ├── whatsapp-media.ts  # WhatsApp CDN media downloader
 │               └── whatsapp-send.ts   # WhatsApp Cloud API message sender
 ├── packages/
@@ -60,7 +60,7 @@ digico-mono/
 | **Backend API**    | **Node.js ≥ 22**, **Fastify**, **TypeScript**  | REST API endpoints & Meta WhatsApp Cloud API webhook handler                       |
 | **Database**       | **MariaDB 11.8** (`mysql2`)                    | WooCommerce schema (`joy_posts`, `joy_postmeta`) + WhatsApp message & AI call logs |
 | **AI / LLM**       | **DeepSeek V3** (`deepseek-chat`)              | Conversational AI agent with native function calling (`draft_order`)               |
-| **Speech-to-Text** | **OpenAI Whisper** (`whisper-1`)               | Voice note transcription for incoming WhatsApp audio messages (Optional)           |
+| **Speech-to-Text** | **ElevenLabs Scribe** (`scribe_v2`)            | Voice note transcription for incoming WhatsApp audio messages (Optional)           |
 
 ---
 
@@ -84,7 +84,7 @@ NODE_ENV=development
 # --- AI Models ---
 DEEPSEEK_API_KEY=your_deepseek_api_key_here
 DEEPSEEK_MODEL=deepseek-chat
-OPENAI_API_KEY=your_openai_api_key_here  # Optional: required only for voice note transcription
+ELEVENLABS_API_KEY=your_elevenlabs_api_key_here  # Optional: required only for voice note transcription
 
 # --- Meta WhatsApp Cloud API ---
 WHATSAPP_VERIFY_TOKEN=digico_secret_verify_token_12345
@@ -201,11 +201,16 @@ make build       # Build production frontend web bundle
 ## ⚠️ Caveats & Known Limitations
 
 > [!WARNING]
-> **OpenAI Whisper Voice Note Feature (Currently Disabled / Optional)**:
-> Audio voice note transcription via OpenAI Whisper (`whisper-1`) is **currently disabled by default** unless `OPENAI_API_KEY` is explicitly set in `.env`.
+> **ElevenLabs Scribe Voice Note Feature (Optional)**:
+> Audio voice note transcription via ElevenLabs Scribe (`scribe_v2`) is **disabled by default** unless `ELEVENLABS_API_KEY` is explicitly set in `.env`.
 >
 > - **Text-based ordering** (in Bengali, English, and Banglish) uses DeepSeek V3 (`DEEPSEEK_API_KEY`) and is **100% operational** out-of-the-box.
-> - If an incoming WhatsApp voice note is received while `OPENAI_API_KEY` is omitted, the pipeline catches the missing key gracefully and sends a polite fallback reply asking the dealer to type their message instead.
+> - If an incoming WhatsApp voice note is received while `ELEVENLABS_API_KEY` is omitted, the pipeline catches the missing key gracefully and sends a polite fallback reply asking the dealer to type their message instead.
+> - Requires a **paid ElevenLabs plan**. The free tier grants no commercial licence and covers only ~30 minutes of audio per month; Scribe v2 bills ~$0.22/hour (~$0.26 with keyterms).
+> - Deploying it also requires adding `ELEVENLABS_API_KEY` to the repository secrets **and** to `digico-ci-entrypoint`'s whitelist on the production server — the entrypoint rejects the whole payload on an unknown key.
+
+> [!IMPORTANT]
+> **Transcript script affects catalog matching**: `searchMariaDbProducts` scores transcripts against Latin-script catalog rows (`post_title`, `_sku`), so brand names must come back as `HP`, not `এইচপি`. Two things protect this: `ELEVENLABS_STT_LANGUAGE` is left unset so Scribe auto-detects and preserves code-switching, and `transcribe.ts` sends a `keyterms` list of Digico's brands. Pinning the language to Bengali transliterates product names and silently degrades retrieval.
 
 > [!NOTE]
 > **Meta WhatsApp Cloud API vs Interactive Web Emulator**:

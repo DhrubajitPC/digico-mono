@@ -50,7 +50,7 @@ services:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=${PORT:-8787}
       - MARIADB_URL=mysql://${MARIADB_USER:-wp}:${MARIADB_PASSWORD:-wp}@mariadb:3306/${MARIADB_DATABASE:-woocommerce_local}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - DEEPSEEK_MODEL=${DEEPSEEK_MODEL:-deepseek-chat}
       - WHATSAPP_VERIFY_TOKEN=${WHATSAPP_VERIFY_TOKEN:-digico_default_verify_token_12345}

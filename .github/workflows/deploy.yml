@@ -101,10 +101,17 @@ jobs:
       # authorized_keys runs digico-ci-entrypoint, which reads this environment
       # payload from stdin, validates every key against a whitelist, writes
       # /srv/digico/.env (0600), then invokes the deployment routine via sudo.
+      # ELEVENLABS_API_KEY is deliberately absent from the required-secrets check
+      # above: voice transcription is an optional feature, and an empty value
+      # degrades gracefully (transcribeAudio throws a configuration error,
+      # handleIncomingMessage catches it and asks the dealer to type instead).
+      # digico-ci-entrypoint's server-side whitelist must also accept the key,
+      # or the whole payload is rejected.
       - name: Deploy
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           DEEPSEEK_MODEL: ${{ vars.DEEPSEEK_MODEL || 'deepseek-v4-pro' }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           WHATSAPP_ACCESS_TOKEN: ${{ secrets.WHATSAPP_ACCESS_TOKEN }}
           WHATSAPP_PHONE_NUMBER_ID: ${{ secrets.WHATSAPP_PHONE_NUMBER_ID }}
           WHATSAPP_VERIFY_TOKEN: ${{ secrets.WHATSAPP_VERIFY_TOKEN }}
@@ -114,6 +121,7 @@ jobs:
             printf 'NODE_ENV=production\n'
             printf 'DEEPSEEK_MODEL=%s\n'          "$DEEPSEEK_MODEL"
             printf 'DEEPSEEK_API_KEY=%s\n'        "$DEEPSEEK_API_KEY"
+            printf 'ELEVENLABS_API_KEY=%s\n'      "$ELEVENLABS_API_KEY"
             printf 'WHATSAPP_ACCESS_TOKEN=%s\n'   "$WHATSAPP_ACCESS_TOKEN"
             printf 'WHATSAPP_PHONE_NUMBER_ID=%s\n' "$WHATSAPP_PHONE_NUMBER_ID"
             printf 'WHATSAPP_VERIFY_TOKEN=%s\n'   "$WHATSAPP_VERIFY_TOKEN"
