@@ -34,7 +34,10 @@ export function getEmulatorChat(
 export function sendEmulatorMessage(data: {
   fromPhone: string;
   contactName?: string;
-  text: string;
+  /** Omitted when sending a voice note. */
+  text?: string;
+  /** Base64 mic recording; the backend transcribes it before the AI pipeline runs. */
+  audio?: { data: string; mimeType: string };
 }): Promise<{ success: boolean; messageId: string; metaPayload: unknown }> {
   return sendJson<{ success: boolean; messageId: string; metaPayload: unknown }>(
     "/api/emulator/send",

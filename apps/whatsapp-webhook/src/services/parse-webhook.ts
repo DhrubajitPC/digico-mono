@@ -9,6 +9,14 @@ export interface IncomingTextPayload {
 export interface IncomingAudioPayload {
   mediaId: string;
   mimeType: string;
+  /**
+   * Audio already in hand, so no Meta CDN round-trip is needed.
+   *
+   * Set only by the emulator, which has no real media ID to download — its
+   * mediaId is a synthetic EMULATOR string. Real webhook messages leave this
+   * undefined and resolveUserText fetches via downloadWhatsAppMedia.
+   */
+  inlineBytes?: ArrayBuffer;
 }
 
 export interface IncomingWhatsAppMessage {

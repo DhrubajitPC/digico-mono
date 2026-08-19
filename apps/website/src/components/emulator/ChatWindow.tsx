@@ -1,7 +1,9 @@
 import { useEffect, useRef } from "react";
-import { Bot, MessageCircleCode, Send, Sparkles } from "lucide-react";
+import { Bot, MessageCircleCode, Mic, Send, Sparkles, Square, X } from "lucide-react";
 import type { EmulatorChatMessage } from "@digico/contracts";
 import { ChatBubble } from "./ChatBubble.js";
+import type { VoiceRecording } from "./useVoiceRecorder.js";
+import { useVoiceRecorder } from "./useVoiceRecorder.js";
 
 interface ChatWindowProps {
   contactName: string;
@@ -12,6 +14,11 @@ interface ChatWindowProps {
   inputText: string;
   onInputTextChange: (text: string) => void;
   onSend: () => void;
+  onSendVoice: (recording: VoiceRecording) => void;
+}
+
+function formatDuration(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 /** WhatsApp-style phone UI: header, message list, typing indicator, and input bar. */
@@ -24,8 +31,19 @@ export function ChatWindow({
   inputText,
   onInputTextChange,
   onSend,
+  onSendVoice,
 }: ChatWindowProps) {
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const recorder = useVoiceRecorder();
+
+  async function handleMicClick() {
+    if (recorder.isRecording) {
+      const recording = await recorder.stop();
+      if (recording) onSendVoice(recording);
+    } else {
+      await recorder.start();
+    }
+  }
 
   // Auto-scroll chat to bottom
   useEffect(() => {
@@ -103,25 +121,79 @@ export function ChatWindow({
           e.preventDefault();
           onSend();
         }}
-        className="p-3.5 bg-slate-800/90 border-t border-slate-700/60 flex items-center gap-3 shrink-0 backdrop-blur-md"
+        className="p-3.5 bg-slate-800/90 border-t border-slate-700/60 shrink-0 backdrop-blur-md space-y-2"
       >
-        <input
-          type="text"
-          value={inputText}
-          onChange={(e) => onInputTextChange(e.target.value)}
-          placeholder={`Type WhatsApp message as ${contactName}…`}
-          disabled={isSending}
-          className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-sans"
-        />
+        {recorder.error && (
+          <p role="alert" className="text-xs text-rose-400 font-medium">
+            {recorder.error}
+          </p>
+        )}
 
-        <button
-          type="submit"
-          disabled={isSending || !inputText.trim()}
-          className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:hover:bg-emerald-600 text-white rounded-xl px-4 py-2.5 font-semibold text-xs transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
-        >
-          <span>Send</span>
-          <Send className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center gap-3">
+          {recorder.isRecording ? (
+            <>
+              <div className="flex-1 flex items-center gap-2.5 bg-slate-900 border border-rose-500/50 rounded-xl px-4 py-2.5">
+                <span className="size-2 rounded-full bg-rose-500 animate-pulse" />
+                <span className="text-xs text-rose-300 font-medium">Recording voice note</span>
+                <span className="text-xs text-slate-400 font-mono tabular-nums">
+                  {formatDuration(recorder.seconds)}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={recorder.cancel}
+                aria-label="Discard recording"
+                className="bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl px-3 py-2.5 transition-all shadow-md cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </>
+          ) : (
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => onInputTextChange(e.target.value)}
+              placeholder={`Type WhatsApp message as ${contactName}…`}
+              disabled={isSending}
+              className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-sans"
+            />
+          )}
+
+          <button
+            type="button"
+            onClick={() => void handleMicClick()}
+            disabled={isSending}
+            aria-label={
+              recorder.isRecording ? "Stop recording and send voice note" : "Record a voice note"
+            }
+            title={
+              recorder.isRecording ? "Stop recording and send voice note" : "Record a voice note"
+            }
+            className={`${
+              recorder.isRecording
+                ? "bg-rose-600 hover:bg-rose-500"
+                : "bg-slate-700 hover:bg-slate-600"
+            } disabled:opacity-50 text-white rounded-xl px-3.5 py-2.5 transition-all shadow-md cursor-pointer`}
+          >
+            {recorder.isRecording ? (
+              <Square className="w-3.5 h-3.5" />
+            ) : (
+              <Mic className="w-3.5 h-3.5" />
+            )}
+          </button>
+
+          {!recorder.isRecording && (
+            <button
+              type="submit"
+              disabled={isSending || !inputText.trim()}
+              className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:hover:bg-emerald-600 text-white rounded-xl px-4 py-2.5 font-semibold text-xs transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
+            >
+              <span>Send</span>
+              <Send className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );
