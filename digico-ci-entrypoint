@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+project_dir="${DIGICO_PROJECT_DIR:-/srv/digico}"
+readonly project_dir
+readonly env_target="${project_dir}/.env"
+readonly env_example="${project_dir}/.env.example"
+readonly max_bytes=65536
+
+# The deployment key must never be able to run an arbitrary remote command.
+if [[ -n "${SSH_ORIGINAL_COMMAND:-}" ]]; then
+  printf '%s\n' 'direct SSH commands are not permitted for this deployment key' >&2
+  exit 126
+fi
+
+# An environment payload on stdin is optional. When absent (e.g. `ssh -n`), the
+# existing .env is left untouched rather than being clobbered with an empty file.
+payload=''
+if [[ ! -t 0 ]]; then
+  payload=$(timeout 15 head -c "${max_bytes}" || true)
+fi
+
+if [[ -n "${payload//[[:space:]]/}" ]]; then
+  # Fast-forward before reading .env.example, so the allowlist reflects the
+  # commit about to be deployed rather than whatever main pointed to last time
+  # this ran. digico-deploy repeats this same sequence for the real deploy;
+  # doing it again there is a no-op once this has already moved the tree.
+  git -C "${project_dir}" fetch --prune origin main
+  git -C "${project_dir}" checkout --force main
+  git -C "${project_dir}" reset --hard origin/main
+
+  if [[ ! -f "${env_example}" ]]; then
+    printf '%s\n' "missing ${env_example}; refusing to write ${env_target}" >&2
+    exit 70
+  fi
+
+  allowed_keys=''
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ "${line}" =~ ^([A-Za-z_][A-Za-z0-9_]*)= ]] || continue
+    allowed_keys+="${allowed_keys:+|}${BASH_REMATCH[1]}"
+  done < "${env_example}"
+
+  if [[ -z "${allowed_keys}" ]]; then
+    printf '%s\n' "no keys found in ${env_example}; refusing to write ${env_target}" >&2
+    exit 70
+  fi
+
+  readonly allowed_key="^(${allowed_keys})="
+
+  tmp=$(mktemp "${env_target}.XXXXXX")
+  trap 'rm -f "${tmp}"' EXIT
+  chmod 600 "${tmp}"
+
+  while IFS= read -r line; do
+    [[ -z "${line}" || "${line}" == '#'* ]] && continue
+    if [[ ! "${line}" =~ ${allowed_key} ]]; then
+      # Print only the key, never any part of the value: this goes to the CI log.
+      key=${line%%=*}
+      if [[ "${key}" == "${line}" ]]; then
+        printf 'rejected malformed environment line (no "=")\n' >&2
+      else
+        printf 'rejected environment line (key not allowed): %s\n' "${key}" >&2
+      fi
+      exit 65
+    fi
+    printf '%s\n' "${line}"
+  done <<< "${payload}" > "${tmp}"
+
+  mv -f "${tmp}" "${env_target}"
+  trap - EXIT
+  printf '%s\n' "updated ${env_target} from deployment payload"
+fi
+
+exec /usr/bin/sudo -n /usr/local/sbin/digico-deploy

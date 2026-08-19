@@ -1,4 +1,4 @@
-.PHONY: dev frontend backend mariadb-up mariadb-logs test-e2e check check-fix build seed clean-db deploy docker-up docker-down docker-logs docker-ps help
+.PHONY: dev frontend backend mariadb-up mariadb-logs test-e2e test-entrypoint check check-fix build seed clean-db deploy docker-up docker-down docker-logs docker-ps help
 
 # Default target
 .DEFAULT_GOAL := help
@@ -19,6 +19,7 @@ help:
 	@echo "  make seed         - Populate database with initial seed data"
 	@echo "  make clean-db     - Reset local PGlite database data"
 	@echo "  make test-e2e     - Run Playwright E2E visual test suite"
+	@echo "  make test-entrypoint - Run the CI deploy entrypoint's bash test suite"
 	@echo "  make deploy       - Execute production deployment script"
 	@echo "  make docker-up    - Build & launch all containers (MariaDB, Backend, Frontend)"
 	@echo "  make docker-down  - Stop all running containers"
@@ -53,6 +54,10 @@ mariadb-logs:
 ## test-e2e: Run Playwright E2E visual test script
 test-e2e:
 	node run-playwright-test.js
+
+## test-entrypoint: Run the CI deploy entrypoint's bash test suite
+test-entrypoint:
+	./digico-ci-entrypoint.test.sh
 
 ## check: Format, lint and type-check all workspaces
 check:
