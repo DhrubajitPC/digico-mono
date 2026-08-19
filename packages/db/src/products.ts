@@ -5,22 +5,41 @@ import { getMariaDbPool } from "./client.ts";
 /** Canonical product shape lives in @digico/contracts; kept as an alias for existing call sites. */
 export type WcProduct = Product;
 
-/** Fetch Products list from MariaDB */
+/**
+ * Live catalog read — every published product, no cap.
+ *
+ * This previously ended in `LIMIT 200` with no `ORDER BY`, which was not a size
+ * cap but a visibility hole: of 65 brands only 16 appeared in the slice, so
+ * Baseus, Yison, Recci, UGREEN, Hisense, LG and Xiaomi were entirely absent.
+ * Retrieval could not match them, and worse, validateAndExecuteOrderTool falls
+ * back to "Proceeding with LLM pricing" when it cannot find a product — so an
+ * order for an invisible product was written at whatever price the model
+ * invented.
+ *
+ * Deliberately uncached: order-tools verifies price and stock against this, and
+ * a stale snapshot there is a financial bug. Retrieval uses the TTL-cached
+ * snapshot below instead.
+ *
+ * `MAX(...)` + `GROUP BY` collapses duplicate postmeta rows — WooCommerce allows
+ * repeated meta_keys, and one product in this catalog already has a duplicate,
+ * which the old `LIMIT` happened to mask.
+ */
 export async function fetchMariaDbProducts(): Promise<WcProduct[]> {
   const p = getMariaDbPool();
   const [rows] = await p.query<mysql.RowDataPacket[]>(`
-    SELECT 
+    SELECT
       p.ID as id,
       p.post_title as name,
-      m1.meta_value as sku,
-      m2.meta_value as price,
-      m3.meta_value as stock
+      MAX(m1.meta_value) as sku,
+      MAX(m2.meta_value) as price,
+      MAX(m3.meta_value) as stock
     FROM joy_posts p
     LEFT JOIN joy_postmeta m1 ON p.ID = m1.post_id AND m1.meta_key = '_sku'
     LEFT JOIN joy_postmeta m2 ON p.ID = m2.post_id AND m2.meta_key = '_price'
     LEFT JOIN joy_postmeta m3 ON p.ID = m3.post_id AND m3.meta_key = '_stock'
     WHERE p.post_type = 'product' AND p.post_status = 'publish'
-    LIMIT 200
+    GROUP BY p.ID, p.post_title
+    ORDER BY p.ID
   `);
 
   return (rows || []).map((r) => ({
@@ -35,6 +54,49 @@ export async function fetchMariaDbProducts(): Promise<WcProduct[]> {
     stockQuantity: parseInt(r.stock || "10", 10),
     aliases: [r.name],
   }));
+}
+
+const DEFAULT_CATALOG_CACHE_TTL_MS = 60_000;
+
+let catalogSnapshot: { products: WcProduct[]; fetchedAt: number } | null = null;
+let catalogInFlight: Promise<WcProduct[]> | null = null;
+
+function catalogCacheTtlMs(): number {
+  const raw = Number(process.env.CATALOG_CACHE_TTL_MS);
+  return Number.isFinite(raw) && raw >= 0 ? raw : DEFAULT_CATALOG_CACHE_TTL_MS;
+}
+
+/**
+ * Catalog snapshot for retrieval scoring only.
+ *
+ * Retrieval runs on every inbound message and scores substrings, so a snapshot
+ * up to a minute old costs nothing — whereas re-reading ~1,950 rows across three
+ * postmeta joins per message does. Price and stock verification must NOT use
+ * this; order-tools calls fetchMariaDbProducts directly for live truth.
+ */
+async function getSearchCatalog(): Promise<WcProduct[]> {
+  if (catalogSnapshot && Date.now() - catalogSnapshot.fetchedAt < catalogCacheTtlMs()) {
+    return catalogSnapshot.products;
+  }
+
+  // Share one query across messages that arrive together rather than letting a
+  // burst of voice notes stampede the database.
+  catalogInFlight ??= fetchMariaDbProducts()
+    .then((products) => {
+      catalogSnapshot = { products, fetchedAt: Date.now() };
+      return products;
+    })
+    .finally(() => {
+      catalogInFlight = null;
+    });
+
+  return catalogInFlight;
+}
+
+/** Drops the retrieval snapshot. For tests, and for forcing a refresh after a catalog import. */
+export function clearSearchCatalogCache(): void {
+  catalogSnapshot = null;
+  catalogInFlight = null;
 }
 
 /**
@@ -136,7 +198,7 @@ export function extractSearchTerms(userQuery: string): string[] {
 
 /** RAG Search: Retrieve top candidate products matching user query keywords for compressed LLM prompt */
 export async function searchMariaDbProducts(userQuery: string, limit = 10): Promise<WcProduct[]> {
-  const all = await fetchMariaDbProducts();
+  const all = await getSearchCatalog();
   if (!userQuery || userQuery.trim().length === 0) {
     // The path a blank transcript reaches, and the worst of the three: DeepSeek
     // gets ten arbitrary products with no user text to constrain them.
