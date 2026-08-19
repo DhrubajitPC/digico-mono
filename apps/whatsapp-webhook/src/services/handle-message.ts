@@ -15,9 +15,10 @@ import type { DeepSeekPromptContext, DeepSeekReplyResult, DeepSeekToolCall } fro
 import { buildChatMessages, deepSeekModel, replyWithDeepSeekFull } from "./deepseek.ts";
 import { routeIntent } from "./intent-router.ts";
 
-import type { IncomingWhatsAppMessage } from "./parse-webhook.ts";
+import type { IncomingAudioPayload, IncomingWhatsAppMessage } from "./parse-webhook.ts";
 import { isEmulatorMessage } from "./parse-webhook.ts";
 import { transcribeAudio } from "./transcribe.ts";
+import type { DownloadedMedia } from "./whatsapp-media.ts";
 import { downloadWhatsAppMedia } from "./whatsapp-media.ts";
 import { sendWhatsAppText } from "./whatsapp-send.ts";
 import { parseDraftOrderPayload, validateAndExecuteOrderTool } from "./order-tools.ts";
@@ -103,6 +104,22 @@ class PipelineLog {
   }
 }
 
+/**
+ * Gets the audio bytes ready to transcribe.
+ *
+ * The emulator supplies them inline, because its mediaId is synthetic and there
+ * is nothing for the Meta CDN to serve. Real webhook audio is downloaded.
+ */
+export async function resolveAudioMedia(audio: IncomingAudioPayload): Promise<DownloadedMedia> {
+  if (audio.inlineBytes) {
+    console.log("Using inline audio", { bytes: audio.inlineBytes.byteLength });
+    return { bytes: audio.inlineBytes, mimeType: audio.mimeType };
+  }
+
+  console.log("Downloading audio media", audio.mediaId);
+  return downloadWhatsAppMedia(audio.mediaId);
+}
+
 async function resolveUserText(
   log: PipelineLog,
   message: IncomingWhatsAppMessage,
@@ -113,8 +130,7 @@ async function resolveUserText(
   }
 
   if (message.kind === "audio" && message.audio) {
-    console.log("Downloading audio media", message.audio.mediaId);
-    const media = await downloadWhatsAppMedia(message.audio.mediaId);
+    const media = await resolveAudioMedia(message.audio);
     console.log("Transcribing audio", {
       bytes: media.bytes.byteLength,
       mimeType: media.mimeType,

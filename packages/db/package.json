@@ -10,6 +10,7 @@
   },
   "scripts": {
     "check": "vp check",
+    "test": "vp test",
     "seed": "node --env-file=../../.env --experimental-strip-types src/seed.ts"
   },
   "dependencies": {

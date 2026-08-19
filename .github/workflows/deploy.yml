@@ -97,14 +97,34 @@ jobs:
           chmod 600 ~/.ssh/digico_deploy
           printf '%s\n' '[103.191.50.48]:44444 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFpOm4izPb8lFnXL2deniukzGxs1gfcLvhc5nOEMuipo' > ~/.ssh/known_hosts
 
-      # No remote command is sent. The forced command in the deploy account's
-      # authorized_keys runs digico-ci-entrypoint, which reads this environment
-      # payload from stdin, validates every key against a whitelist, writes
-      # /srv/digico/.env (0600), then invokes the deployment routine via sudo.
+      # No remote command is sent. The deploy account's authorized_keys pins the CI
+      # key to a forced command, digico-ci-entrypoint, which reads this environment
+      # payload from stdin and deploys. Verified: arbitrary remote commands are
+      # refused (exit 126), and this pipeline has deployed main successfully.
+      #
+      # NOT verified — do not treat as fact until someone reads the script on the
+      # server. Earlier revisions of this comment asserted that the entrypoint
+      # validates keys against a whitelist, rejects the whole payload on an unknown
+      # key, and writes /srv/digico/.env at 0600. That came from a design
+      # description, not from observation, and server-setup-el10.sh provisions
+      # /opt/digico rather than /srv/digico — so at least one of the two paths is
+      # stale. The entrypoint is not in this repo and is not created by that script.
+      #
+      # ELEVENLABS_API_KEY is deliberately absent from the required-secrets check
+      # above: voice transcription is optional, and its absence degrades gracefully
+      # (transcribeAudio throws a configuration error, handleIncomingMessage catches
+      # it and asks the dealer to type instead).
+      #
+      # Its line is emitted only when the secret is non-empty. That is cheap
+      # insurance rather than a known requirement: IF the entrypoint does filter
+      # keys, an unconditional line would fail every deploy — including unrelated
+      # ones — until the server side is updated. Omitting it keeps any such failure
+      # scoped to whoever opts into voice.
       - name: Deploy
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           DEEPSEEK_MODEL: ${{ vars.DEEPSEEK_MODEL || 'deepseek-v4-pro' }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           WHATSAPP_ACCESS_TOKEN: ${{ secrets.WHATSAPP_ACCESS_TOKEN }}
           WHATSAPP_PHONE_NUMBER_ID: ${{ secrets.WHATSAPP_PHONE_NUMBER_ID }}
           WHATSAPP_VERIFY_TOKEN: ${{ secrets.WHATSAPP_VERIFY_TOKEN }}
@@ -114,6 +134,9 @@ jobs:
             printf 'NODE_ENV=production\n'
             printf 'DEEPSEEK_MODEL=%s\n'          "$DEEPSEEK_MODEL"
             printf 'DEEPSEEK_API_KEY=%s\n'        "$DEEPSEEK_API_KEY"
+            if [ -n "$ELEVENLABS_API_KEY" ]; then
+              printf 'ELEVENLABS_API_KEY=%s\n'    "$ELEVENLABS_API_KEY"
+            fi
             printf 'WHATSAPP_ACCESS_TOKEN=%s\n'   "$WHATSAPP_ACCESS_TOKEN"
             printf 'WHATSAPP_PHONE_NUMBER_ID=%s\n' "$WHATSAPP_PHONE_NUMBER_ID"
             printf 'WHATSAPP_VERIFY_TOKEN=%s\n'   "$WHATSAPP_VERIFY_TOKEN"

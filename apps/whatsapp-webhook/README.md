@@ -12,14 +12,16 @@ cp apps/whatsapp-webhook/.env.example apps/whatsapp-webhook/.env
 
 Fill in `.env`:
 
-| Variable                   | Where                                              |
-| -------------------------- | -------------------------------------------------- |
-| `WHATSAPP_VERIFY_TOKEN`    | Any secret you invent (same in Meta webhook)       |
-| `WHATSAPP_ACCESS_TOKEN`    | Meta → WhatsApp → API Setup                        |
-| `WHATSAPP_PHONE_NUMBER_ID` | Meta → WhatsApp → API Setup                        |
-| `DEEPSEEK_API_KEY`         | https://platform.deepseek.com/api_keys             |
-| `DEEPSEEK_MODEL`           | optional, default `deepseek-chat`                  |
-| `OPENAI_API_KEY`           | https://platform.openai.com/api-keys (Whisper STT) |
+| Variable                   | Where                                             |
+| -------------------------- | ------------------------------------------------- |
+| `WHATSAPP_VERIFY_TOKEN`    | Any secret you invent (same in Meta webhook)      |
+| `WHATSAPP_ACCESS_TOKEN`    | Meta → WhatsApp → API Setup                       |
+| `WHATSAPP_PHONE_NUMBER_ID` | Meta → WhatsApp → API Setup                       |
+| `DEEPSEEK_API_KEY`         | https://platform.deepseek.com/api_keys            |
+| `DEEPSEEK_MODEL`           | optional, default `deepseek-chat`                 |
+| `ELEVENLABS_API_KEY`       | https://elevenlabs.io/app/settings/api-keys (STT) |
+| `ELEVENLABS_STT_MODEL`     | optional, default `scribe_v2`                     |
+| `ELEVENLABS_STT_LANGUAGE`  | optional, leave unset for auto-detect             |
 
 Install ngrok if needed:
 

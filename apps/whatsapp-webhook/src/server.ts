@@ -30,10 +30,21 @@ async function startServer() {
     }
   }
 
+  /**
+   * Optional features. Absence is a supported configuration, so this must not
+   * reuse the warning above — text ordering keeps working, and crying wolf on
+   * every default install teaches operators to ignore the line that is real.
+   */
+  function checkOptionalEnv(name: string, feature: string) {
+    if (!process.env[name]) {
+      console.info(`Note: ${name} is not set — ${feature} is disabled.`);
+    }
+  }
+
   checkEnv("DEEPSEEK_API_KEY");
   checkEnv("WHATSAPP_ACCESS_TOKEN");
   checkEnv("WHATSAPP_PHONE_NUMBER_ID");
-  checkEnv("OPENAI_API_KEY");
+  checkOptionalEnv("ELEVENLABS_API_KEY", "voice-note transcription");
 
   await app.listen({ port: PORT, host: "0.0.0.0" });
   console.log(`Digico Fastify API & Webhook listening on http://0.0.0.0:${PORT}`);

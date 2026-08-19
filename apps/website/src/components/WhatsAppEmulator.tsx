@@ -7,6 +7,7 @@ import { DealerSelector } from "./emulator/DealerSelector.js";
 import { QuickPresets } from "./emulator/QuickPresets.js";
 import { PayloadInspector } from "./emulator/PayloadInspector.js";
 import { ChatWindow } from "./emulator/ChatWindow.js";
+import type { VoiceRecording } from "./emulator/useVoiceRecorder.js";
 
 const PRESET_DEALERS: Dealer[] = [
   {
@@ -83,18 +84,14 @@ export function WhatsAppEmulator() {
     }
   };
 
-  const handleSend = async (textToSend?: string) => {
-    const messageText = (textToSend || inputText).trim();
-    if (!messageText || isSending) return;
-
-    if (!textToSend) setInputText("");
+  /** Posts to the emulator, then reloads so the reply and transcript appear. */
+  const dispatch = async (payload: { text?: string; audio?: VoiceRecording }) => {
     setIsSending(true);
-
     try {
       const res = await sendEmulatorMessage({
         fromPhone: selectedPhone,
         contactName,
-        text: messageText,
+        ...payload,
       });
 
       if (res.metaPayload) {
@@ -108,6 +105,24 @@ export function WhatsAppEmulator() {
     } finally {
       setIsSending(false);
     }
+  };
+
+  const handleSend = async (textToSend?: string) => {
+    const messageText = (textToSend || inputText).trim();
+    if (!messageText || isSending) return;
+
+    if (!textToSend) setInputText("");
+    await dispatch({ text: messageText });
+  };
+
+  /**
+   * Voice notes carry no text: the transcript becomes the user's message once
+   * ElevenLabs returns it, which the chat history already surfaces via
+   * resolved_text.
+   */
+  const handleSendVoice = async (recording: VoiceRecording) => {
+    if (isSending) return;
+    await dispatch({ audio: recording });
   };
 
   return (
@@ -175,6 +190,7 @@ export function WhatsAppEmulator() {
           inputText={inputText}
           onInputTextChange={setInputText}
           onSend={() => void handleSend()}
+          onSendVoice={(recording) => void handleSendVoice(recording)}
         />
       </div>
     </div>

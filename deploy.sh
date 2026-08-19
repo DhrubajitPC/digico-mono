@@ -14,7 +14,7 @@ if [ ! -f .env ]; then
 PORT=8787
 NODE_ENV=production
 WHATSAPP_VERIFY_TOKEN=$(openssl rand -hex 16 2>/dev/null || echo "digico_secret_$(date +%s)")
-OPENAI_API_KEY=${OPENAI_API_KEY:-}
+ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY:-}
 DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
 MARIADB_USER=${MARIADB_USER:-wp}
 MARIADB_PASSWORD=${MARIADB_PASSWORD:-wp}
