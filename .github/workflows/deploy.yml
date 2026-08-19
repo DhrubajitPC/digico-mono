@@ -101,28 +101,26 @@ jobs:
           printf '%s\n' '[103.191.50.48]:44444 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFpOm4izPb8lFnXL2deniukzGxs1gfcLvhc5nOEMuipo' > ~/.ssh/known_hosts
 
       # No remote command is sent. The deploy account's authorized_keys pins the CI
-      # key to a forced command, digico-ci-entrypoint, which reads this environment
-      # payload from stdin and deploys. Verified: arbitrary remote commands are
-      # refused (exit 126), and this pipeline has deployed main successfully.
+      # key to a forced command, digico-ci-entrypoint (tracked at
+      # ../../digico-ci-entrypoint in this repo, installed at
+      # /usr/local/libexec/digico-ci-entrypoint on the server), which reads this
+      # environment payload from stdin and deploys.
       #
-      # NOT verified — do not treat as fact until someone reads the script on the
-      # server. Earlier revisions of this comment asserted that the entrypoint
-      # validates keys against a whitelist, rejects the whole payload on an unknown
-      # key, and writes /srv/digico/.env at 0600. That came from a design
-      # description, not from observation, and server-setup-el10.sh provisions
-      # /opt/digico rather than /srv/digico — so at least one of the two paths is
-      # stale. The entrypoint is not in this repo and is not created by that script.
+      # Verified by reading the live script: arbitrary remote commands are refused
+      # (SSH_ORIGINAL_COMMAND non-empty -> exit 126); every payload key is checked
+      # against the keys declared in the repo's .env.example (fetched fresh from
+      # origin/main first) and the WHOLE payload is rejected on the first
+      # unrecognized key; and /srv/digico/.env is written via mktemp + chmod 600 +
+      # atomic mv, never truncated by an empty payload.
       #
       # ELEVENLABS_API_KEY is deliberately absent from the required-secrets check
       # above: voice transcription is optional, and its absence degrades gracefully
       # (transcribeAudio throws a configuration error, handleIncomingMessage catches
       # it and asks the dealer to type instead).
       #
-      # Its line is emitted only when the secret is non-empty. That is cheap
-      # insurance rather than a known requirement: IF the entrypoint does filter
-      # keys, an unconditional line would fail every deploy — including unrelated
-      # ones — until the server side is updated. Omitting it keeps any such failure
-      # scoped to whoever opts into voice.
+      # Its line is emitted only when the secret is non-empty, so an unset secret
+      # cannot fail unrelated deploys. Any new variable added here must also be
+      # added to .env.example — the entrypoint rejects the whole payload otherwise.
       - name: Deploy
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
