@@ -132,8 +132,11 @@ test_valid_payload_is_written_with_correct_perms() {
   DIGICO_PROJECT_DIR="${checkout}" "${entrypoint}" <<< $'PORT=9999\nDEEPSEEK_API_KEY=sk-test\n' >/dev/null 2>&1 || true
 
   assert_eq 'valid payload: .env content' $'PORT=9999\nDEEPSEEK_API_KEY=sk-test' "$(cat "${checkout}/.env")"
+  # Try GNU's format flag first: BSD's `-f` means "custom format" but GNU's `-f`
+  # means "filesystem status" instead and exits 0 with unrelated output, so
+  # trying it first would never fall through to the correct GNU form below.
   local perms
-  perms=$(stat -f '%Lp' "${checkout}/.env" 2>/dev/null || stat -c '%a' "${checkout}/.env")
+  perms=$(stat -c '%a' "${checkout}/.env" 2>/dev/null || stat -f '%Lp' "${checkout}/.env")
   assert_eq 'valid payload: .env perms' '600' "${perms}"
   rm -rf "$(dirname "${checkout}")"
 }
