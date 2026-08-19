@@ -112,6 +112,14 @@ systemctl enable --now docker
 usermod -aG docker deploy
 
 # 8. Setup App Directory
+#
+# NOTE: this provisions /opt/digico, but the CI deploy pipeline
+# (.github/workflows/deploy.yml) documents the live checkout as /srv/digico. One
+# of the two is stale and nobody has confirmed which — the production server was
+# configured out-of-band, including the digico-ci-entrypoint forced command that
+# this script does not create. Confirm the real path on the server before relying
+# on either. The "next steps" below likewise describe a manual deploy that the CI
+# pipeline has since replaced.
 echo "[8/8] Preparing /opt/digico deployment directory..."
 mkdir -p /opt/digico
 chown -R deploy:deploy /opt/digico

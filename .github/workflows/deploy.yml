@@ -97,20 +97,29 @@ jobs:
           chmod 600 ~/.ssh/digico_deploy
           printf '%s\n' '[103.191.50.48]:44444 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFpOm4izPb8lFnXL2deniukzGxs1gfcLvhc5nOEMuipo' > ~/.ssh/known_hosts
 
-      # No remote command is sent. The forced command in the deploy account's
-      # authorized_keys runs digico-ci-entrypoint, which reads this environment
-      # payload from stdin, validates every key against a whitelist, writes
-      # /srv/digico/.env (0600), then invokes the deployment routine via sudo.
-      # ELEVENLABS_API_KEY is deliberately absent from the required-secrets check
-      # above: voice transcription is an optional feature, and its absence
-      # degrades gracefully (transcribeAudio throws a configuration error,
-      # handleIncomingMessage catches it and asks the dealer to type instead).
+      # No remote command is sent. The deploy account's authorized_keys pins the CI
+      # key to a forced command, digico-ci-entrypoint, which reads this environment
+      # payload from stdin and deploys. Verified: arbitrary remote commands are
+      # refused (exit 126), and this pipeline has deployed main successfully.
       #
-      # The line is emitted only when the secret is non-empty. digico-ci-entrypoint
-      # validates every key against a server-side whitelist and rejects the WHOLE
-      # payload on an unknown one — so an unconditional line would take down every
-      # deploy, including unrelated ones, until the whitelist is edited by hand.
-      # Omitting it keeps that failure scoped to whoever opts into voice.
+      # NOT verified — do not treat as fact until someone reads the script on the
+      # server. Earlier revisions of this comment asserted that the entrypoint
+      # validates keys against a whitelist, rejects the whole payload on an unknown
+      # key, and writes /srv/digico/.env at 0600. That came from a design
+      # description, not from observation, and server-setup-el10.sh provisions
+      # /opt/digico rather than /srv/digico — so at least one of the two paths is
+      # stale. The entrypoint is not in this repo and is not created by that script.
+      #
+      # ELEVENLABS_API_KEY is deliberately absent from the required-secrets check
+      # above: voice transcription is optional, and its absence degrades gracefully
+      # (transcribeAudio throws a configuration error, handleIncomingMessage catches
+      # it and asks the dealer to type instead).
+      #
+      # Its line is emitted only when the secret is non-empty. That is cheap
+      # insurance rather than a known requirement: IF the entrypoint does filter
+      # keys, an unconditional line would fail every deploy — including unrelated
+      # ones — until the server side is updated. Omitting it keeps any such failure
+      # scoped to whoever opts into voice.
       - name: Deploy
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
