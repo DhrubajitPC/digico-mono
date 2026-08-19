@@ -93,6 +93,11 @@ make_fixture() {
   local checkout="${root}/checkout"
 
   git init --quiet --bare "${origin}"
+  # Force HEAD to refs/heads/main regardless of this git installation's
+  # init.defaultBranch — otherwise a runner defaulting to "master" leaves HEAD
+  # pointing at a branch that's never created, and later clones of this origin
+  # (see advance_origin) fail to check anything out.
+  git -C "${origin}" symbolic-ref HEAD refs/heads/main
   git init --quiet "${checkout}"
   git -C "${checkout}" config user.email 'test@example.com'
   git -C "${checkout}" config user.name 'Test'
