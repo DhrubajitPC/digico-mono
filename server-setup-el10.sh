@@ -113,22 +113,19 @@ usermod -aG docker deploy
 
 # 8. Setup App Directory
 #
-# NOTE: this provisions /opt/digico, but the CI deploy pipeline
-# (.github/workflows/deploy.yml) documents the live checkout as /srv/digico. One
-# of the two is stale and nobody has confirmed which — the production server was
-# configured out-of-band, including the digico-ci-entrypoint forced command that
-# this script does not create. Confirm the real path on the server before relying
-# on either. The "next steps" below likewise describe a manual deploy that the CI
-# pipeline has since replaced.
-echo "[8/8] Preparing /opt/digico deployment directory..."
-mkdir -p /opt/digico
-chown -R deploy:deploy /opt/digico
+# Confirmed live path: /srv/digico. The production server's forced-command CI
+# deploy setup (digico-ci-entrypoint, digico-deploy, sudoers, authorized_keys) is
+# configured out-of-band and is not created by this script — see
+# digico-ci-entrypoint in this repo for the tracked copy of the entrypoint.
+echo "[8/8] Preparing /srv/digico deployment directory..."
+mkdir -p /srv/digico
+chown -R deploy:deploy /srv/digico
 
 echo "=========================================================="
 echo " SUCCESS: Server setup & hardening complete!"
 echo " Next steps:"
 echo " 1. Set password for deploy user: passwd deploy"
 echo " 2. Log in as deploy: su - deploy"
-echo " 3. Navigate to /opt/digico and clone project codebase"
+echo " 3. Navigate to /srv/digico and clone project codebase"
 echo " 4. Configure .env and execute ./deploy.sh"
 echo "=========================================================="

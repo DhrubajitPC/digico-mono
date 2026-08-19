@@ -208,7 +208,7 @@ make build       # Build production frontend web bundle
 > - If an incoming WhatsApp voice note is received while `ELEVENLABS_API_KEY` is omitted, the pipeline catches the missing key gracefully and sends a polite fallback reply asking the dealer to type their message instead.
 > - Requires a **paid ElevenLabs plan**. The free tier grants no commercial licence and covers only ~30 minutes of audio per month; Scribe v2 bills ~$0.22/hour (~$0.26 with keyterms).
 > - Deploying it requires `ELEVENLABS_API_KEY` in the repository secrets. The deploy workflow emits it only when non-empty, so an unset secret cannot affect unrelated deploys.
-> - **Unverified:** whether `digico-ci-entrypoint` on the production server filters payload keys. If it does, the key must be permitted there too. The script is not in this repo, and no one has confirmed its contents — see the comment in `.github/workflows/deploy.yml`.
+> - `digico-ci-entrypoint` (tracked at `digico-ci-entrypoint` in this repo) validates every deploy payload key against `.env.example`. A new variable needs to be added there too, or the whole deploy payload is rejected — see the comment in `.github/workflows/deploy.yml`.
 
 > [!IMPORTANT]
 > **Transcript script affects catalog matching**: `searchMariaDbProducts` scores transcripts against Latin-script catalog rows (`post_title`, `_sku`), so brand names must come back as `HP`, not `এইচপি`. Two things protect this: `ELEVENLABS_STT_LANGUAGE` is left unset so Scribe auto-detects and preserves code-switching, and `transcribe.ts` sends a `keyterms` list of Digico's brands. Pinning the language to Bengali transliterates product names and silently degrades retrieval.
