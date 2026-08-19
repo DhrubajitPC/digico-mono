@@ -1,8 +1,8 @@
 # Digico — Conversational AI B2B Ordering Monorepo
 
-An AI-powered B2B ordering and distribution system for [Digico](https://www.digico.com.bd/), a technology products and home appliances distributor in Bangladesh (selling brands like **Conion**, **Panasonic**, **HP**, **Lenovo**, **Dell**, **Samsung**, and **Logitech**).
+An AI-powered B2B ordering and distribution system for [Digico](https://www.digico.com.bd/), a technology products and home appliances distributor in Bangladesh (65+ brands including **Conion**, **Samsung**, **Baseus**, **Whirlpool**, **Hitachi**, **Philips**, **Panasonic**, **UGREEN**, and **LG**).
 
-Dealers place wholesale orders over **WhatsApp** in **Bengali**, **English**, or **Banglish** ("HP i5 laptop, 10 ta lagbe"). DeepSeek AI interprets dealer intent, retrieves live MariaDB catalog candidates, and auto-drafts confirmed sales orders into WooCommerce tables for human admin review.
+Dealers place wholesale orders over **WhatsApp** in **Bengali**, **English**, or **Banglish** ("Conion fridge, 10 ta lagbe"). DeepSeek AI interprets dealer intent, retrieves live MariaDB catalog candidates, and auto-drafts confirmed sales orders into WooCommerce tables for human admin review.
 
 ---
 
