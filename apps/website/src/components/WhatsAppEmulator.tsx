@@ -132,15 +132,13 @@ export function WhatsAppEmulator() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <MessageCircleCode className="w-6 h-6 text-emerald-400" />
-            <h2 className="text-xl font-bold tracking-tight">
-              WhatsApp Webhook & DeepSeek AI Emulator
-            </h2>
+            <h2 className="text-xl font-bold tracking-tight">WhatsApp Webhook & Joy AI Emulator</h2>
             <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold px-2.5 py-0.5 rounded-full">
               Interactive Testbench
             </span>
           </div>
           <p className="text-sm text-emerald-200/80">
-            Simulate Meta Cloud API webhook payloads, test DeepSeek model completions, and inspect
+            Simulate Meta Cloud API webhook payloads, test Joy AI model completions, and inspect
             real-time order extraction.
           </p>
         </div>

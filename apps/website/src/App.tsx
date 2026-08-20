@@ -72,7 +72,7 @@ export function App() {
 
           <div className="flex items-center gap-3">
             <span className="hidden md:inline-flex items-center gap-1.5 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full font-medium">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> DeepSeek AI Live
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Joy AI Live
             </span>
             <div className="size-8 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold text-sm shrink-0">
               SA

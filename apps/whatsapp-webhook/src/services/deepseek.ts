@@ -95,7 +95,7 @@ export async function replyWithDeepSeekFull(
   if (!apiKey) {
     console.warn("Warning: DEEPSEEK_API_KEY is not set — returning simulated DeepSeek reply.");
     return {
-      text: `[DeepSeek AI Assistant] Hello! Received your request: "${userText}".\n\n(To connect live DeepSeek AI model completions, add DEEPSEEK_API_KEY to root .env)`,
+      text: `[Joy AI Assistant] Hello! Received your request: "${userText}".\n\n(To connect live Joy AI model completions, add DEEPSEEK_API_KEY to root .env)`,
     };
   }
 
