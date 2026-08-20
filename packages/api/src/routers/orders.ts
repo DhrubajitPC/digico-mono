@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   MariaDbError,
   createMariaDbOrder,
+  fetchMariaDbDealerByPhone,
   fetchMariaDbOrderById,
   fetchMariaDbOrders,
   updateMariaDbOrder,
@@ -62,10 +63,21 @@ export const ordersRouter = router({
     const items = input.items;
     const firstItem = items[0];
     const total = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
+
+    let dealer;
+    try {
+      dealer = await fetchMariaDbDealerByPhone(input.dealerPhone);
+    } catch (err) {
+      return dbErrorToTrpc(err);
+    }
+    if (!dealer) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Unknown dealer" });
+    }
+
     try {
       return await createMariaDbOrder({
-        phone: "+8801700000000",
-        customerName: "Manual Sales Dealer",
+        phone: dealer.phone,
+        customerName: dealer.contactPerson || dealer.businessName,
         productName: firstItem?.productName || "Product",
         quantity: firstItem?.quantity || 1,
         unitPrice: firstItem?.unitPrice || total,

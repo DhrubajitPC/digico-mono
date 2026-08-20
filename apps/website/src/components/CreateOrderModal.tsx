@@ -21,10 +21,11 @@ interface NewLineItem {
 export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalProps) {
   const [dealersList, setDealersList] = useState<Dealer[]>([]);
   const [productsList, setProductsList] = useState<Product[]>([]);
-  const [selectedDealerId, setSelectedDealerId] = useState<number | "">("");
+  const [selectedDealerPhone, setSelectedDealerPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<NewLineItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Selected product state for adding
   const [selectedSku, setSelectedSku] = useState("");
@@ -40,7 +41,8 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
       setAddQty(1);
       setAddPrice("");
       setNotes("");
-      setSelectedDealerId("");
+      setSelectedDealerPhone("");
+      setSubmitError(null);
       onSuccess();
       onClose();
     },
@@ -87,18 +89,20 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!selectedDealerId || items.length === 0) return;
+    if (!selectedDealerPhone || items.length === 0) return;
 
+    setSubmitError(null);
     try {
       setIsSubmitting(true);
       await createMutation.mutateAsync({
-        dealerId: Number(selectedDealerId),
+        dealerPhone: selectedDealerPhone,
         origin: "manual_sales",
         notes,
         items,
       });
     } catch (err) {
       console.error("Failed to create order", err);
+      setSubmitError(err instanceof Error ? err.message : "Failed to create order.");
     } finally {
       setIsSubmitting(false);
     }
@@ -119,13 +123,13 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
             Registered Dealer / Customer *
           </label>
           <Select
-            value={selectedDealerId}
-            onChange={(e) => setSelectedDealerId(Number(e.target.value))}
+            value={selectedDealerPhone}
+            onChange={(e) => setSelectedDealerPhone(e.target.value)}
             required
           >
             <option value="">Select a dealer...</option>
             {dealersList.map((d) => (
-              <option key={d.id} value={d.id}>
+              <option key={d.phone} value={d.phone}>
                 {d.businessName} ({d.phone})
               </option>
             ))}
@@ -161,11 +165,19 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
         </div>
 
         {/* Form Footer */}
+        {submitError && (
+          <p role="alert" className="text-sm text-red-600">
+            {submitError}
+          </p>
+        )}
         <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={!selectedDealerId || items.length === 0 || isSubmitting}>
+          <Button
+            type="submit"
+            disabled={!selectedDealerPhone || items.length === 0 || isSubmitting}
+          >
             {isSubmitting ? "Creating Order..." : "Create Order"}
           </Button>
         </div>

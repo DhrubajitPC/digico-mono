@@ -1,18 +1,35 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { TRPCError } from "@trpc/server";
-import type { Order } from "@digico/contracts";
+import type { Dealer, Order } from "@digico/contracts";
 
-const db = vi.hoisted(() => ({
-  fetchMariaDbOrders: vi.fn(),
-  fetchMariaDbOrderById: vi.fn(),
-  createMariaDbOrder: vi.fn(),
-  updateMariaDbOrder: vi.fn(),
-  updateMariaDbOrderStatus: vi.fn(),
-}));
+const db = vi.hoisted(() => {
+  class MariaDbError extends Error {
+    constructor(message: string, options?: { cause?: unknown }) {
+      super(message, options);
+      this.name = "MariaDbError";
+    }
+  }
+  return {
+    MariaDbError,
+    fetchMariaDbOrders: vi.fn(),
+    fetchMariaDbOrderById: vi.fn(),
+    fetchMariaDbDealerByPhone: vi.fn(),
+    createMariaDbOrder: vi.fn(),
+    updateMariaDbOrder: vi.fn(),
+    updateMariaDbOrderStatus: vi.fn(),
+  };
+});
 
 vi.mock("@digico/db", () => db);
 
 import { ordersRouter } from "../src/routers/orders.ts";
+
+const dealerFixture: Dealer = {
+  id: 7,
+  businessName: "Acme Trading",
+  phone: "8801711000001",
+  contactPerson: "Acme Person",
+};
 
 const orderFixture: Order = {
   id: 1,
@@ -20,7 +37,7 @@ const orderFixture: Order = {
   dealer: {
     id: 1,
     businessName: "Acme Trading",
-    phone: "+8801711000001",
+    phone: "8801711000001",
     contactPerson: "Acme Person",
   },
   status: "pending_review",
@@ -70,14 +87,58 @@ describe("ordersRouter", () => {
     await expect(caller.get({ id: 999 })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
-  it("create computes the order total from line items", async () => {
+  it("create computes the order total from line items and attributes it to the chosen dealer", async () => {
+    db.fetchMariaDbDealerByPhone.mockResolvedValue(dealerFixture);
     db.createMariaDbOrder.mockResolvedValue(orderFixture);
     await caller.create({
+      dealerPhone: "8801711000001",
       items: [{ productName: "Lenovo ThinkPad", quantity: 2, unitPrice: 600, sku: "LN-TP" }],
     });
+    expect(db.fetchMariaDbDealerByPhone).toHaveBeenCalledWith("8801711000001");
     expect(db.createMariaDbOrder).toHaveBeenCalledWith(
-      expect.objectContaining({ totalAmount: 1200, productName: "Lenovo ThinkPad", quantity: 2 }),
+      expect.objectContaining({
+        totalAmount: 1200,
+        productName: "Lenovo ThinkPad",
+        quantity: 2,
+        phone: "8801711000001",
+        customerName: "Acme Person",
+      }),
     );
+  });
+
+  // The bug this guards: create() used to ignore dealerId entirely and hardcode
+  // a placeholder phone/name, so every manual order was attributed to the same
+  // fake "dealer" regardless of which one was picked in the UI.
+  it("create rejects a dealerPhone that doesn't resolve to a known dealer", async () => {
+    db.fetchMariaDbDealerByPhone.mockResolvedValue(null);
+    await expect(
+      caller.create({
+        dealerPhone: "8801799999999",
+        items: [{ productName: "P", quantity: 1, unitPrice: 5, sku: "S" }],
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(db.createMariaDbOrder).not.toHaveBeenCalled();
+  });
+
+  it("create rejects a missing dealerPhone", async () => {
+    await expect(
+      caller.create({
+        items: [{ productName: "P", quantity: 1, unitPrice: 5, sku: "S" }],
+      } as never),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  // The bug this guards: the dealer lookup used to sit outside create()'s
+  // try/catch, so a DB failure during resolution propagated as a raw exception
+  // instead of the same clean INTERNAL_SERVER_ERROR every other failure here gets.
+  it("create maps a dealer-lookup MariaDbError the same way as an order-creation failure", async () => {
+    db.fetchMariaDbDealerByPhone.mockRejectedValue(new db.MariaDbError("connection lost"));
+    await expect(
+      caller.create({
+        dealerPhone: "8801711000001",
+        items: [{ productName: "P", quantity: 1, unitPrice: 5, sku: "S" }],
+      }),
+    ).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
   });
 
   it("setStatus rejects status values outside the enum", async () => {
@@ -87,10 +148,13 @@ describe("ordersRouter", () => {
   });
 
   it("create rejects line items with a negative quantity", async () => {
+    db.fetchMariaDbDealerByPhone.mockResolvedValue(dealerFixture);
     await expect(
       caller.create({
+        dealerPhone: "8801711000001",
         items: [{ productName: "P", quantity: -1, unitPrice: 5, sku: "S" }],
       } as never),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(db.createMariaDbOrder).not.toHaveBeenCalled();
   });
 });

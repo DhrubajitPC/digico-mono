@@ -2,6 +2,7 @@ import {
   fetchMariaDbOrders,
   getMariaDbRecentConversationHistory,
   markMariaDbMessageStatus,
+  normalizePhone,
   recordMariaDbAiCall,
   recordMariaDbInboundMessage,
   recordMariaDbOutboundReply,
@@ -162,7 +163,8 @@ export async function buildPromptContext(
   try {
     products = await searchMariaDbProducts(userText, 10);
     const mariaOrders = await fetchMariaDbOrders();
-    const matchOrder = mariaOrders.find((o) => o.dealer.phone === fromPhone);
+    const normalizedFromPhone = normalizePhone(fromPhone);
+    const matchOrder = mariaOrders.find((o) => o.dealer.phone === normalizedFromPhone);
     if (matchOrder) {
       dealer = matchOrder.dealer;
     }

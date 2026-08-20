@@ -46,7 +46,7 @@ function decodeAudio(data: string): { bytes: ArrayBuffer } | { error: string } {
 
 async function fetchChatHistoryHandler(req: FastifyRequest, reply: FastifyReply) {
   const query = req.query as Record<string, string>;
-  const fromPhone = query.phone || "+8801711000001";
+  const fromPhone = query.phone || "8801711000001";
 
   const messages = await getEmulatorChatHistory(fromPhone);
   return reply.send({ fromPhone, messages });

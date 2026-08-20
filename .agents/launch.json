@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "website",
-      "runtimeExecutable": "/Users/ishrak021202/.vite-plus/bin/vp",
+      "runtimeExecutable": "vp",
       "runtimeArgs": ["run", "website#dev"],
       "port": 5173
     }

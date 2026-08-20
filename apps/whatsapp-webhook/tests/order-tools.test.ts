@@ -6,6 +6,7 @@ vi.mock("@digico/db", () => ({
   MariaDbError: class MariaDbError extends Error {},
   createMariaDbOrder: vi.fn(),
   fetchMariaDbProducts: vi.fn(),
+  UNKNOWN_PHONE_PLACEHOLDER: "+8801700000000",
 }));
 
 const catalog = [{ id: 1, name: "HP 15s", sku: "HP15S", unitPrice: 68500, stockQuantity: 10 }];
