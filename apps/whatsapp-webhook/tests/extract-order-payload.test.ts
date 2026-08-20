@@ -9,11 +9,13 @@ vi.mock("@digico/db", () => ({
   fetchMariaDbOrders: vi.fn(),
   getMariaDbRecentConversationHistory: vi.fn(),
   markMariaDbMessageStatus: vi.fn(),
+  normalizePhone: (raw: string) => raw.replace(/\D/g, ""),
   recordMariaDbAiCall: vi.fn(),
   recordMariaDbInboundMessage: vi.fn(),
   recordMariaDbOutboundReply: vi.fn(),
   searchMariaDbProducts: vi.fn(),
   setMariaDbResolvedText: vi.fn(),
+  UNKNOWN_PHONE_PLACEHOLDER: "+8801700000000",
 }));
 
 const catalog = [{ id: 1, name: "HP 15s", sku: "HP15S", unitPrice: 68500, stockQuantity: 10 }];

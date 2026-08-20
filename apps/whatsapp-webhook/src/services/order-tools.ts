@@ -1,5 +1,10 @@
 import type { DraftOrderPayload } from "@digico/contracts";
-import { createMariaDbOrder, fetchMariaDbProducts, type WcOrder } from "@digico/db";
+import {
+  createMariaDbOrder,
+  fetchMariaDbProducts,
+  UNKNOWN_PHONE_PLACEHOLDER,
+  type WcOrder,
+} from "@digico/db";
 
 export type { DraftOrderPayload };
 
@@ -109,7 +114,7 @@ export async function validateAndExecuteOrderTool(
   let createdOrder: WcOrder | null = null;
   try {
     createdOrder = await createMariaDbOrder({
-      phone: payload.phone || "+8801700000000",
+      phone: payload.phone || UNKNOWN_PHONE_PLACEHOLDER,
       customerName: payload.customerName || "WhatsApp Dealer",
       deliveryAddress: payload.deliveryAddress,
       productName: payload.productName,

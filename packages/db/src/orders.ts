@@ -7,6 +7,27 @@ import { MariaDbError } from "./errors.ts";
 export type WcOrder = Order;
 export type WcOrderItem = OrderItem;
 
+/**
+ * Written whenever an order's real phone can't be determined (see
+ * createMariaDbOrder's WhatsApp-AI caller). Orders sharing this value have no
+ * real dealer identity, so dealer-lookup code must exclude it rather than
+ * treating every order that carries it as the same person.
+ */
+export const UNKNOWN_PHONE_PLACEHOLDER = "+8801700000000";
+
+/**
+ * Collapses the phone shapes actually seen across this codebase — local
+ * "01711000001", "+8801711000001", and WhatsApp's own "8801711000001" wa_id
+ * format — to the digit-only 880-prefixed form, so the same real dealer keys
+ * to one value regardless of which code path wrote or is comparing it.
+ */
+export function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("880") && digits.length === 13) return digits;
+  if (digits.startsWith("0") && digits.length === 11) return `880${digits.slice(1)}`;
+  return digits;
+}
+
 export function mapWcStatusToDigico(wcStatus: string): string {
   const status = wcStatus.replace(/^wc-/, "");
   switch (status) {
@@ -86,7 +107,7 @@ function mapOrderRow(
   const firstName = meta["_billing_first_name"] || "";
   const lastName = meta["_billing_last_name"] || "";
   const company = meta["_billing_company"] || "";
-  const phone = meta["_billing_phone"] || "+8801700000000";
+  const phone = normalizePhone(meta["_billing_phone"] || UNKNOWN_PHONE_PLACEHOLDER);
   const address = [meta["_billing_address_1"], meta["_billing_city"]].filter(Boolean).join(", ");
   const customerId = parseInt(meta["_customer_user"] || "0", 10) || r.id;
 
@@ -139,7 +160,7 @@ export async function fetchMariaDbOrders(params?: {
       p.post_excerpt as customer_note
     FROM joy_posts p
     WHERE p.post_type = 'shop_order'
-    ORDER BY p.post_date DESC
+    ORDER BY p.post_date DESC, p.ID DESC
     LIMIT 200
   `);
 
