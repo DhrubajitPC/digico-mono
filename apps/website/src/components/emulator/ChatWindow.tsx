@@ -67,7 +67,7 @@ export function ChatWindow({
               <span>{selectedPhone}</span>
               <span>•</span>
               <span className="flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-emerald-400" /> DeepSeek Online
+                <Sparkles className="w-3 h-3 text-emerald-400" /> Joy AI Online
               </span>
             </div>
           </div>
@@ -75,7 +75,7 @@ export function ChatWindow({
 
         <div className="flex items-center gap-2">
           <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-xs font-mono text-emerald-400">
-            <Bot className="w-3 h-3" /> deepseek-chat
+            <Bot className="w-3 h-3" /> Joy AI
           </span>
         </div>
       </div>
@@ -90,8 +90,7 @@ export function ChatWindow({
             <div>
               <h5 className="font-semibold text-slate-300 text-sm">No Messages in Chat</h5>
               <p className="text-xs text-slate-400 max-w-xs mt-1">
-                Type a message below or click a quick sample query to test DeepSeek AI order
-                completions.
+                Type a message below or click a quick sample query to test Joy AI order completions.
               </p>
             </div>
           </div>
@@ -106,7 +105,7 @@ export function ChatWindow({
             <div className="bg-slate-800 text-slate-300 border border-slate-700 rounded-2xl rounded-bl-xs p-3.5 shadow-md flex items-center gap-3">
               <Bot className="w-4 h-4 text-emerald-400 animate-bounce" />
               <span className="text-xs text-slate-300 font-medium">
-                DeepSeek AI is processing query…
+                Joy AI is processing query…
               </span>
             </div>
           </div>

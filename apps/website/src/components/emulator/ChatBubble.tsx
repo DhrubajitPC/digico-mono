@@ -20,7 +20,7 @@ export function ChatBubble({ message }: ChatBubbleProps) {
         {!isUser && (
           <div className="flex items-center justify-between text-[10px] text-emerald-400 font-mono border-b border-slate-700/60 pb-1.5 mb-1">
             <span className="flex items-center gap-1 font-semibold">
-              <Bot className="w-3 h-3 text-emerald-400" /> {message.model || "deepseek-chat"}
+              <Bot className="w-3 h-3 text-emerald-400" /> Joy AI
             </span>
             {message.latencyMs !== undefined && (
               <span className="flex items-center gap-1 text-slate-400">
