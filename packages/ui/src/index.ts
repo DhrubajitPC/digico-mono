@@ -10,4 +10,4 @@ export * from "./components/tabs.js";
 export * from "./components/dialog.js";
 export * from "./components/drawer.js";
 export * from "./components/dropdown-menu.js";
-export * from "./components/orderStatusDropDown.js";
+export * from "./components/order-status-dropdown.js";
