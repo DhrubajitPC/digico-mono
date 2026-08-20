@@ -401,14 +401,26 @@ export async function updateMariaDbOrderStatus(
 
     return await fetchMariaDbOrderById(orderId);
   } catch (err) {
-    throw new MariaDbError("Failed to update MariaDB order status", { cause: err });
+    throw new MariaDbError("Failed to update MariaDB order status", {
+      cause: err,
+    });
   }
 }
 
 /** Update MariaDB order details */
 export async function updateMariaDbOrder(
   orderId: number,
-  input: { notes?: string; proposedMessage?: string; items?: unknown[] },
+  input: {
+    notes?: string;
+    proposedMessage?: string;
+    items?: Array<{
+      productId?: number;
+      sku: string;
+      productName: string;
+      quantity: number;
+      unitPrice: number;
+    }>;
+  },
 ): Promise<WcOrder | null> {
   const p = getMariaDbPool();
   const nowStr = new Date().toISOString().slice(0, 19).replace("T", " ");
@@ -416,8 +428,96 @@ export async function updateMariaDbOrder(
   try {
     if (input.notes !== undefined) {
       await p.query(
-        `UPDATE joy_posts SET post_excerpt = ?, post_modified = ? WHERE ID = ? AND post_type = 'shop_order'`,
-        [input.notes, nowStr, orderId],
+        `
+      UPDATE joy_posts
+      SET post_excerpt = ?, post_modified = ?, post_modified_gmt = ?
+      WHERE ID = ? AND post_type = 'shop_order'
+      `,
+        [input.notes, nowStr, nowStr, orderId],
+      );
+    }
+
+    if (input.proposedMessage !== undefined) {
+      await p.query(
+        `
+      INSERT INTO joy_postmeta (post_id, meta_key, meta_value)
+      VALUES (?, '_proposed_message', ?)
+      ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)
+      `,
+        [orderId, input.proposedMessage],
+      );
+    }
+
+    if (input.items !== undefined) {
+      const [existingItems] = await p.query<mysql.RowDataPacket[]>(
+        `
+      SELECT
+        i.order_item_id,
+        m1.meta_value AS qty,
+        m2.meta_value AS line_total
+      FROM joy_woocommerce_order_items i
+      LEFT JOIN joy_woocommerce_order_itemmeta m1
+        ON i.order_item_id = m1.order_item_id
+        AND m1.meta_key = '_qty'
+      LEFT JOIN joy_woocommerce_order_itemmeta m2
+        ON i.order_item_id = m2.order_item_id
+        AND m2.meta_key = '_line_total'
+      WHERE i.order_id = ?
+      AND i.order_item_type = 'line_item'
+      ORDER BY i.order_item_id
+      `,
+        [orderId],
+      );
+
+      for (let index = 0; index < input.items.length; index++) {
+        const item = input.items[index];
+        const existingItem = existingItems[index];
+
+        if (!existingItem) {
+          continue;
+        }
+
+        const lineTotal = item.quantity * item.unitPrice;
+
+        await p.query(
+          `
+        UPDATE joy_woocommerce_order_itemmeta
+        SET meta_value = ?
+        WHERE order_item_id = ?
+        AND meta_key = '_qty'
+        `,
+          [String(item.quantity), existingItem.order_item_id],
+        );
+
+        await p.query(
+          `
+        UPDATE joy_woocommerce_order_itemmeta
+        SET meta_value = ?
+        WHERE order_item_id = ?
+        AND meta_key = '_line_total'
+        `,
+          [String(lineTotal), existingItem.order_item_id],
+        );
+      }
+
+      const total = input.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+
+      await p.query(
+        `
+      INSERT INTO joy_postmeta (post_id, meta_key, meta_value)
+      VALUES (?, '_order_total', ?)
+      ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)
+      `,
+        [orderId, String(total)],
+      );
+
+      await p.query(
+        `
+      UPDATE joy_posts
+      SET post_modified = ?, post_modified_gmt = ?
+      WHERE ID = ? AND post_type = 'shop_order'
+      `,
+        [nowStr, nowStr, orderId],
       );
     }
     return await fetchMariaDbOrderById(orderId);

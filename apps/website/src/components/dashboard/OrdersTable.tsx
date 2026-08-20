@@ -110,6 +110,7 @@ export function OrdersTable({
       cell: ({ getValue, row }) => (
         <OrderStatusDropDown
           status={getValue()}
+          isSaving={setOrderStatus.isPending}
           onStatusChange={async (newStatus) => {
             try {
               await setOrderStatus.mutateAsync({
@@ -251,7 +252,7 @@ export function OrdersTable({
                     className={`transition-colors hover:bg-gray-50/80 cursor-pointer ${
                       isSelected ? "bg-red-50/30" : ""
                     }`}
-                    //onClick={() => onReviewOrder(orderId)}
+                    onClick={(e) => e.stopPropagation()}
                   >
                     <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
                       <input

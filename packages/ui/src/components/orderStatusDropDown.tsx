@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
-import { StatusBadge, type OrderStatusType } from "@digico/design-system";
-import { cn } from "../lib/utils.js";
+
+import { Root, Trigger, Portal, Content, Item } from "@radix-ui/react-dropdown-menu";
+import { StatusBadge, type OrderStatusType } from "./status-badge.js";
 
 const statusOptions: OrderStatusType[] = [
   "draft",
@@ -16,21 +17,22 @@ const statusOptions: OrderStatusType[] = [
 interface OrderStatusDropDownProps {
   status: OrderStatusType;
   onStatusChange: (newStatus: OrderStatusType) => void | Promise<void>;
+  isSaving: boolean;
   disabled?: boolean;
 }
 
 export function OrderStatusDropDown({
   status,
   onStatusChange,
+  isSaving,
   disabled = false,
 }: OrderStatusDropDownProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   /*
-   * Close dropdown when clicking outside
+   * Close dropdown when clicking outside & Close dropdown with Escape
    */
   useEffect(() => {
     if (!isOpen) return;
@@ -41,31 +43,20 @@ export function OrderStatusDropDown({
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen]);
-
-  /*
-   * Close dropdown with Escape
-   */
-  useEffect(() => {
-    if (!isOpen) return;
-
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsOpen(false);
       }
     };
 
+    document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("keydown", handleEscape);
 
     return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [isOpen]);
+  }, [isOpen, setIsOpen]);
 
   /*
    * Select new status
@@ -76,101 +67,53 @@ export function OrderStatusDropDown({
       setIsOpen(false);
       return;
     }
-
-    try {
-      setIsSaving(true);
-
-      await onStatusChange(newStatus);
-
-      setIsOpen(false);
-    } catch (error) {
-      console.error("Failed to change order status:", error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  /*
-   * Toggle dropdown
-   */
-  const handleToggle = () => {
-    if (disabled || isSaving) return;
-
-    setIsOpen((previous) => !previous);
+    await onStatusChange(newStatus);
+    setIsOpen(false);
   };
 
   return (
-    <div ref={wrapperRef} className="relative inline-block">
-      {/* Status Trigger */}
-      <button
-        type="button"
-        disabled={disabled || isSaving}
-        onClick={handleToggle}
-        className={cn(
-          "inline-flex items-center gap-1 rounded-full",
-          "cursor-pointer border-0 bg-transparent p-0",
-          "transition-all duration-150",
-          "hover:opacity-90",
-          (disabled || isSaving) && "cursor-not-allowed opacity-60",
-        )}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-      >
-        <StatusBadge status={status} />
-
-        {!disabled && (
-          <ChevronDown
-            className={cn(
-              "size-3 text-gray-400 transition-transform duration-150",
-              isOpen && "rotate-180",
-              isSaving && "animate-pulse",
-            )}
-          />
-        )}
-      </button>
-
-      {/* Dropdown */}
-      {isOpen && !disabled && (
-        <div
-          className={cn(
-            "absolute left-0 top-full z-[9999] mt-1",
-            "min-w-[180px]",
-            "rounded-lg border border-gray-200",
-            "bg-white p-1",
-            "shadow-lg",
-          )}
-          role="listbox"
-          aria-label="Order status"
+    <Root>
+      <Trigger asChild>
+        <button
+          type="button"
+          disabled={disabled || isSaving}
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+          className="inline-flex items-center gap-1 rounded-md outline-none disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {statusOptions.map((option) => {
-            const isActive = option === status;
+          <StatusBadge status={status} />
 
-            return (
-              <button
-                key={option}
-                type="button"
-                disabled={isSaving}
-                onClick={() => handleSelect(option)}
-                className={cn(
-                  "flex w-full items-center justify-between",
-                  "rounded-md px-3 py-2",
-                  "text-left text-sm",
-                  "transition-colors",
-                  "hover:bg-gray-50",
-                  isActive && "bg-blue-50",
-                  isSaving && "cursor-not-allowed opacity-50",
-                )}
-                role="option"
-                aria-selected={isActive}
-              >
-                <StatusBadge status={option} className="border-none bg-transparent px-0" />
+          <ChevronDown size={14} className="text-gray-500" />
+        </button>
+      </Trigger>
 
-                {isActive && <Check className="size-4 text-blue-600" />}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+      <Portal>
+        <Content
+          align="start"
+          sideOffset={4}
+          collisionPadding={8}
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+          className="z-50 min-w-[140px] rounded-md border border-gray-200 bg-white p-1 shadow-lg"
+        >
+          {statusOptions.map((statusOption) => (
+            <Item
+              key={statusOption}
+              onSelect={(event) => {
+                event.preventDefault();
+                void handleSelect(statusOption);
+              }}
+              className="flex cursor-pointer items-center justify-between rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-gray-100 focus:bg-gray-100"
+            >
+              <StatusBadge status={statusOption} />
+
+              {statusOption === status && <Check size={14} className="ml-2 text-blue-600" />}
+            </Item>
+          ))}
+        </Content>
+      </Portal>
+    </Root>
   );
 }
