@@ -7,10 +7,15 @@ export type WcDealer = Dealer;
 /** Fetch Dealers list from MariaDB */
 export async function fetchMariaDbDealers(): Promise<WcDealer[]> {
   const orders = await fetchMariaDbOrders();
-  const dealerMap = new Map<number, WcDealer>();
+  const dealerMap = new Map<string, WcDealer>();
   for (const o of orders) {
-    if (!dealerMap.has(o.dealer.id)) {
-      dealerMap.set(o.dealer.id, {
+    // Keyed by phone, not o.dealer.id: every WhatsApp/manual order is a guest
+    // checkout with no WooCommerce login, so _customer_user is absent or "0" and
+    // o.dealer.id falls back to that order's own row ID — a fresh "dealer" per
+    // order for the same real person. Phone is the only identity that's actually
+    // stable across a dealer's orders in this schema.
+    if (!dealerMap.has(o.dealer.phone)) {
+      dealerMap.set(o.dealer.phone, {
         id: o.dealer.id,
         businessName: o.dealer.businessName,
         contactPerson: o.dealer.contactPerson,
