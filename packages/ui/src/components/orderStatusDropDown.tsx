@@ -103,6 +103,7 @@ export function OrderStatusDropDown({
               key={statusOption}
               onSelect={(event) => {
                 event.preventDefault();
+                // handleSelect(statusOption);
                 void handleSelect(statusOption);
               }}
               className="flex cursor-pointer items-center justify-between rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-gray-100 focus:bg-gray-100"
