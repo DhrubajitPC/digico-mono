@@ -27,7 +27,7 @@ export const listOrdersInputSchema = z.object({
 });
 
 export const createOrderInputSchema = z.object({
-  dealerId: z.number().int().positive().optional(),
+  dealerId: z.number().int().positive(),
   origin: orderOriginSchema.optional(),
   notes: z.string().nullable().optional(),
   items: z.array(orderItemInputSchema).default([]),
