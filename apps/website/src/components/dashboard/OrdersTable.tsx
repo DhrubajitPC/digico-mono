@@ -1,4 +1,4 @@
-import { Button, OrderStatusDropDown } from "@digico/design-system";
+import { Button } from "@digico/design-system";
 import type { RouterOutputs } from "@digico/api";
 import {
   createColumnHelper,
@@ -21,6 +21,7 @@ import {
 } from "@digico/utils";
 import { ChevronDown, ChevronUp, ChevronsUpDown, Eye } from "lucide-react";
 import { trpc } from "../../trpc";
+import { OrderStatusDropdown } from "./OrderStatusDropdown";
 
 type ListOrdersResult = RouterOutputs["orders"]["list"];
 type OrderRow = ListOrdersResult["items"][number];
@@ -108,7 +109,7 @@ export function OrdersTable({
     helper.accessor("status", {
       header: "Status",
       cell: ({ getValue, row }) => (
-        <OrderStatusDropDown
+        <OrderStatusDropdown
           status={getValue()}
           isSaving={setOrderStatus.isPending}
           onStatusChange={async (newStatus) => {
