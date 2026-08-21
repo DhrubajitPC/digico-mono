@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { normalizePhone } from "../src/orders.ts";
+import { mapDigicoStatusToWc, mapWcStatusToDigico, normalizePhone } from "../src/orders.ts";
 
 // The bug this guards: dealer identity is now keyed on phone (see dealers.ts),
 // but the same real number shows up in at least three raw shapes across this
@@ -25,4 +25,27 @@ test("strips spaces and dashes before normalizing", () => {
 
 test("falls back to digits-only for a shape it doesn't recognize, rather than throwing", () => {
   expect(normalizePhone("12345")).toBe("12345");
+});
+
+test("maps WooCommerce status strings to Digico status strings", () => {
+  expect(mapWcStatusToDigico("wc-pending")).toBe("pending_review");
+  expect(mapWcStatusToDigico("wc-processing")).toBe("processing");
+  expect(mapWcStatusToDigico("wc-on-hold")).toBe("on_hold");
+  expect(mapWcStatusToDigico("wc-completed")).toBe("completed");
+  expect(mapWcStatusToDigico("wc-confirmed")).toBe("confirmed");
+  expect(mapWcStatusToDigico("wc-cancelled")).toBe("cancelled");
+});
+
+test("maps Digico status strings to WooCommerce status strings", () => {
+  expect(mapDigicoStatusToWc("pending_review")).toBe("wc-pending");
+  expect(mapDigicoStatusToWc("processing")).toBe("wc-processing");
+  expect(mapDigicoStatusToWc("on_hold")).toBe("wc-on-hold");
+  expect(mapDigicoStatusToWc("confirmed")).toBe("wc-confirmed");
+  expect(mapDigicoStatusToWc("completed")).toBe("wc-completed");
+  expect(mapDigicoStatusToWc("cancelled")).toBe("wc-cancelled");
+});
+
+test("confirmed and completed round-trip as distinct statuses", () => {
+  expect(mapWcStatusToDigico(mapDigicoStatusToWc("confirmed"))).toBe("confirmed");
+  expect(mapWcStatusToDigico(mapDigicoStatusToWc("completed"))).toBe("completed");
 });

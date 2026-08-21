@@ -39,6 +39,8 @@ export function mapWcStatusToDigico(wcStatus: string): string {
       return "on_hold";
     case "completed":
       return "completed";
+    case "confirmed":
+      return "confirmed";
     case "cancelled":
     case "failed":
     case "refunded":
@@ -52,7 +54,10 @@ export function mapDigicoStatusToWc(digicoStatus: string): string {
   switch (digicoStatus) {
     case "pending_review":
       return "wc-pending";
+    // Not a native WooCommerce status. Digico's confirmed (sales approved,
+    // not yet fulfilled) must not share wc-completed or it reads back as completed.
     case "confirmed":
+      return "wc-confirmed";
     case "completed":
       return "wc-completed";
     case "on_hold":
@@ -64,6 +69,12 @@ export function mapDigicoStatusToWc(digicoStatus: string): string {
     default:
       return `wc-${digicoStatus}`;
   }
+}
+
+function toIsoDateString(val: unknown): string {
+  if (!val) return new Date().toISOString();
+  const d = new Date(val as string | number | Date);
+  return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
 }
 
 function buildMetaMap(metaRows: mysql.RowDataPacket[]): Map<number, Record<string, string>> {
@@ -131,8 +142,8 @@ function mapOrderRow(
     proposedMessage,
     approvedBy:
       digicoStatus === "confirmed" || digicoStatus === "completed" ? "System Admin" : null,
-    createdAt: new Date(r.created_at).toISOString(),
-    updatedAt: new Date(r.updated_at || r.created_at).toISOString(),
+    createdAt: toIsoDateString(r.created_at),
+    updatedAt: toIsoDateString(r.updated_at || r.created_at),
     dealer: {
       id: customerId,
       businessName,
@@ -142,6 +153,123 @@ function mapOrderRow(
     },
     items,
   };
+}
+
+type SqlConn = mysql.Pool | mysql.PoolConnection;
+
+/**
+ * WordPress postmeta has no unique key on (post_id, meta_key) — only
+ * AUTO_INCREMENT meta_id — so ON DUPLICATE KEY UPDATE always inserts a
+ * second row. Duplicate keys already exist in this catalog (see
+ * fetchMariaDbProducts). Update by meta_id, or insert if none.
+ */
+async function upsertPostMeta(
+  conn: SqlConn,
+  postId: number,
+  key: string,
+  value: string,
+): Promise<void> {
+  const [rows] = await conn.query<mysql.RowDataPacket[]>(
+    `SELECT meta_id FROM joy_postmeta WHERE post_id = ? AND meta_key = ? LIMIT 1`,
+    [postId, key],
+  );
+  const existingId = rows[0]?.meta_id;
+  if (existingId) {
+    await conn.query(`UPDATE joy_postmeta SET meta_value = ? WHERE meta_id = ?`, [
+      value,
+      existingId,
+    ]);
+    return;
+  }
+  await conn.query(`INSERT INTO joy_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)`, [
+    postId,
+    key,
+    value,
+  ]);
+}
+
+async function insertLineItem(
+  conn: SqlConn,
+  orderId: number,
+  item: {
+    productName: string;
+    quantity: number;
+    lineTotal: number;
+    productId?: number | null;
+  },
+): Promise<void> {
+  const [itemRes] = await conn.query<mysql.ResultSetHeader>(
+    `
+    INSERT INTO joy_woocommerce_order_items (order_item_name, order_item_type, order_id)
+    VALUES (?, 'line_item', ?)
+    `,
+    [item.productName, orderId],
+  );
+  const itemId = itemRes.insertId;
+  const itemMetaValues = [
+    [itemId, "_qty", String(item.quantity)],
+    [itemId, "_line_total", String(item.lineTotal)],
+    [itemId, "_product_id", String(item.productId || 1)],
+  ];
+  for (const [iId, k, v] of itemMetaValues) {
+    await conn.query(
+      "INSERT INTO joy_woocommerce_order_itemmeta (order_item_id, meta_key, meta_value) VALUES (?, ?, ?)",
+      [iId, k, v],
+    );
+  }
+}
+
+/** Replace every line_item on the order with `items` — add, remove, and qty/price all persist. */
+async function replaceOrderLineItems(
+  conn: SqlConn,
+  orderId: number,
+  items: Array<{
+    productId?: number;
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+  }>,
+): Promise<number> {
+  await conn.query(
+    `
+    DELETE m FROM joy_woocommerce_order_itemmeta m
+    INNER JOIN joy_woocommerce_order_items i ON i.order_item_id = m.order_item_id
+    WHERE i.order_id = ? AND i.order_item_type = 'line_item'
+    `,
+    [orderId],
+  );
+  await conn.query(
+    `DELETE FROM joy_woocommerce_order_items WHERE order_id = ? AND order_item_type = 'line_item'`,
+    [orderId],
+  );
+
+  let total = 0;
+  for (const item of items) {
+    const lineTotal = item.quantity * item.unitPrice;
+    total += lineTotal;
+    await insertLineItem(conn, orderId, {
+      productName: item.productName,
+      quantity: item.quantity,
+      lineTotal,
+      productId: item.productId,
+    });
+  }
+  return total;
+}
+
+async function withTransaction<T>(fn: (conn: mysql.PoolConnection) => Promise<T>): Promise<T> {
+  const conn = await getMariaDbPool().getConnection();
+  try {
+    await conn.beginTransaction();
+    const result = await fn(conn);
+    await conn.commit();
+    return result;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 }
 
 /** Fetch Orders from WooCommerce MariaDB schema */
@@ -307,69 +435,53 @@ export interface CreateMariaDbOrderInput {
 
 /** Insert a new WhatsApp AI confirmed order into MariaDB WooCommerce tables */
 export async function createMariaDbOrder(input: CreateMariaDbOrderInput): Promise<WcOrder | null> {
-  const p = getMariaDbPool();
   const nowStr = new Date().toISOString().slice(0, 19).replace("T", " ");
 
   try {
-    const [res] = await p.query<mysql.ResultSetHeader>(
-      `
-      INSERT INTO joy_posts (
-        post_author, post_date, post_date_gmt, post_content, post_title, post_excerpt,
-        post_status, comment_status, ping_status, post_name, post_modified, post_modified_gmt,
-        post_type, to_ping, pinged, post_content_filtered
-      )
-      VALUES (
-        1, ?, ?, '', 'Order', ?,
-        'wc-pending', 'closed', 'closed', ?, ?, ?,
-        'shop_order', '', '', ''
-      )
-    `,
-      [nowStr, nowStr, input.notes || "WhatsApp AI Order", `order-${Date.now()}`, nowStr, nowStr],
-    );
-
-    const orderId = res.insertId;
-
-    const metaValues = [
-      [orderId, "_order_total", String(input.totalAmount)],
-      [orderId, "_billing_first_name", input.customerName],
-      [orderId, "_billing_phone", input.phone],
-      [orderId, "_billing_address_1", input.deliveryAddress || ""],
-      [orderId, "_order_currency", "BDT"],
-    ];
-
-    for (const [pId, k, v] of metaValues) {
-      await p.query("INSERT INTO joy_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)", [
-        pId,
-        k,
-        v,
-      ]);
-    }
-
-    const [itemRes] = await p.query<mysql.ResultSetHeader>(
-      `
-      INSERT INTO joy_woocommerce_order_items (order_item_name, order_item_type, order_id)
-      VALUES (?, 'line_item', ?)
-    `,
-      [input.productName, orderId],
-    );
-
-    const itemId = itemRes.insertId;
-
-    const itemMetaValues = [
-      [itemId, "_qty", String(input.quantity)],
-      [itemId, "_line_total", String(input.totalAmount)],
-      [itemId, "_product_id", String(input.productId || 1)],
-    ];
-
-    for (const [iId, k, v] of itemMetaValues) {
-      await p.query(
-        "INSERT INTO joy_woocommerce_order_itemmeta (order_item_id, meta_key, meta_value) VALUES (?, ?, ?)",
-        [iId, k, v],
+    const orderId = await withTransaction(async (conn) => {
+      const [res] = await conn.query<mysql.ResultSetHeader>(
+        `
+        INSERT INTO joy_posts (
+          post_author, post_date, post_date_gmt, post_content, post_title, post_excerpt,
+          post_status, comment_status, ping_status, post_name, post_modified, post_modified_gmt,
+          post_type, to_ping, pinged, post_content_filtered
+        )
+        VALUES (
+          1, ?, ?, '', 'Order', ?,
+          'wc-pending', 'closed', 'closed', ?, ?, ?,
+          'shop_order', '', '', ''
+        )
+      `,
+        [nowStr, nowStr, input.notes || "WhatsApp AI Order", `order-${Date.now()}`, nowStr, nowStr],
       );
-    }
 
-    const orders = await fetchMariaDbOrders();
-    return orders.find((o) => o.id === orderId) || null;
+      const newOrderId = res.insertId;
+      const metaValues = [
+        [newOrderId, "_order_total", String(input.totalAmount)],
+        [newOrderId, "_billing_first_name", input.customerName],
+        [newOrderId, "_billing_phone", normalizePhone(input.phone)],
+        [newOrderId, "_billing_address_1", input.deliveryAddress || ""],
+        [newOrderId, "_order_currency", "BDT"],
+      ];
+
+      for (const [pId, k, v] of metaValues) {
+        await conn.query(
+          "INSERT INTO joy_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)",
+          [pId, k, v],
+        );
+      }
+
+      await insertLineItem(conn, newOrderId, {
+        productName: input.productName,
+        quantity: input.quantity,
+        lineTotal: input.totalAmount,
+        productId: input.productId,
+      });
+
+      return newOrderId;
+    });
+
+    return await fetchMariaDbOrderById(orderId);
   } catch (err) {
     throw new MariaDbError("Failed to create MariaDB order", { cause: err });
   }
@@ -382,22 +494,20 @@ export async function updateMariaDbOrderStatus(
   _reason?: string,
   proposedMessage?: string,
 ): Promise<WcOrder | null> {
-  const p = getMariaDbPool();
   const wcStatus = mapDigicoStatusToWc(newStatus);
   const nowStr = new Date().toISOString().slice(0, 19).replace("T", " ");
 
   try {
-    await p.query(
-      `UPDATE joy_posts SET post_status = ?, post_modified = ?, post_modified_gmt = ? WHERE ID = ? AND post_type = 'shop_order'`,
-      [wcStatus, nowStr, nowStr, orderId],
-    );
-
-    if (proposedMessage) {
-      await p.query(
-        `INSERT INTO joy_postmeta (post_id, meta_key, meta_value) VALUES (?, '_proposed_message', ?) ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)`,
-        [orderId, proposedMessage],
+    await withTransaction(async (conn) => {
+      await conn.query(
+        `UPDATE joy_posts SET post_status = ?, post_modified = ?, post_modified_gmt = ? WHERE ID = ? AND post_type = 'shop_order'`,
+        [wcStatus, nowStr, nowStr, orderId],
       );
-    }
+
+      if (proposedMessage) {
+        await upsertPostMeta(conn, orderId, "_proposed_message", proposedMessage);
+      }
+    });
 
     return await fetchMariaDbOrderById(orderId);
   } catch (err) {
@@ -422,104 +532,45 @@ export async function updateMariaDbOrder(
     }>;
   },
 ): Promise<WcOrder | null> {
-  const p = getMariaDbPool();
   const nowStr = new Date().toISOString().slice(0, 19).replace("T", " ");
 
   try {
-    if (input.notes !== undefined) {
-      await p.query(
-        `
-      UPDATE joy_posts
-      SET post_excerpt = ?, post_modified = ?, post_modified_gmt = ?
-      WHERE ID = ? AND post_type = 'shop_order'
-      `,
-        [input.notes, nowStr, nowStr, orderId],
-      );
-    }
-
-    if (input.proposedMessage !== undefined) {
-      await p.query(
-        `
-      INSERT INTO joy_postmeta (post_id, meta_key, meta_value)
-      VALUES (?, '_proposed_message', ?)
-      ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)
-      `,
-        [orderId, input.proposedMessage],
-      );
-    }
-
-    if (input.items !== undefined) {
-      const [existingItems] = await p.query<mysql.RowDataPacket[]>(
-        `
-      SELECT
-        i.order_item_id,
-        m1.meta_value AS qty,
-        m2.meta_value AS line_total
-      FROM joy_woocommerce_order_items i
-      LEFT JOIN joy_woocommerce_order_itemmeta m1
-        ON i.order_item_id = m1.order_item_id
-        AND m1.meta_key = '_qty'
-      LEFT JOIN joy_woocommerce_order_itemmeta m2
-        ON i.order_item_id = m2.order_item_id
-        AND m2.meta_key = '_line_total'
-      WHERE i.order_id = ?
-      AND i.order_item_type = 'line_item'
-      ORDER BY i.order_item_id
-      `,
+    await withTransaction(async (conn) => {
+      const [orderRows] = await conn.query<mysql.RowDataPacket[]>(
+        `SELECT ID FROM joy_posts WHERE ID = ? AND post_type = 'shop_order'`,
         [orderId],
       );
+      if (!orderRows[0]) return;
 
-      for (let index = 0; index < input.items.length; index++) {
-        const item = input.items[index];
-        const existingItem = existingItems[index];
-
-        if (!existingItem) {
-          continue;
-        }
-
-        const lineTotal = item.quantity * item.unitPrice;
-
-        await p.query(
+      if (input.notes !== undefined) {
+        await conn.query(
           `
-        UPDATE joy_woocommerce_order_itemmeta
-        SET meta_value = ?
-        WHERE order_item_id = ?
-        AND meta_key = '_qty'
-        `,
-          [String(item.quantity), existingItem.order_item_id],
-        );
-
-        await p.query(
-          `
-        UPDATE joy_woocommerce_order_itemmeta
-        SET meta_value = ?
-        WHERE order_item_id = ?
-        AND meta_key = '_line_total'
-        `,
-          [String(lineTotal), existingItem.order_item_id],
+          UPDATE joy_posts
+          SET post_excerpt = ?, post_modified = ?, post_modified_gmt = ?
+          WHERE ID = ? AND post_type = 'shop_order'
+          `,
+          [input.notes, nowStr, nowStr, orderId],
         );
       }
 
-      const total = input.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+      if (input.proposedMessage !== undefined) {
+        await upsertPostMeta(conn, orderId, "_proposed_message", input.proposedMessage);
+      }
 
-      await p.query(
-        `
-      INSERT INTO joy_postmeta (post_id, meta_key, meta_value)
-      VALUES (?, '_order_total', ?)
-      ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)
-      `,
-        [orderId, String(total)],
-      );
+      if (input.items !== undefined) {
+        const total = await replaceOrderLineItems(conn, orderId, input.items);
+        await upsertPostMeta(conn, orderId, "_order_total", String(total));
+        await conn.query(
+          `
+          UPDATE joy_posts
+          SET post_modified = ?, post_modified_gmt = ?
+          WHERE ID = ? AND post_type = 'shop_order'
+          `,
+          [nowStr, nowStr, orderId],
+        );
+      }
+    });
 
-      await p.query(
-        `
-      UPDATE joy_posts
-      SET post_modified = ?, post_modified_gmt = ?
-      WHERE ID = ? AND post_type = 'shop_order'
-      `,
-        [nowStr, nowStr, orderId],
-      );
-    }
     return await fetchMariaDbOrderById(orderId);
   } catch (err) {
     throw new MariaDbError("Failed to update MariaDB order", { cause: err });
