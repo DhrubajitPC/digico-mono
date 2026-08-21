@@ -2,13 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { getMariaDbMessageDetail, listMariaDbMessages } from "@digico/db";
 import { z } from "zod";
 import { publicProcedure, router } from "../trpc.ts";
-
-const listMessagesInputSchema = z.object({
-  phone: z.string().optional(),
-  status: z.string().optional(),
-  limit: z.number().int().positive().optional(),
-  offset: z.number().int().nonnegative().optional(),
-});
+import { listMessagesInputSchema } from "../schemas.ts";
 
 export const messagesRouter = router({
   list: publicProcedure

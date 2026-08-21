@@ -52,3 +52,20 @@ export const bulkSetOrderStatusInputSchema = z.object({
   status: orderStatusSchema,
   reason: z.string().optional(),
 });
+
+export const listMessagesInputSchema = z.object({
+  phone: z.string().optional(),
+  status: z.string().optional(),
+  limit: z.number().int().positive().optional(),
+  offset: z.number().int().nonnegative().optional(),
+});
+
+export type OrderStatusSchema = z.infer<typeof orderStatusSchema>;
+export type OrderOriginSchema = z.infer<typeof orderOriginSchema>;
+export type OrderItemInputSchema = z.infer<typeof orderItemInputSchema>;
+export type ListOrdersInputSchema = z.infer<typeof listOrdersInputSchema>;
+export type CreateOrderInputSchema = z.infer<typeof createOrderInputSchema>;
+export type UpdateOrderInputSchema = z.infer<typeof updateOrderInputSchema>;
+export type SetOrderStatusInputSchema = z.infer<typeof setOrderStatusInputSchema>;
+export type BulkSetOrderStatusInputSchema = z.infer<typeof bulkSetOrderStatusInputSchema>;
+export type ListMessagesInputSchema = z.infer<typeof listMessagesInputSchema>;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { trpc } from "../trpc.js";
-import type { Order, OrderItem } from "@digico/contracts";
+import type { OrderDetail, SetOrderStatusInput } from "@digico/api";
 import { formatCurrency } from "@digico/utils";
 
 /** Order + product loading, editable line items, message/notes, and the five mutation handlers. */
@@ -9,7 +9,7 @@ export function useOrderReview(
   options: { onRefresh: () => void; onClose: () => void },
 ) {
   const utils = trpc.useUtils();
-  const [editableItems, setEditableItems] = useState<OrderItem[]>([]);
+  const [editableItems, setEditableItems] = useState<OrderDetail["items"]>([]);
   const [proposedMsg, setProposedMsg] = useState("");
   const [notes, setNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -157,7 +157,7 @@ export function useOrderReview(
     }
   };
 
-  const handleSetStatus = async (status: Order["status"], reason?: string) => {
+  const handleSetStatus = async (status: SetOrderStatusInput["status"], reason?: string) => {
     if (!order) return;
     try {
       setIsSaving(true);

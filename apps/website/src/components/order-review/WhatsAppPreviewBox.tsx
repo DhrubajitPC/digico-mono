@@ -1,8 +1,8 @@
 import { Send } from "lucide-react";
-import type { Order } from "@digico/contracts";
+import type { OrderDetail } from "@digico/api";
 
 interface WhatsAppPreviewBoxProps {
-  origin: Order["origin"];
+  origin: OrderDetail["origin"];
   proposedMsg: string;
   onProposedMsgChange: (msg: string) => void;
 }

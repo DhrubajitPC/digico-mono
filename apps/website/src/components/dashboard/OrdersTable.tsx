@@ -1,5 +1,5 @@
 import { Button } from "@digico/design-system";
-import type { RouterOutputs } from "@digico/api";
+import type { OrderListItem, OrderListOutput } from "@digico/api";
 import {
   createColumnHelper,
   createPaginatedRowModel,
@@ -23,8 +23,8 @@ import { ChevronDown, ChevronUp, ChevronsUpDown, Eye } from "lucide-react";
 import { trpc } from "../../trpc";
 import { OrderStatusDropdown } from "./OrderStatusDropdown";
 
-type ListOrdersResult = RouterOutputs["orders"]["list"];
-type OrderRow = ListOrdersResult["items"][number];
+type ListOrdersResult = OrderListOutput;
+type OrderRow = OrderListItem;
 
 // Registered once at module scope: feature APIs do not exist until declared, and a
 // fresh object each render would invalidate the data-dependent row models.

@@ -1,8 +1,8 @@
 import { User } from "lucide-react";
-import type { Dealer } from "@digico/contracts";
+import type { DealerListItem } from "@digico/api";
 
 interface DealerSelectorProps {
-  dealers: Dealer[];
+  dealers: DealerListItem[];
   selectedPhone: string;
   contactName: string;
   onSelectDealer: (phone: string) => void;

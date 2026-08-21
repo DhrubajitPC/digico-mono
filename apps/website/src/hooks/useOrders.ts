@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { trpc } from "../trpc.js";
-import type { Order, OrderOriginType } from "@digico/contracts";
+import type { ListOrdersInput } from "@digico/api";
+import type { OrderOriginType, OrderStatusType } from "@digico/contracts";
 
-const BULK_ACTION_STATUS: Record<string, Order["status"] | null> = {
+const BULK_ACTION_STATUS: Record<string, OrderStatusType | null> = {
   processing: "processing",
   on_hold: "on_hold",
   completed: "completed",
@@ -12,7 +13,7 @@ const BULK_ACTION_STATUS: Record<string, Order["status"] | null> = {
 /** Fetch state, tab/search/origin filters, row selection, and bulk actions for the orders dashboard. */
 export function useOrders() {
   const utils = trpc.useUtils();
-  const [activeTab, setActiveTab] = useState<"all" | Order["status"]>("all");
+  const [activeTab, setActiveTab] = useState<NonNullable<ListOrdersInput["status"]>>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [originFilter, setOriginFilter] = useState<OrderOriginType | "">("");
   const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);

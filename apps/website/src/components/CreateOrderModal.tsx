@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Dialog, Button, Input, Select } from "@digico/design-system";
 import { trpc } from "../trpc.js";
-import type { Dealer, Product } from "@digico/contracts";
+import type { DealerListItem, OrderItemInput, ProductListItem } from "@digico/api";
 import { LineItemsEditor } from "./shared/LineItemsEditor.js";
 
 interface CreateOrderModalProps {
@@ -10,20 +10,12 @@ interface CreateOrderModalProps {
   onSuccess: () => void;
 }
 
-interface NewLineItem {
-  productId: number;
-  sku: string;
-  productName: string;
-  quantity: number;
-  unitPrice: number;
-}
-
 export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalProps) {
-  const [dealersList, setDealersList] = useState<Dealer[]>([]);
-  const [productsList, setProductsList] = useState<Product[]>([]);
+  const [dealersList, setDealersList] = useState<DealerListItem[]>([]);
+  const [productsList, setProductsList] = useState<ProductListItem[]>([]);
   const [selectedDealerPhone, setSelectedDealerPhone] = useState("");
   const [notes, setNotes] = useState("");
-  const [items, setItems] = useState<NewLineItem[]>([]);
+  const [items, setItems] = useState<OrderItemInput[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 

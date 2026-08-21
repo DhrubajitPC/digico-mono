@@ -1,13 +1,13 @@
 import { Button } from "@digico/design-system";
-import type { Order } from "@digico/contracts";
+import type { OrderDetail, SetOrderStatusInput } from "@digico/api";
 import { Save, XCircle, Clock, CheckCircle } from "lucide-react";
 
 interface OrderDrawerActionBarProps {
-  order: Order;
+  order: OrderDetail;
   editableItemsLength: number;
   isSaving: boolean;
   onSaveEdits: () => void;
-  onSetStatus: (status: Order["status"], reason?: string) => void;
+  onSetStatus: (status: SetOrderStatusInput["status"], reason?: string) => void;
   onMarkCompleted: () => void;
   onApproveAndSend: () => void;
 }
