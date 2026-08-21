@@ -253,7 +253,7 @@ export function OrdersTable({
                     className={`transition-colors hover:bg-gray-50/80 cursor-pointer ${
                       isSelected ? "bg-red-50/30" : ""
                     }`}
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={() => onReviewOrder(orderId)}
                   >
                     <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
                       <input
@@ -275,6 +275,9 @@ export function OrdersTable({
                         } ${cell.column.id === "totalAmount" ? "font-bold text-gray-900" : ""} ${
                           cell.column.id === "items" ? "max-w-xs truncate whitespace-normal" : ""
                         }`}
+                        onClick={
+                          cell.column.id === "status" ? (e) => e.stopPropagation() : undefined
+                        }
                       >
                         <table.FlexRender cell={cell} />
                       </td>
