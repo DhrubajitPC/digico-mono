@@ -1,5 +1,5 @@
 import { Button, Input, Select } from "@digico/design-system";
-import type { Product } from "@digico/contracts";
+import type { ProductListItem } from "@digico/api";
 import { CURRENCY_SYMBOL, formatCurrency } from "@digico/utils";
 import { Plus, ShoppingBag, Trash2 } from "lucide-react";
 
@@ -17,7 +17,7 @@ interface LineItemsEditorProps {
   mode: "editable" | "add-only";
   items: LineItemLike[];
   total: number;
-  productsList: Product[];
+  productsList: ProductListItem[];
   selectedSku: string;
   onSelectedSkuChange: (sku: string) => void;
   onAddItem: () => void;

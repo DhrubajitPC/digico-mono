@@ -1,5 +1,5 @@
 import { StatusBadge } from "@digico/design-system";
-import type { Order } from "@digico/contracts";
+import type { OrderDetail } from "@digico/api";
 import { formatCurrency } from "@digico/utils";
 import { MessageSquare, ShoppingBag, Sparkles, User, Bot } from "lucide-react";
 
@@ -21,7 +21,7 @@ const MOCK_WHATSAPP_TRANSCRIPT = [
 ] as const;
 
 interface OrderContextPaneProps {
-  order: Order;
+  order: OrderDetail;
 }
 
 export function OrderContextPane({ order }: OrderContextPaneProps) {

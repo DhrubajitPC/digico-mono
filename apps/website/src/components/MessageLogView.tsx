@@ -1,14 +1,14 @@
 import { useMemo, useState } from "react";
 import { Button, Input, Select } from "@digico/design-system";
 import { trpc } from "../trpc.js";
-import type { LogMessage } from "@digico/contracts";
+import type { MessageListItem } from "@digico/api";
 import { RefreshCw } from "lucide-react";
 
 export function MessageLogView() {
   const utils = trpc.useUtils();
   const [phoneFilter, setPhoneFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [selectedMessage, setSelectedMessage] = useState<LogMessage | null>(null);
+  const [selectedMessage, setSelectedMessage] = useState<MessageListItem | null>(null);
 
   const messagesQuery = trpc.messages.list.useQuery();
 

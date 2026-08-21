@@ -1,15 +1,18 @@
-import type { Order } from "@digico/contracts";
+import type { OrderCounts } from "@digico/api";
+import type { OrderStatusType } from "@digico/contracts";
+
+type TabId = "all" | OrderStatusType;
 
 interface TabItem {
-  id: "all" | Order["status"];
+  id: TabId;
   label: string;
   count: number;
 }
 
 interface DashboardTabsProps {
-  activeTab: "all" | Order["status"];
-  onTabChange: (tabId: "all" | Order["status"]) => void;
-  counts: Record<string, number>;
+  activeTab: TabId;
+  onTabChange: (tabId: TabId) => void;
+  counts: Partial<OrderCounts>;
 }
 
 export function DashboardTabs({ activeTab, onTabChange, counts }: DashboardTabsProps) {

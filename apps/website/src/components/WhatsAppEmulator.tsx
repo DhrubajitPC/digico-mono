@@ -2,14 +2,15 @@ import { useCallback, useEffect, useState } from "react";
 import { MessageCircleCode, RefreshCw } from "lucide-react";
 import { trpc } from "../trpc.js";
 import { getEmulatorChat, sendEmulatorMessage } from "../emulator-api.js";
-import type { Dealer, EmulatorChatMessage } from "@digico/contracts";
+import type { DealerListItem } from "@digico/api";
+import type { EmulatorChatMessage } from "@digico/contracts";
 import { DealerSelector } from "./emulator/DealerSelector.js";
 import { QuickPresets } from "./emulator/QuickPresets.js";
 import { PayloadInspector } from "./emulator/PayloadInspector.js";
 import { ChatWindow } from "./emulator/ChatWindow.js";
 import type { VoiceRecording } from "./emulator/useVoiceRecorder.js";
 
-const PRESET_DEALERS: Dealer[] = [
+const PRESET_DEALERS: DealerListItem[] = [
   {
     id: 1,
     businessName: "Souhardo Ahmed",
@@ -38,7 +39,7 @@ const PRESET_DEALERS: Dealer[] = [
 
 /** WhatsApp emulator testbench: coordinates dealer selection, chat, and payload inspection. */
 export function WhatsAppEmulator() {
-  const [dealers, setDealers] = useState<Dealer[]>(PRESET_DEALERS);
+  const [dealers, setDealers] = useState<DealerListItem[]>(PRESET_DEALERS);
   const [selectedPhone, setSelectedPhone] = useState<string>("+8801711000001");
   const [contactName, setContactName] = useState<string>("Souhardo Ahmed");
 
