@@ -12,6 +12,8 @@
     "check": "vp check"
   },
   "dependencies": {
+    "@radix-ui/react-dropdown-menu": "catalog:",
+    "@radix-ui/react-radio-group": "catalog:",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
     "lucide-react": "catalog:",

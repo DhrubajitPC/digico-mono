@@ -1,4 +1,4 @@
-import { Button, StatusBadge } from "@digico/design-system";
+import { Button } from "@digico/design-system";
 import type { RouterOutputs } from "@digico/api";
 import {
   createColumnHelper,
@@ -20,6 +20,8 @@ import {
   setPageSelection,
 } from "@digico/utils";
 import { ChevronDown, ChevronUp, ChevronsUpDown, Eye } from "lucide-react";
+import { trpc } from "../../trpc";
+import { OrderStatusDropdown } from "./OrderStatusDropdown";
 
 type ListOrdersResult = RouterOutputs["orders"]["list"];
 type OrderRow = ListOrdersResult["items"][number];
@@ -57,57 +59,6 @@ const ALIGN: Record<string, string> = {
   origin: "text-center",
 };
 
-const helper = createColumnHelper<typeof features, OrderRow>();
-
-// The checkbox and Review columns are deliberately NOT column defs: they are
-// affordances rather than data, and keeping them out lets these defs stay static
-// instead of being rebuilt whenever the selection changes.
-const columns = helper.columns([
-  helper.accessor((row) => row.dealer.businessName, {
-    id: "dealer",
-    header: "Order & Dealer",
-    cell: ({ row }) => (
-      <>
-        <span className="text-primary">{row.original.orderNumber}</span>{" "}
-        {row.original.dealer.businessName}
-        <div className="text-xs font-normal text-gray-500">{row.original.dealer.phone}</div>
-      </>
-    ),
-  }),
-  helper.accessor("createdAt", {
-    header: "Date",
-    cell: ({ getValue }) =>
-      new Date(getValue()).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }),
-  }),
-  helper.accessor("status", {
-    header: "Status",
-    cell: ({ getValue }) => <StatusBadge status={getValue()} />,
-  }),
-  helper.display({
-    id: "items",
-    header: "Items / SKUs",
-    cell: ({ row }) => row.original.items.map((i) => `${i.quantity}x ${i.productName}`).join(", "),
-  }),
-  helper.accessor("totalAmount", {
-    header: `Total (${CURRENCY_SYMBOL})`,
-    cell: ({ getValue }) => formatCurrency(getValue()),
-  }),
-  helper.accessor("origin", {
-    header: "Origin",
-    cell: ({ getValue }) => (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
-        {getValue() === "whatsapp_ai" ? "WhatsApp AI" : "Direct Sales"}
-      </span>
-    ),
-  }),
-]);
-
-const COLUMN_COUNT = columns.length + 2; // + checkbox + action
-
 interface OrdersTableProps {
   ordersData: ListOrdersResult | null;
   selectedOrderIds: number[];
@@ -123,6 +74,78 @@ export function OrdersTable({
   onToggleSelectOrder,
   onReviewOrder,
 }: OrdersTableProps) {
+  const utils = trpc.useUtils();
+  const setOrderStatus = trpc.orders.setStatus.useMutation({
+    onSuccess: async () => {
+      await utils.orders.list.invalidate();
+    },
+  });
+  const helper = createColumnHelper<typeof features, OrderRow>();
+
+  // The checkbox and Review columns are deliberately NOT column defs: they are
+  // affordances rather than data, and keeping them out lets these defs stay static
+  // instead of being rebuilt whenever the selection changes.
+  const columns = helper.columns([
+    helper.accessor((row) => row.dealer.businessName, {
+      id: "dealer",
+      header: "Order & Dealer",
+      cell: ({ row }) => (
+        <>
+          <span className="text-primary">{row.original.orderNumber}</span>{" "}
+          {row.original.dealer.businessName}
+          <div className="text-xs font-normal text-gray-500">{row.original.dealer.phone}</div>
+        </>
+      ),
+    }),
+    helper.accessor("createdAt", {
+      header: "Date",
+      cell: ({ getValue }) =>
+        new Date(getValue()).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        }),
+    }),
+    helper.accessor("status", {
+      header: "Status",
+      cell: ({ getValue, row }) => (
+        <OrderStatusDropdown
+          status={getValue()}
+          isSaving={setOrderStatus.isPending}
+          onStatusChange={async (newStatus) => {
+            try {
+              await setOrderStatus.mutateAsync({
+                id: Number(row.original.id),
+                status: newStatus,
+              });
+            } catch (error) {
+              console.error("STATUS UPDATE FAILED:", error);
+            }
+          }}
+        />
+      ),
+    }),
+    helper.display({
+      id: "items",
+      header: "Items / SKUs",
+      cell: ({ row }) =>
+        row.original.items.map((i) => `${i.quantity}x ${i.productName}`).join(", "),
+    }),
+    helper.accessor("totalAmount", {
+      header: `Total (${CURRENCY_SYMBOL})`,
+      cell: ({ getValue }) => formatCurrency(getValue()),
+    }),
+    helper.accessor("origin", {
+      header: "Origin",
+      cell: ({ getValue }) => (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+          {getValue() === "whatsapp_ai" ? "WhatsApp AI" : "Direct Sales"}
+        </span>
+      ),
+    }),
+  ]);
+
+  const COLUMN_COUNT = columns.length + 2; // + checkbox + action
   const table = useTable(
     {
       features,
@@ -252,6 +275,9 @@ export function OrdersTable({
                         } ${cell.column.id === "totalAmount" ? "font-bold text-gray-900" : ""} ${
                           cell.column.id === "items" ? "max-w-xs truncate whitespace-normal" : ""
                         }`}
+                        onClick={
+                          cell.column.id === "status" ? (e) => e.stopPropagation() : undefined
+                        }
                       >
                         <table.FlexRender cell={cell} />
                       </td>
