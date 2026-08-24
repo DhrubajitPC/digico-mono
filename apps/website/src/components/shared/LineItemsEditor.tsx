@@ -1,4 +1,4 @@
-import { Button, Input, Select } from "@digico/design-system";
+import { Button, Input, Select, type OrderStatusType } from "@digico/design-system";
 import type { ProductListItem } from "@digico/api";
 import { CURRENCY_SYMBOL, formatCurrency } from "@digico/utils";
 import { Plus, ShoppingBag, Trash2 } from "lucide-react";
@@ -15,6 +15,7 @@ export interface LineItemLike {
 interface LineItemsEditorProps {
   /** "editable" renders qty/price inputs per row; "add-only" renders them on the picker. */
   mode: "editable" | "add-only";
+  orderStatus?: OrderStatusType;
   items: LineItemLike[];
   total: number;
   productsList: ProductListItem[];
@@ -35,6 +36,7 @@ interface LineItemsEditorProps {
 /** Shared product-picker + line-items table used by the create-order modal and the review drawer. */
 export function LineItemsEditor({
   mode,
+  orderStatus,
   items,
   total,
   productsList,
@@ -49,6 +51,8 @@ export function LineItemsEditor({
   onItemQtyChange,
   onItemPriceChange,
 }: LineItemsEditorProps) {
+  const canChangeQuantity =
+    mode === "editable" && (orderStatus === "pending_review" || orderStatus === "draft");
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -81,7 +85,7 @@ export function LineItemsEditor({
                   <div className="text-xs text-gray-500 font-mono">{item.sku}</div>
                 </td>
                 <td className="p-2.5 text-center">
-                  {mode === "editable" && onItemQtyChange ? (
+                  {canChangeQuantity && onItemQtyChange ? (
                     <Input
                       type="number"
                       min={1}
@@ -94,7 +98,7 @@ export function LineItemsEditor({
                   )}
                 </td>
                 <td className="p-2.5 text-right">
-                  {mode === "editable" && onItemPriceChange ? (
+                  {canChangeQuantity && onItemPriceChange ? (
                     <Input
                       type="number"
                       value={item.unitPrice}
@@ -109,14 +113,16 @@ export function LineItemsEditor({
                   {formatCurrency(item.lineTotal ?? item.quantity * item.unitPrice)}
                 </td>
                 <td className="p-2.5 text-center">
-                  <button
-                    type="button"
-                    onClick={() => onRemoveItem(idx)}
-                    className="text-gray-400 hover:text-red-600 p-1 transition-colors cursor-pointer"
-                    title="Remove item"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {canChangeQuantity && (
+                    <button
+                      type="button"
+                      onClick={() => onRemoveItem(idx)}
+                      className="text-gray-400 hover:text-red-600 p-1 transition-colors cursor-pointer"
+                      title="Remove item"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -143,71 +149,76 @@ export function LineItemsEditor({
       </div>
 
       {/* Add Product Line */}
-      {mode === "editable" ? (
-        <div className="flex items-center gap-2">
-          <Select
-            value={selectedSku}
-            onChange={(e) => onSelectedSkuChange(e.target.value)}
-            className="flex-1 text-sm"
-          >
-            {productsList.map((p) => (
-              <option key={p.id} value={p.sku}>
-                {p.name} — {formatCurrency(p.unitPrice)} ({p.sku})
-              </option>
-            ))}
-          </Select>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onAddItem}
-            disabled={productsList.length === 0}
-          >
-            <Plus className="w-4 h-4" /> Add Product
-          </Button>
-        </div>
-      ) : (
-        <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 space-y-3">
-          <h4 className="text-sm font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-            <ShoppingBag className="w-4 h-4 text-primary" /> Add Line Item
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div className="md:col-span-6">
-              <label className="block text-sm text-gray-600 mb-1">Product SKU</label>
-              <Select value={selectedSku} onChange={(e) => onSelectedSkuChange(e.target.value)}>
+      {canChangeQuantity && (
+        <>
+          {mode === "editable" ? (
+            <div className="flex items-center gap-2">
+              <Select
+                value={selectedSku}
+                onChange={(e) => onSelectedSkuChange(e.target.value)}
+                className="flex-1 text-sm"
+              >
                 {productsList.map((p) => (
                   <option key={p.id} value={p.sku}>
-                    {p.name} (Stock: {p.stockQuantity}) — {formatCurrency(p.unitPrice)}
+                    {p.name} — {formatCurrency(p.unitPrice)} ({p.sku})
                   </option>
                 ))}
               </Select>
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm text-gray-600 mb-1">Qty</label>
-              <Input
-                type="number"
-                min={1}
-                value={addQty}
-                onChange={(e) => onAddQtyChange?.(Number(e.target.value))}
-              />
-            </div>
-            <div className="md:col-span-3">
-              <label className="block text-sm text-gray-600 mb-1">
-                Unit Price ({CURRENCY_SYMBOL})
-              </label>
-              <Input
-                type="number"
-                value={addPrice}
-                onChange={(e) => onAddPriceChange?.(Number(e.target.value))}
-              />
-            </div>
-            <div className="md:col-span-1 flex justify-end">
-              <Button type="button" size="icon" onClick={onAddItem} title="Add Item">
-                <Plus className="w-4 h-4" />
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onAddItem}
+                disabled={productsList.length === 0}
+              >
+                <Plus className="w-4 h-4" /> Add Product
               </Button>
             </div>
-          </div>
-        </div>
+          ) : (
+            <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 space-y-3">
+              <h4 className="text-sm font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                <ShoppingBag className="w-4 h-4 text-primary" /> Add Line Item
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                <div className="md:col-span-6">
+                  <label className="block text-sm text-gray-600 mb-1">Product SKU</label>
+                  <Select value={selectedSku} onChange={(e) => onSelectedSkuChange(e.target.value)}>
+                    {productsList.map((p) => (
+                      <option key={p.id} value={p.sku}>
+                        {p.name} (Stock: {p.stockQuantity}) — {formatCurrency(p.unitPrice)}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm text-gray-600 mb-1">Qty</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={addQty}
+                    onChange={(e) => onAddQtyChange?.(Number(e.target.value))}
+                  />
+                </div>
+                <div className="md:col-span-3">
+                  <label className="block text-sm text-gray-600 mb-1">
+                    Unit Price ({CURRENCY_SYMBOL})
+                  </label>
+                  <Input
+                    type="number"
+                    value={addPrice}
+                    onChange={(e) => onAddPriceChange?.(Number(e.target.value))}
+                  />
+                </div>
+                <div className="md:col-span-1 flex justify-end">
+                  <Button type="button" size="icon" onClick={onAddItem} title="Add Item">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

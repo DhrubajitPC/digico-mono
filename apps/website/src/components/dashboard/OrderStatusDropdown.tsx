@@ -37,6 +37,9 @@ export function OrderStatusDropdown({
       await onStatusChange(newStatus);
     }
   };
+  if (status === "confirmed") {
+    return <StatusBadge status={status} />;
+  }
 
   return (
     <DropdownMenu>
