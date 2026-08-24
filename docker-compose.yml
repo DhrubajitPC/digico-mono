@@ -77,8 +77,7 @@ services:
     container_name: digico-frontend
     restart: unless-stopped
     ports:
-      # No host port 80 here: Caddy owns 80/443 on the host and reverse-proxies
-      # to this container internally. 5173 stays for direct/no-TLS debugging.
+      - "80:80"
       - "5173:80"
     depends_on:
       backend:
@@ -96,31 +95,8 @@ services:
     networks:
       - digico-network
 
-  # Caddy Reverse Proxy — terminates TLS for digicoaibot.xyz and automatically
-  # obtains/renews its Let's Encrypt certificate (HTTP-01 challenge on :80).
-  caddy:
-    image: caddy:2-alpine
-    container_name: digico-caddy
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - digico_caddy_data:/data
-      - digico_caddy_config:/config
-    depends_on:
-      frontend:
-        condition: service_healthy
-    networks:
-      - digico-network
-
 volumes:
   digico_mariadb_data:
-    driver: local
-  digico_caddy_data:
-    driver: local
-  digico_caddy_config:
     driver: local
 
 networks:
