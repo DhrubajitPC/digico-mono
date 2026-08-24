@@ -1,0 +1,9 @@
+{
+	# Optional: uncomment and set a contact email for Let's Encrypt expiry/
+	# revocation notices. Not required for certificate issuance.
+	# email you@example.com
+}
+
+digicoaibot.xyz {
+	reverse_proxy frontend:80
+}
