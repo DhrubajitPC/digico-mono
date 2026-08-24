@@ -28,6 +28,27 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * Fallback dealer confirmation used when DeepSeek returns a pure `draft_order`
+ * tool call with an empty `content` field, so `reply` ends up blank. The order
+ * was recorded, but the dealer would otherwise see nothing — which the emulator
+ * surfaces as "No response generated." Keep it short; the model's own prose (in
+ * the dealer's language) remains the preferred copy.
+ */
+export function buildOrderConfirmationMessage(order: WcOrder): string {
+  const items = (order.items ?? [])
+    .map((i) => `${i.quantity}× ${i.productName} — ৳${i.unitPrice.toLocaleString("en-US")}`)
+    .join("\n");
+  return [
+    "✅ Order recorded & sent for review:",
+    items,
+    `Total: ৳${order.totalAmount.toLocaleString("en-US")}`,
+    `Order: ${order.orderNumber}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 class PipelineLog {
   private id: number | undefined;
 
@@ -328,8 +349,23 @@ export async function handleIncomingMessage(message: IncomingWhatsAppMessage): P
   const deepseekResult = await generateReply(log, userText, context, chatHistory);
 
   // Stage 5: Unified order extraction (tool calls + [ORDER_DATA] tag)
-  const { reply } = await extractOrderPayload(deepseekResult.text, deepseekResult.toolCalls);
+  const { reply, executed, order } = await extractOrderPayload(
+    deepseekResult.text,
+    deepseekResult.toolCalls,
+  );
 
-  // Stage 6: Send final WhatsApp reply
-  await sendReply(log, message, reply);
+  // Stage 6: Send final WhatsApp reply.
+  // DeepSeek sometimes returns a pure draft_order tool call with an empty
+  // content field, which leaves `reply` blank even though the order was created.
+  // Never drop the dealer silently: confirm the order we just recorded, or —
+  // for a benign no-op turn ("thanks", "ok") — send a neutral follow-up instead
+  // of an error, so a human never sees "No response generated."
+  let finalReply = reply.trim();
+  if (finalReply.length === 0) {
+    finalReply =
+      executed && order
+        ? buildOrderConfirmationMessage(order)
+        : "Got it. Is there anything else I can help you with?";
+  }
+  await sendReply(log, message, finalReply);
 }
