@@ -537,10 +537,20 @@ export async function updateMariaDbOrder(
   try {
     await withTransaction(async (conn) => {
       const [orderRows] = await conn.query<mysql.RowDataPacket[]>(
-        `SELECT ID FROM joy_posts WHERE ID = ? AND post_type = 'shop_order'`,
+        `SELECT ID, post_status FROM joy_posts WHERE ID = ? AND post_type = 'shop_order'`,
         [orderId],
       );
-      if (!orderRows[0]) return;
+      const orderRow = orderRows[0];
+
+      if (!orderRow) return;
+
+      if (input.items !== undefined && !["wc-draft", "wc-pending"].includes(orderRow.post_status)) {
+        throw new MariaDbError(
+          "Order items can only be changed when the order is draft or pending.",
+        );
+      }
+
+      // if (!orderRows[0]) return;
 
       if (input.notes !== undefined) {
         await conn.query(

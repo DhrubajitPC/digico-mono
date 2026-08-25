@@ -31,21 +31,24 @@ export function OrderDrawerActionBar({
 
       <div className="flex flex-wrap items-center gap-2">
         {/* Cancel Button */}
-        {order.status !== "cancelled" && order.status !== "completed" && (
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={() => onSetStatus("cancelled", "Rejected by Sales Admin")}
-            disabled={isSaving}
-          >
-            <XCircle className="w-4 h-4" /> Reject / Cancel
-          </Button>
-        )}
+        {order.status !== "cancelled" &&
+          order.status !== "completed" &&
+          order.status !== "confirmed" && (
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={() => onSetStatus("cancelled", "Rejected by Sales Admin")}
+              disabled={isSaving}
+            >
+              <XCircle className="w-4 h-4" /> Reject / Cancel
+            </Button>
+          )}
 
         {/* On-Hold Button */}
         {order.status !== "on_hold" &&
           order.status !== "completed" &&
+          order.status !== "confirmed" &&
           order.status !== "cancelled" && (
             <Button
               type="button"
@@ -59,7 +62,7 @@ export function OrderDrawerActionBar({
           )}
 
         {/* Move to Processing Button */}
-        {order.status === "confirmed" && (
+        {order.status === "pending_review" && (
           <Button
             type="button"
             variant="secondary"
@@ -71,22 +74,40 @@ export function OrderDrawerActionBar({
           </Button>
         )}
 
+        {/* Move to Pending Review Button */}
+        {order.status !== "completed" &&
+          order.status !== "confirmed" &&
+          order.status !== "cancelled" &&
+          order.status !== "pending_review" && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => onSetStatus("pending_review", "Order moved to pending review")}
+              disabled={isSaving}
+            >
+              <Clock className="w-4 h-4" /> Move to Pending Review
+            </Button>
+          )}
+
         {/* Mark as Completed Button */}
-        {order.status !== "completed" && order.status !== "cancelled" && (
-          <Button
-            type="button"
-            variant="default"
-            size="sm"
-            onClick={onMarkCompleted}
-            disabled={isSaving}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
-          >
-            <CheckCircle className="w-4 h-4" /> Mark as Completed
-          </Button>
-        )}
+        {order.status !== "completed" &&
+          order.status !== "cancelled" &&
+          order.status !== "confirmed" && (
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={onMarkCompleted}
+              disabled={isSaving}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <CheckCircle className="w-4 h-4" /> Mark as Completed
+            </Button>
+          )}
 
         {/* Confirm & Send Button for Pending / Hold */}
-        {(order.status === "pending_review" || order.status === "on_hold") && (
+        {(order.status === "pending_review" || order.status === "draft") && (
           <Button
             type="button"
             variant="default"
