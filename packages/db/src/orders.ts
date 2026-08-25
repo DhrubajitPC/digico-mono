@@ -420,6 +420,46 @@ export async function cancelMariaDbOrder(
   return updateMariaDbOrderStatus(orderId, "cancelled", reason);
 }
 
+export async function mergeMariaDbOrders(sourceOrderId: number, targetOrderId: number) {
+  // source = NEW/LATEST order
+  // target = OLD order that will remain
+  const sourceOrder = await fetchMariaDbOrderById(sourceOrderId);
+  const targetOrder = await fetchMariaDbOrderById(targetOrderId);
+
+  if (!sourceOrder || !targetOrder) {
+    throw new Error("One or both orders not found");
+  }
+
+  // Orders with different statuses cannot be merged.
+  if (sourceOrder.status !== targetOrder.status) {
+    throw new Error(
+      `Orders cannot be merged because their statuses are different: ${sourceOrder.status} and ${targetOrder.status}`,
+    );
+  }
+
+  const mergedItems = targetOrder.items.map((targetItem) => {
+    const sourceItem = sourceOrder.items.find((item) => item.productId === targetItem.productId);
+
+    return {
+      productId: targetItem.productId ?? undefined,
+      sku: targetItem.sku,
+      productName: targetItem.productName,
+      quantity: targetItem.quantity + (sourceItem?.quantity ?? 0),
+      unitPrice: targetItem.unitPrice,
+    };
+  });
+
+  await updateMariaDbOrder(targetOrderId, {
+    items: mergedItems,
+    notes: targetOrder.notes ?? undefined,
+  });
+
+  // Delete the new/latest order only after successful merge.
+  await deleteMariaDbOrder(sourceOrderId);
+
+  return await fetchMariaDbOrderById(targetOrderId);
+}
+
 export interface CreateMariaDbOrderInput {
   phone: string;
   customerName: string;
@@ -512,6 +552,73 @@ export async function updateMariaDbOrderStatus(
     return await fetchMariaDbOrderById(orderId);
   } catch (err) {
     throw new MariaDbError("Failed to update MariaDB order status", {
+      cause: err,
+    });
+  }
+}
+
+/** Permanently delete an order and all of its related WooCommerce data. */
+export async function deleteMariaDbOrder(orderId: number): Promise<boolean> {
+  try {
+    return await withTransaction(async (conn) => {
+      // Make sure the order exists.
+      const [orderRows] = await conn.query<mysql.RowDataPacket[]>(
+        `
+        SELECT ID
+        FROM joy_posts
+        WHERE ID = ? AND post_type = 'shop_order'
+        LIMIT 1
+        `,
+        [orderId],
+      );
+
+      if (!orderRows[0]) {
+        return false;
+      }
+
+      // Delete order item metadata first.
+      await conn.query(
+        `
+        DELETE m
+        FROM joy_woocommerce_order_itemmeta m
+        INNER JOIN joy_woocommerce_order_items i
+          ON i.order_item_id = m.order_item_id
+        WHERE i.order_id = ?
+        `,
+        [orderId],
+      );
+
+      // Delete order line items.
+      await conn.query(
+        `
+        DELETE FROM joy_woocommerce_order_items
+        WHERE order_id = ?
+        `,
+        [orderId],
+      );
+
+      // Delete order metadata.
+      await conn.query(
+        `
+        DELETE FROM joy_postmeta
+        WHERE post_id = ?
+        `,
+        [orderId],
+      );
+
+      // Finally delete the WooCommerce order itself.
+      await conn.query(
+        `
+        DELETE FROM joy_posts
+        WHERE ID = ? AND post_type = 'shop_order'
+        `,
+        [orderId],
+      );
+
+      return true;
+    });
+  } catch (err) {
+    throw new MariaDbError("Failed to delete MariaDB order", {
       cause: err,
     });
   }

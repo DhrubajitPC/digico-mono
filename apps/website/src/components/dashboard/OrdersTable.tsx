@@ -82,6 +82,108 @@ export function OrdersTable({
   });
   const helper = createColumnHelper<typeof features, OrderRow>();
 
+  const mergeOrders = trpc.orders.merge.useMutation({
+    onSuccess: async () => {
+      await utils.orders.list.invalidate();
+    },
+  });
+
+  const findMatchingOrder = (order: OrderRow) => {
+    const orders = ordersData?.items ?? EMPTY_ROWS;
+
+    const matchingOrders = orders.filter((otherOrder) => {
+      if (otherOrder.id === order.id) {
+        return false;
+      }
+
+      // Same order status
+      if (otherOrder.status !== order.status) {
+        return false;
+      }
+
+      // Same customer/phone
+      const samePhone =
+        String(otherOrder.dealer.phone).trim() === String(order.dealer.phone).trim();
+
+      if (!samePhone) {
+        return false;
+      }
+
+      // Same day
+      const orderDate = new Date(order.createdAt);
+      const otherOrderDate = new Date(otherOrder.createdAt);
+
+      const sameDay =
+        orderDate.getFullYear() === otherOrderDate.getFullYear() &&
+        orderDate.getMonth() === otherOrderDate.getMonth() &&
+        orderDate.getDate() === otherOrderDate.getDate();
+
+      if (!sameDay) {
+        return false;
+      }
+
+      // Same exact product set, quantity ignored
+      const productsA = new Set(order.items.map((item) => String(item.productId)));
+
+      const productsB = new Set(otherOrder.items.map((item) => String(item.productId)));
+
+      if (productsA.size !== productsB.size) {
+        return false;
+      }
+
+      return [...productsA].every((productId) => productsB.has(productId));
+    });
+
+    if (matchingOrders.length === 0) {
+      return null;
+    }
+
+    // Find the newest order among all compatible orders
+    const latestOrder = [order, ...matchingOrders].reduce((latest, current) =>
+      new Date(current.createdAt).getTime() > new Date(latest.createdAt).getTime()
+        ? current
+        : latest,
+    );
+
+    // Only the latest order gets the Merge button
+    if (latestOrder.id !== order.id) {
+      return null;
+    }
+
+    // Return the newest compatible order before this one
+    const previousOrders = matchingOrders.filter(
+      (matchingOrder) =>
+        new Date(matchingOrder.createdAt).getTime() < new Date(order.createdAt).getTime(),
+    );
+
+    if (previousOrders.length === 0) {
+      return null;
+    }
+
+    return previousOrders.reduce((latest, current) =>
+      new Date(current.createdAt).getTime() > new Date(latest.createdAt).getTime()
+        ? current
+        : latest,
+    );
+  };
+
+  const handleMerge = async (order: OrderRow) => {
+    // order = latest/new order
+    const matchingOrder = findMatchingOrder(order);
+
+    if (!matchingOrder) {
+      return;
+    }
+
+    try {
+      await mergeOrders.mutateAsync({
+        sourceOrderId: order.id, // latest/new → delete
+        targetOrderId: matchingOrder.id, // old → keep
+      });
+    } catch (error) {
+      console.error("MERGE FAILED:", error);
+    }
+  };
   // The checkbox and Review columns are deliberately NOT column defs: they are
   // affordances rather than data, and keeping them out lets these defs stay static
   // instead of being rebuilt whenever the selection changes.
@@ -91,9 +193,31 @@ export function OrdersTable({
       header: "Order & Dealer",
       cell: ({ row }) => (
         <>
-          <span className="text-primary">{row.original.orderNumber}</span>{" "}
+          {/* <span className="text-primary">{row.original.orderNumber}</span>{" "}
           {row.original.dealer.businessName}
-          <div className="text-xs font-normal text-gray-500">{row.original.dealer.phone}</div>
+          <div className="text-xs font-normal text-gray-500">{row.original.dealer.phone}</div> */}
+          <div>
+            <div>
+              <span className="text-primary">{row.original.orderNumber}</span>{" "}
+              {row.original.dealer.businessName}{" "}
+            </div>
+            <div className="flex items-center gap-2 text-xs font-normal text-gray-500">
+              <span>{row.original.dealer.phone}</span>
+              {findMatchingOrder(row.original) ? (
+                <button
+                  type="button"
+                  className="text-primary font-medium hover:underline"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    void handleMerge(row.original);
+                  }}
+                >
+                  Merge
+                </button>
+              ) : null}
+            </div>
+          </div>
         </>
       ),
     }),

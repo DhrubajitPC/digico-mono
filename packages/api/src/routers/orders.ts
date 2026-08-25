@@ -6,6 +6,7 @@ import {
   fetchMariaDbDealerByPhone,
   fetchMariaDbOrderById,
   fetchMariaDbOrders,
+  mergeMariaDbOrders,
   updateMariaDbOrder,
   updateMariaDbOrderStatus,
 } from "@digico/db";
@@ -15,6 +16,7 @@ import {
   bulkSetOrderStatusInputSchema,
   createOrderInputSchema,
   listOrdersInputSchema,
+  mergeOrdersInputSchema,
   setOrderStatusInputSchema,
   updateOrderInputSchema,
 } from "../schemas.ts";
@@ -24,7 +26,10 @@ const EMPTY_HISTORY: OrderHistoryItem[] = [];
 /** Error mapping mirrors the old REST routes: MariaDbError → 500, not-found → 404. */
 function dbErrorToTrpc(err: unknown): never {
   if (err instanceof MariaDbError) {
-    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: err.message });
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: err.message,
+    });
   }
   throw err;
 }
@@ -93,7 +98,11 @@ export const ordersRouter = router({
     const { id, ...body } = input;
     try {
       const updated = await updateMariaDbOrder(id, body);
-      if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+      if (!updated)
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Order not found",
+        });
       return updated;
     } catch (err) {
       return dbErrorToTrpc(err);
@@ -108,8 +117,38 @@ export const ordersRouter = router({
         input.reason,
         input.proposedMessage,
       );
-      if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+      if (!updated)
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Order not found",
+        });
       return updated;
+    } catch (err) {
+      return dbErrorToTrpc(err);
+    }
+  }),
+
+  merge: publicProcedure.input(mergeOrdersInputSchema).mutation(async ({ input }) => {
+    if (input.sourceOrderId === input.targetOrderId) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Cannot merge an order with itself",
+      });
+    }
+
+    try {
+      const sourceOrder = await fetchMariaDbOrderById(input.sourceOrderId);
+
+      const targetOrder = await fetchMariaDbOrderById(input.targetOrderId);
+
+      if (!sourceOrder || !targetOrder) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "One or both orders were not found",
+        });
+      }
+
+      return await mergeMariaDbOrders(input.sourceOrderId, input.targetOrderId);
     } catch (err) {
       return dbErrorToTrpc(err);
     }

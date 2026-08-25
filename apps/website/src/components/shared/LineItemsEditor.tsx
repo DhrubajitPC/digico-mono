@@ -52,7 +52,8 @@ export function LineItemsEditor({
   onItemPriceChange,
 }: LineItemsEditorProps) {
   const canChangeQuantity =
-    mode === "editable" && (orderStatus === "pending_review" || orderStatus === "draft");
+    (mode === "editable" || mode === "add-only") &&
+    (orderStatus === "pending_review" || orderStatus === "draft");
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
