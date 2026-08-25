@@ -91,12 +91,22 @@ export function OrdersTable({
   const findMatchingOrder = (order: OrderRow) => {
     const orders = ordersData?.items ?? EMPTY_ROWS;
 
+    const nonMergeableStatuses = ["confirmed", "completed", "cancelled"] as const;
+
     const matchingOrders = orders.filter((otherOrder) => {
       if (otherOrder.id === order.id) {
         return false;
       }
 
-      // Same order status
+      // Confirmed, completed and cancelled orders cannot be merged
+      if (
+        nonMergeableStatuses.includes(order.status as (typeof nonMergeableStatuses)[number]) ||
+        nonMergeableStatuses.includes(otherOrder.status as (typeof nonMergeableStatuses)[number])
+      ) {
+        return false;
+      }
+
+      // Status must be the same
       if (otherOrder.status !== order.status) {
         return false;
       }
@@ -150,7 +160,7 @@ export function OrdersTable({
       return null;
     }
 
-    // Return the newest compatible order before this one
+    // Find the newest compatible order before this one
     const previousOrders = matchingOrders.filter(
       (matchingOrder) =>
         new Date(matchingOrder.createdAt).getTime() < new Date(order.createdAt).getTime(),
