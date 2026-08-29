@@ -31,17 +31,17 @@ help:
 dev: mariadb-up
 	@docker compose stop backend frontend 2>/dev/null || true
 	@echo "Stale Docker app containers stopped (mariadb kept running)."
-	pnpm --filter whatsapp-webhook dev & pnpm --filter website dev
+	vp run whatsapp-webhook#dev & vp run website#dev
 
 ## backend: Run backend Fastify API
 backend:
 	@docker compose stop backend frontend 2>/dev/null || true
-	pnpm --filter whatsapp-webhook dev
+	vp run whatsapp-webhook#dev
 
 ## frontend: Run frontend React 19 web app
 frontend:
 	@docker compose stop backend frontend 2>/dev/null || true
-	pnpm --filter website dev
+	vp run website#dev
 
 ## mariadb-up: Launch MariaDB container with docker compose
 mariadb-up:
@@ -61,19 +61,19 @@ test-entrypoint:
 
 ## check: Format, lint and type-check all workspaces
 check:
-	pnpm --filter @digico/db check && pnpm --filter whatsapp-webhook check && pnpm --filter website exec vp check
+	vp check
 
 ## check-fix: Format and auto-fix all workspaces
 check-fix:
-	pnpm --filter @digico/db exec vp check --fix && pnpm --filter whatsapp-webhook exec vp check --fix && pnpm --filter website exec vp check --fix
+	vp check --fix
 
 ## build: Build website production bundle
 build:
-	pnpm --filter website build
+	vp run website#build
 
 ## seed: Populate MariaDB database with WooCommerce export.sql seed data
 seed:
-	pnpm --filter whatsapp-webhook seed
+	vp run whatsapp-webhook#seed
 
 ## clean-db: Reset local MariaDB database container volume
 clean-db:
