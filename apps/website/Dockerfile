@@ -6,14 +6,17 @@ WORKDIR /app
 # Install git for prepare scripts
 RUN apk add --no-cache git
 
-# Enable Corepack for pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
 # Bypass minimum release age policy inside Docker build
 ENV PNPM_CONFIG_MINIMUM_RELEASE_AGE=0
 
 # Copy root workspace configs
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+# Enable Corepack and activate the pnpm version pinned in package.json's
+# `packageManager` field. This runs after the COPY so the version has a single
+# source of truth; `pnpm@latest` would silently drift off the pinned version
+# the lockfile was resolved with.
+RUN corepack enable && corepack prepare --activate
 
 # Copy packages and frontend app
 COPY packages/ ./packages/
