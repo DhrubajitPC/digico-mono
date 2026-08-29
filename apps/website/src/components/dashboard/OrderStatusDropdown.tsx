@@ -7,6 +7,7 @@ import {
   StatusBadge,
 } from "@digico/design-system";
 import type { OrderStatusType } from "@digico/contracts";
+import { orderStatusCapabilities } from "@digico/contracts";
 import { ChevronDown } from "lucide-react";
 
 const statusOptions: OrderStatusType[] = [
@@ -37,7 +38,9 @@ export function OrderStatusDropdown({
       await onStatusChange(newStatus);
     }
   };
-  if (status === "confirmed") {
+  const canChangeStatus = orderStatusCapabilities[status].canChangeStatus;
+
+  if (!canChangeStatus) {
     return <StatusBadge status={status} />;
   }
 

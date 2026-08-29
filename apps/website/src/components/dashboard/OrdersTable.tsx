@@ -1,5 +1,7 @@
 import { Button } from "@digico/design-system";
 import type { OrderListItem, OrderListOutput } from "@digico/api";
+import { toast } from "sonner";
+import { orderStatusCapabilities } from "@digico/contracts";
 import {
   createColumnHelper,
   createPaginatedRowModel,
@@ -91,17 +93,18 @@ export function OrdersTable({
   const findMatchingOrder = (order: OrderRow) => {
     const orders = ordersData?.items ?? EMPTY_ROWS;
 
-    const nonMergeableStatuses = ["confirmed", "completed", "cancelled"] as const;
+    const mergeableStatuses = ["pending_review", "processing", "on_hold"] as const;
+    // const mergeableStatuses = ["pending_review"] as const;
 
     const matchingOrders = orders.filter((otherOrder) => {
       if (otherOrder.id === order.id) {
         return false;
       }
 
-      // Confirmed, completed and cancelled orders cannot be merged
+      // Only pending_review orders can be merged
       if (
-        nonMergeableStatuses.includes(order.status as (typeof nonMergeableStatuses)[number]) ||
-        nonMergeableStatuses.includes(otherOrder.status as (typeof nonMergeableStatuses)[number])
+        !mergeableStatuses.includes(order.status as (typeof mergeableStatuses)[number]) ||
+        !mergeableStatuses.includes(otherOrder.status as (typeof mergeableStatuses)[number])
       ) {
         return false;
       }
@@ -190,8 +193,10 @@ export function OrdersTable({
         sourceOrderId: order.id, // latest/new → delete
         targetOrderId: matchingOrder.id, // old → keep
       });
+
+      toast.success("Orders merged successfully.");
     } catch (error) {
-      console.error("MERGE FAILED:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to merge orders.");
     }
   };
   // The checkbox and Review columns are deliberately NOT column defs: they are
@@ -213,6 +218,7 @@ export function OrdersTable({
             </div>
             <div className="flex items-center gap-2 text-xs font-normal text-gray-500">
               <span>{row.original.dealer.phone}</span>
+              {/* {orderStatusCapabilities[row.original.status].canMerge && */}
               {findMatchingOrder(row.original) ? (
                 <button
                   type="button"

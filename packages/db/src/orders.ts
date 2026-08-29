@@ -420,6 +420,113 @@ export async function cancelMariaDbOrder(
   return updateMariaDbOrderStatus(orderId, "cancelled", reason);
 }
 
+async function updateMariaDbOrderInTransaction(
+  conn: mysql.PoolConnection,
+  orderId: number,
+  input: {
+    notes?: string;
+    proposedMessage?: string;
+    items?: Array<{
+      productId?: number;
+      sku: string;
+      productName: string;
+      quantity: number;
+      unitPrice: number;
+    }>;
+  },
+): Promise<void> {
+  const nowStr = new Date().toISOString().slice(0, 19).replace("T", " ");
+
+  const [orderRows] = await conn.query<mysql.RowDataPacket[]>(
+    `SELECT ID, post_status
+     FROM joy_posts
+     WHERE ID = ? AND post_type = 'shop_order'`,
+    [orderId],
+  );
+
+  const orderRow = orderRows[0];
+
+  if (!orderRow) {
+    throw new MariaDbError("Order not found");
+  }
+
+  if (input.items !== undefined && !["wc-draft", "wc-pending"].includes(orderRow.post_status)) {
+    throw new MariaDbError("Order items can only be changed when the order is draft or pending.");
+  }
+
+  if (input.notes !== undefined) {
+    await conn.query(
+      `UPDATE joy_posts
+       SET post_excerpt = ?, post_modified = ?, post_modified_gmt = ?
+       WHERE ID = ? AND post_type = 'shop_order'`,
+      [input.notes, nowStr, nowStr, orderId],
+    );
+  }
+
+  if (input.proposedMessage !== undefined) {
+    await upsertPostMeta(conn, orderId, "_proposed_message", input.proposedMessage);
+  }
+
+  if (input.items !== undefined) {
+    const total = await replaceOrderLineItems(conn, orderId, input.items);
+
+    await upsertPostMeta(conn, orderId, "_order_total", String(total));
+
+    await conn.query(
+      `UPDATE joy_posts
+       SET post_modified = ?, post_modified_gmt = ?
+       WHERE ID = ? AND post_type = 'shop_order'`,
+      [nowStr, nowStr, orderId],
+    );
+  }
+}
+
+async function deleteMariaDbOrderInTransaction(
+  conn: mysql.PoolConnection,
+  orderId: number,
+): Promise<boolean> {
+  const [orderRows] = await conn.query<mysql.RowDataPacket[]>(
+    `SELECT ID
+     FROM joy_posts
+     WHERE ID = ? AND post_type = 'shop_order'
+     LIMIT 1`,
+    [orderId],
+  );
+
+  if (!orderRows[0]) {
+    return false;
+  }
+
+  await conn.query(
+    `DELETE m
+     FROM joy_woocommerce_order_itemmeta m
+     INNER JOIN joy_woocommerce_order_items i
+       ON i.order_item_id = m.order_item_id
+     WHERE i.order_id = ?`,
+    [orderId],
+  );
+
+  await conn.query(
+    `DELETE FROM joy_woocommerce_order_items
+     WHERE order_id = ?`,
+    [orderId],
+  );
+
+  await conn.query(
+    `DELETE FROM joy_postmeta
+     WHERE post_id = ?`,
+    [orderId],
+  );
+
+  await conn.query(
+    `DELETE FROM joy_posts
+     WHERE ID = ? AND post_type = 'shop_order'`,
+    [orderId],
+  );
+
+  return true;
+}
+
 export async function mergeMariaDbOrders(sourceOrderId: number, targetOrderId: number) {
   // source = NEW/LATEST order
   // target = OLD order that will remain
@@ -427,35 +534,104 @@ export async function mergeMariaDbOrders(sourceOrderId: number, targetOrderId: n
   const targetOrder = await fetchMariaDbOrderById(targetOrderId);
 
   if (!sourceOrder || !targetOrder) {
-    throw new Error("One or both orders not found");
+    throw new MariaDbError("One or both orders not found");
   }
 
   // Orders with different statuses cannot be merged.
   if (sourceOrder.status !== targetOrder.status) {
-    throw new Error(
+    throw new MariaDbError(
       `Orders cannot be merged because their statuses are different: ${sourceOrder.status} and ${targetOrder.status}`,
     );
   }
 
+  // Validate that both orders contain the same product set.
+  const sourceProductIds = new Set(sourceOrder.items.map((item) => item.productId));
+
+  const targetProductIds = new Set(targetOrder.items.map((item) => item.productId));
+
+  const sameProductSet =
+    sourceProductIds.size === targetProductIds.size &&
+    [...sourceProductIds].every((productId) => targetProductIds.has(productId));
+
+  if (!sameProductSet) {
+    throw new MariaDbError("Orders cannot be merged because they contain different products");
+  }
+
+  // const mergedItems = targetOrder.items.map((targetItem) => {
+  //   const sourceItem = sourceOrder.items.find((item) => item.productId === targetItem.productId);
+
+  //   return {
+  //     productId: targetItem.productId ?? undefined,
+  //     sku: targetItem.sku,
+  //     productName: targetItem.productName,
+  //     quantity: targetItem.quantity + (sourceItem?.quantity ?? 0),
+  //     unitPrice: targetItem.unitPrice,
+  //   };
+  // });
+
+  const remainingSourceItems = [...sourceOrder.items];
+
   const mergedItems = targetOrder.items.map((targetItem) => {
-    const sourceItem = sourceOrder.items.find((item) => item.productId === targetItem.productId);
+    const sourceIndex = remainingSourceItems.findIndex((sourceItem) => {
+      if (targetItem.productId !== null && sourceItem.productId !== null) {
+        return sourceItem.productId === targetItem.productId;
+      }
+
+      if (targetItem.productId === null && sourceItem.productId === null) {
+        return sourceItem.sku === targetItem.sku;
+      }
+
+      return false;
+    });
+
+    if (sourceIndex === -1) {
+      return {
+        productId: targetItem.productId ?? undefined,
+        sku: targetItem.sku,
+        productName: targetItem.productName,
+        quantity: targetItem.quantity,
+        unitPrice: targetItem.unitPrice,
+      };
+    }
+
+    const sourceItem = remainingSourceItems[sourceIndex];
+
+    // Consume this source item so it cannot be matched again.
+    remainingSourceItems.splice(sourceIndex, 1);
 
     return {
       productId: targetItem.productId ?? undefined,
       sku: targetItem.sku,
       productName: targetItem.productName,
-      quantity: targetItem.quantity + (sourceItem?.quantity ?? 0),
+      quantity: targetItem.quantity + sourceItem.quantity,
       unitPrice: targetItem.unitPrice,
     };
   });
 
-  await updateMariaDbOrder(targetOrderId, {
-    items: mergedItems,
-    notes: targetOrder.notes ?? undefined,
+  await withTransaction(async (conn) => {
+    await updateMariaDbOrderInTransaction(conn, targetOrderId, {
+      items: mergedItems,
+      notes: targetOrder.notes ?? undefined,
+    });
+
+    // if (!updated) {
+    //   throw new Error("Target order could not be updated");
+    // }
+
+    const deleted = await deleteMariaDbOrderInTransaction(conn, sourceOrderId);
+
+    if (!deleted) {
+      throw new MariaDbError("Source order could not be deleted");
+    }
   });
 
-  // Delete the new/latest order only after successful merge.
-  await deleteMariaDbOrder(sourceOrderId);
+  // await updateMariaDbOrder(targetOrderId, {
+  //   items: mergedItems,
+  //   notes: targetOrder.notes ?? undefined,
+  // });
+
+  // // Delete the new/latest order only after successful merge.
+  // await deleteMariaDbOrder(sourceOrderId);
 
   return await fetchMariaDbOrderById(targetOrderId);
 }
@@ -557,73 +733,6 @@ export async function updateMariaDbOrderStatus(
   }
 }
 
-/** Permanently delete an order and all of its related WooCommerce data. */
-export async function deleteMariaDbOrder(orderId: number): Promise<boolean> {
-  try {
-    return await withTransaction(async (conn) => {
-      // Make sure the order exists.
-      const [orderRows] = await conn.query<mysql.RowDataPacket[]>(
-        `
-        SELECT ID
-        FROM joy_posts
-        WHERE ID = ? AND post_type = 'shop_order'
-        LIMIT 1
-        `,
-        [orderId],
-      );
-
-      if (!orderRows[0]) {
-        return false;
-      }
-
-      // Delete order item metadata first.
-      await conn.query(
-        `
-        DELETE m
-        FROM joy_woocommerce_order_itemmeta m
-        INNER JOIN joy_woocommerce_order_items i
-          ON i.order_item_id = m.order_item_id
-        WHERE i.order_id = ?
-        `,
-        [orderId],
-      );
-
-      // Delete order line items.
-      await conn.query(
-        `
-        DELETE FROM joy_woocommerce_order_items
-        WHERE order_id = ?
-        `,
-        [orderId],
-      );
-
-      // Delete order metadata.
-      await conn.query(
-        `
-        DELETE FROM joy_postmeta
-        WHERE post_id = ?
-        `,
-        [orderId],
-      );
-
-      // Finally delete the WooCommerce order itself.
-      await conn.query(
-        `
-        DELETE FROM joy_posts
-        WHERE ID = ? AND post_type = 'shop_order'
-        `,
-        [orderId],
-      );
-
-      return true;
-    });
-  } catch (err) {
-    throw new MariaDbError("Failed to delete MariaDB order", {
-      cause: err,
-    });
-  }
-}
-
 /** Update MariaDB order details */
 export async function updateMariaDbOrder(
   orderId: number,
@@ -649,7 +758,7 @@ export async function updateMariaDbOrder(
       );
       const orderRow = orderRows[0];
 
-      if (!orderRow) return;
+      if (!orderRow) return false;
 
       if (input.items !== undefined && !["wc-draft", "wc-pending"].includes(orderRow.post_status)) {
         throw new MariaDbError(
@@ -690,6 +799,7 @@ export async function updateMariaDbOrder(
 
     return await fetchMariaDbOrderById(orderId);
   } catch (err) {
+    if (err instanceof MariaDbError) throw err;
     throw new MariaDbError("Failed to update MariaDB order", { cause: err });
   }
 }

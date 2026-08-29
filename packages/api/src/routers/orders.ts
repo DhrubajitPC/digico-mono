@@ -11,6 +11,7 @@ import {
   updateMariaDbOrderStatus,
 } from "@digico/db";
 import type { OrderHistoryItem } from "@digico/contracts";
+import { orderStatusCapabilities } from "@digico/contracts";
 import { publicProcedure, router } from "../trpc.ts";
 import {
   bulkSetOrderStatusInputSchema,
@@ -158,6 +159,30 @@ export const ordersRouter = router({
     .input(bulkSetOrderStatusInputSchema)
     .mutation(async ({ input }) => {
       try {
+        // for (const id of input.orderIds) {
+        //   await updateMariaDbOrderStatus(id, input.status, input.reason);
+        // }
+
+        // Validate all orders before updating any order
+        for (const id of input.orderIds) {
+          const order = await fetchMariaDbOrderById(id);
+
+          if (!order) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: `Order ${id} not found.`,
+            });
+          }
+
+          if (!orderStatusCapabilities[order.status].canBulkChangeStatus) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Order ${order.orderNumber} cannot be changed ` + `from ${order.status}.`,
+            });
+          }
+        }
+
+        // Update only after all orders pass validation
         for (const id of input.orderIds) {
           await updateMariaDbOrderStatus(id, input.status, input.reason);
         }
