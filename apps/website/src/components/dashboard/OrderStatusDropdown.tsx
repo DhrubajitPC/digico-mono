@@ -9,6 +9,7 @@ import {
 import type { OrderStatusType } from "@digico/contracts";
 import { orderStatusCapabilities } from "@digico/contracts";
 import { ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 
 const statusOptions: OrderStatusType[] = [
   "draft",
@@ -34,8 +35,17 @@ export function OrderStatusDropdown({
   disabled = false,
 }: OrderStatusDropdownProps) {
   const handleSelect = async (newStatus: OrderStatusType) => {
-    if (newStatus !== status) {
+    //
+    if (newStatus === status) {
+      return;
+    }
+
+    try {
       await onStatusChange(newStatus);
+
+      toast.success(`Order status changed to ${newStatus.replace("_", " ")}.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update order status.");
     }
   };
   const canChangeStatus = orderStatusCapabilities[status].canChangeStatus;

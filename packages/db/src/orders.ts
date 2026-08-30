@@ -450,8 +450,12 @@ async function updateMariaDbOrderInTransaction(
     throw new MariaDbError("Order not found");
   }
 
-  if (input.items !== undefined && !["wc-draft", "wc-pending"].includes(orderRow.post_status)) {
-    throw new MariaDbError("Order items can only be changed when the order is draft or pending.");
+  if (
+    input.items !== undefined &&
+    // !["wc-draft", "wc-pending"].includes(orderRow.post_status)
+    !["wc-pending"].includes(orderRow.post_status)
+  ) {
+    throw new MariaDbError("Order items can only be changed when the order is pending.");
   }
 
   if (input.notes !== undefined) {
@@ -765,8 +769,6 @@ export async function updateMariaDbOrder(
           "Order items can only be changed when the order is draft or pending.",
         );
       }
-
-      // if (!orderRows[0]) return;
 
       if (input.notes !== undefined) {
         await conn.query(

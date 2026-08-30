@@ -2,6 +2,8 @@ import { Button } from "@digico/design-system";
 import type { OrderListItem, OrderListOutput } from "@digico/api";
 import { toast } from "sonner";
 import { orderStatusCapabilities } from "@digico/contracts";
+import type { OrderStatusType } from "@digico/contracts";
+import { useMemo } from "react";
 import {
   createColumnHelper,
   createPaginatedRowModel,
@@ -90,99 +92,222 @@ export function OrdersTable({
     },
   });
 
-  const findMatchingOrder = (order: OrderRow) => {
-    const orders = ordersData?.items ?? EMPTY_ROWS;
+  // const findMatchingOrder = (order: OrderRow) => {
+  //   const orders = ordersData?.items ?? EMPTY_ROWS;
 
-    const mergeableStatuses = ["pending_review", "processing", "on_hold"] as const;
-    // const mergeableStatuses = ["pending_review"] as const;
+  //   const mergeableStatuses = [
+  //     "pending_review",
+  //     "processing",
+  //     "on_hold",
+  //   ] as const;
+  //   // const mergeableStatuses = ["pending_review"] as const;
 
-    const matchingOrders = orders.filter((otherOrder) => {
-      if (otherOrder.id === order.id) {
-        return false;
+  //   const matchingOrders = orders.filter((otherOrder) => {
+  //     if (otherOrder.id === order.id) {
+  //       return false;
+  //     }
+
+  //     // Only pending_review orders can be merged
+  //     if (
+  //       !mergeableStatuses.includes(
+  //         order.status as (typeof mergeableStatuses)[number],
+  //       ) ||
+  //       !mergeableStatuses.includes(
+  //         otherOrder.status as (typeof mergeableStatuses)[number],
+  //       )
+  //     ) {
+  //       return false;
+  //     }
+
+  //     // Status must be the same
+  //     if (otherOrder.status !== order.status) {
+  //       return false;
+  //     }
+
+  //     // Same customer/phone
+  //     const samePhone =
+  //       String(otherOrder.dealer.phone).trim() ===
+  //       String(order.dealer.phone).trim();
+
+  //     if (!samePhone) {
+  //       return false;
+  //     }
+
+  //     // Same day
+  //     const orderDate = new Date(order.createdAt);
+  //     const otherOrderDate = new Date(otherOrder.createdAt);
+
+  //     const sameDay =
+  //       orderDate.getFullYear() === otherOrderDate.getFullYear() &&
+  //       orderDate.getMonth() === otherOrderDate.getMonth() &&
+  //       orderDate.getDate() === otherOrderDate.getDate();
+
+  //     if (!sameDay) {
+  //       return false;
+  //     }
+
+  //     // Same exact product set, quantity ignored
+  //     const productsA = new Set(
+  //       order.items.map((item) => String(item.productId)),
+  //     );
+
+  //     const productsB = new Set(
+  //       otherOrder.items.map((item) => String(item.productId)),
+  //     );
+
+  //     if (productsA.size !== productsB.size) {
+  //       return false;
+  //     }
+
+  //     return [...productsA].every((productId) => productsB.has(productId));
+  //   });
+
+  //   if (matchingOrders.length === 0) {
+  //     return null;
+  //   }
+
+  //   // Find the newest order among all compatible orders
+  //   const latestOrder = [order, ...matchingOrders].reduce((latest, current) =>
+  //     new Date(current.createdAt).getTime() >
+  //     new Date(latest.createdAt).getTime()
+  //       ? current
+  //       : latest,
+  //   );
+
+  //   // Only the latest order gets the Merge button
+  //   if (latestOrder.id !== order.id) {
+  //     return null;
+  //   }
+
+  //   // Find the newest compatible order before this one
+  //   const previousOrders = matchingOrders.filter(
+  //     (matchingOrder) =>
+  //       new Date(matchingOrder.createdAt).getTime() <
+  //       new Date(order.createdAt).getTime(),
+  //   );
+
+  //   if (previousOrders.length === 0) {
+  //     return null;
+  //   }
+
+  //   return previousOrders.reduce((latest, current) =>
+  //     new Date(current.createdAt).getTime() >
+  //     new Date(latest.createdAt).getTime()
+  //       ? current
+  //       : latest,
+  //   );
+  // };
+
+  const orders = ordersData?.items ?? EMPTY_ROWS;
+
+  const mergeableOrderMap = useMemo(() => {
+    const result = new Map<number, OrderRow>();
+
+    for (const order of orders) {
+      const matchingOrders = orders.filter((otherOrder) => {
+        if (otherOrder.id === order.id) {
+          return false;
+        }
+
+        // Only pending_review orders can be merged
+        // if (
+        //   !orderStatusCapabilities[order.status].canMerge ||
+        //   !orderStatusCapabilities[otherOrder.status].canMerge
+        // ) {
+        //   return false;
+        // }
+
+        // draft, pending_review, on_hold, and processing orders can be merged
+        const isMergeableStatus = (status: OrderStatusType): boolean =>
+          status === "draft" ||
+          status === "pending_review" ||
+          status === "on_hold" ||
+          status === "processing";
+
+        if (!isMergeableStatus(order.status) || !isMergeableStatus(otherOrder.status)) {
+          return false;
+        }
+
+        // Status must be the same
+        if (otherOrder.status !== order.status) {
+          return false;
+        }
+
+        // Same customer/phone
+        const samePhone =
+          String(otherOrder.dealer.phone).trim() === String(order.dealer.phone).trim();
+
+        if (!samePhone) {
+          return false;
+        }
+
+        // Same day
+        const orderDate = new Date(order.createdAt);
+        const otherOrderDate = new Date(otherOrder.createdAt);
+
+        const sameDay =
+          orderDate.getFullYear() === otherOrderDate.getFullYear() &&
+          orderDate.getMonth() === otherOrderDate.getMonth() &&
+          orderDate.getDate() === otherOrderDate.getDate();
+
+        if (!sameDay) {
+          return false;
+        }
+
+        // Same exact product set, quantity ignored
+        const productsA = new Set(order.items.map((item) => String(item.productId)));
+
+        const productsB = new Set(otherOrder.items.map((item) => String(item.productId)));
+
+        if (productsA.size !== productsB.size) {
+          return false;
+        }
+
+        return [...productsA].every((productId) => productsB.has(productId));
+      });
+
+      if (matchingOrders.length === 0) {
+        continue;
       }
 
-      // Only pending_review orders can be merged
-      if (
-        !mergeableStatuses.includes(order.status as (typeof mergeableStatuses)[number]) ||
-        !mergeableStatuses.includes(otherOrder.status as (typeof mergeableStatuses)[number])
-      ) {
-        return false;
+      // Find newest order among compatible orders
+      const latestOrder = [order, ...matchingOrders].reduce((latest, current) =>
+        new Date(current.createdAt).getTime() > new Date(latest.createdAt).getTime()
+          ? current
+          : latest,
+      );
+
+      // Only newest order gets Merge button
+      if (latestOrder.id !== order.id) {
+        continue;
       }
 
-      // Status must be the same
-      if (otherOrder.status !== order.status) {
-        return false;
+      // Find newest compatible order before this order
+      const previousOrders = matchingOrders.filter(
+        (matchingOrder) =>
+          new Date(matchingOrder.createdAt).getTime() < new Date(order.createdAt).getTime(),
+      );
+
+      if (previousOrders.length === 0) {
+        continue;
       }
 
-      // Same customer/phone
-      const samePhone =
-        String(otherOrder.dealer.phone).trim() === String(order.dealer.phone).trim();
+      const previousOrder = previousOrders.reduce((latest, current) =>
+        new Date(current.createdAt).getTime() > new Date(latest.createdAt).getTime()
+          ? current
+          : latest,
+      );
 
-      if (!samePhone) {
-        return false;
-      }
-
-      // Same day
-      const orderDate = new Date(order.createdAt);
-      const otherOrderDate = new Date(otherOrder.createdAt);
-
-      const sameDay =
-        orderDate.getFullYear() === otherOrderDate.getFullYear() &&
-        orderDate.getMonth() === otherOrderDate.getMonth() &&
-        orderDate.getDate() === otherOrderDate.getDate();
-
-      if (!sameDay) {
-        return false;
-      }
-
-      // Same exact product set, quantity ignored
-      const productsA = new Set(order.items.map((item) => String(item.productId)));
-
-      const productsB = new Set(otherOrder.items.map((item) => String(item.productId)));
-
-      if (productsA.size !== productsB.size) {
-        return false;
-      }
-
-      return [...productsA].every((productId) => productsB.has(productId));
-    });
-
-    if (matchingOrders.length === 0) {
-      return null;
+      result.set(order.id, previousOrder);
     }
 
-    // Find the newest order among all compatible orders
-    const latestOrder = [order, ...matchingOrders].reduce((latest, current) =>
-      new Date(current.createdAt).getTime() > new Date(latest.createdAt).getTime()
-        ? current
-        : latest,
-    );
-
-    // Only the latest order gets the Merge button
-    if (latestOrder.id !== order.id) {
-      return null;
-    }
-
-    // Find the newest compatible order before this one
-    const previousOrders = matchingOrders.filter(
-      (matchingOrder) =>
-        new Date(matchingOrder.createdAt).getTime() < new Date(order.createdAt).getTime(),
-    );
-
-    if (previousOrders.length === 0) {
-      return null;
-    }
-
-    return previousOrders.reduce((latest, current) =>
-      new Date(current.createdAt).getTime() > new Date(latest.createdAt).getTime()
-        ? current
-        : latest,
-    );
-  };
+    return result;
+  }, [orders]);
 
   const handleMerge = async (order: OrderRow) => {
     // order = latest/new order
-    const matchingOrder = findMatchingOrder(order);
+    // const matchingOrder = findMatchingOrder(order);
+    const matchingOrder = mergeableOrderMap.get(order.id);
 
     if (!matchingOrder) {
       return;
@@ -206,20 +331,20 @@ export function OrdersTable({
     helper.accessor((row) => row.dealer.businessName, {
       id: "dealer",
       header: "Order & Dealer",
-      cell: ({ row }) => (
-        <>
-          {/* <span className="text-primary">{row.original.orderNumber}</span>{" "}
-          {row.original.dealer.businessName}
-          <div className="text-xs font-normal text-gray-500">{row.original.dealer.phone}</div> */}
+      cell: ({ row }) => {
+        const matchingOrder = mergeableOrderMap.get(row.original.id);
+
+        return (
           <div>
             <div>
               <span className="text-primary">{row.original.orderNumber}</span>{" "}
-              {row.original.dealer.businessName}{" "}
+              {row.original.dealer.businessName}
             </div>
+
             <div className="flex items-center gap-2 text-xs font-normal text-gray-500">
               <span>{row.original.dealer.phone}</span>
-              {/* {orderStatusCapabilities[row.original.status].canMerge && */}
-              {findMatchingOrder(row.original) ? (
+
+              {matchingOrder && (
                 <button
                   type="button"
                   className="text-primary font-medium hover:underline"
@@ -231,11 +356,11 @@ export function OrdersTable({
                 >
                   Merge
                 </button>
-              ) : null}
+              )}
             </div>
           </div>
-        </>
-      ),
+        );
+      },
     }),
     helper.accessor("createdAt", {
       header: "Date",
