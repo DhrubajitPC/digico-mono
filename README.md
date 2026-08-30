@@ -62,7 +62,7 @@ digico-mono/
 
 | Layer              | Technology                                                      | Purpose                                                                                   |
 | :----------------- | :-------------------------------------------------------------- | :---------------------------------------------------------------------------------------- |
-| **Monorepo**       | **Vite+** (`vp`), **pnpm 11**                                   | Unified CLI for task orchestration, workspace packages, formatting, and linting           |
+| **Monorepo**       | **Vite+** (`vp`) over **pnpm 11**                               | Single CLI for tasks, workspaces, formatting, and linting; pnpm is the install engine     |
 | **Frontend**       | **React 19**, **TypeScript**, **Tailwind CSS**                  | B2B Orders Dashboard, WhatsApp Emulator, & Message Log Auditor                            |
 | **Data fetching**  | **tRPC** + **@tanstack/react-query**, **@tanstack/react-table** | End-to-end typed API client, server-state caching, table primitives                       |
 | **API layer**      | **tRPC v11** (`@trpc/server`) on **Fastify**                    | Typed procedures for orders/products/dealers/messages/health                              |
@@ -112,7 +112,7 @@ MARIADB_URL=mysql://wp:wp@127.0.0.1:3307/woocommerce_local
 
 - **Node.js**: `≥ 22.18.0` (check via `node -v`)
 - **Docker Desktop**: Docker engine running locally (required to spin up MariaDB)
-- **Vite+ / pnpm**: installed via `npm i -g vite-plus` or `npm i -g pnpm@11.14.0`
+- **Vite+**: installed via `npm i -g vite-plus`. pnpm needs no separate install — `vp` downloads the version pinned in `devEngines.packageManager` (11.14.0) on first use.
 
 ### Step 2: Clone Repository & Install Dependencies
 
@@ -194,7 +194,7 @@ make docker-logs     # Stream live logs from all Docker containers
 make docker-ps       # List running container status
 ```
 
-The root `package.json` also exposes pnpm-level shortcuts: `pnpm dev` (website), `pnpm whatsapp` (whatsapp-webhook), and `pnpm ready` (check + test + build across workspaces).
+The root `package.json` also exposes `vp` shortcuts: `vp run dev` (website), `vp run whatsapp` (whatsapp-webhook), and `vp run ready` (check + test + build across workspaces).
 
 ---
 

@@ -18,32 +18,30 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11.14.0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: "pnpm"
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
+      # setup-vp provisions Node.js, downloads the pnpm version pinned in
+      # devEngines.packageManager, and caches the pnpm store, replacing the
+      # separate pnpm/action-setup + setup-node + manual cache steps.
+      #
+      # node-version is pinned to 22 to match the node:22-alpine runtime both
+      # Dockerfiles build on. Left unset, vp resolves engines.node (">=22.18.0")
+      # to the latest satisfying release (24.x), which would test CI on a Node
+      # version production never runs.
       - name: Set up Vite+ Toolchain
         uses: voidzero-dev/setup-vp@v1
         with:
-          cache: false
+          node-version: 22
+          cache: true
           run-install: false
 
-      # Covers all five workspaces, not just website + whatsapp-webhook.
+      - name: Install Dependencies
+        run: vp install --frozen-lockfile
+
+      # Covers every workspace, not just website + whatsapp-webhook.
       - name: Format, lint & typecheck
-        run: pnpm exec vp check
+        run: vp check
 
       - name: Unit tests
-        run: pnpm -r test
+        run: vp run -r test
 
       - name: Test CI deploy entrypoint script
         run: make test-entrypoint
@@ -52,7 +50,7 @@ jobs:
       # via --experimental-strip-types, and `packages/utils` is orphaned with a
       # broken `vp pack` (missing @typescript/native-preview).
       - name: Build frontend bundle
-        run: pnpm --filter website build
+        run: vp run website#build
 
       # Exercises both Dockerfiles so a broken image fails here rather than
       # halfway through a production deploy. compose requires .env to exist.
