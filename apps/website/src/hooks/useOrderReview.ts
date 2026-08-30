@@ -120,11 +120,19 @@ export function useOrderReview(
     if (!order) return;
     try {
       setIsSaving(true);
+      // await updateMutation.mutateAsync({
+      //   id: order.id,
+      //   notes,
+      //   proposedMessage: proposedMsg,
+      //   items: buildItemsPayload(),
+      // });
+      const itemsChanged = JSON.stringify(editableItems) !== JSON.stringify(order.items);
+
       await updateMutation.mutateAsync({
         id: order.id,
         notes,
         proposedMessage: proposedMsg,
-        items: buildItemsPayload(),
+        ...(itemsChanged ? { items: buildItemsPayload() } : {}),
       });
     } catch (err) {
       console.error("Failed to update order", err);

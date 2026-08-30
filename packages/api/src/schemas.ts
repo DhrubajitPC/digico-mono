@@ -12,6 +12,11 @@ export const orderStatusSchema = z.enum([
 
 export const orderOriginSchema = z.enum(["whatsapp_ai", "manual_sales"]);
 
+export const mergeOrdersInputSchema = z.object({
+  sourceOrderId: z.number().int().positive(),
+  targetOrderId: z.number().int().positive(),
+});
+
 export const orderItemInputSchema = z.object({
   productId: z.number().int().positive().optional(),
   sku: z.string(),

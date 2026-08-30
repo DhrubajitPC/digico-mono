@@ -19,7 +19,8 @@
     "@trpc/react-query": "catalog:",
     "lucide-react": "catalog:",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "sonner": "catalog:"
   },
   "devDependencies": {
     "@tailwindcss/vite": "catalog:",

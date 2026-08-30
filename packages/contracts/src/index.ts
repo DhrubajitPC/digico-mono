@@ -14,6 +14,51 @@ export type OrderOriginType = "whatsapp_ai" | "manual_sales";
 
 export type MessageKind = "text" | "audio" | "unsupported";
 
+export const orderStatusCapabilities = {
+  draft: {
+    canChangeStatus: true,
+    canBulkChangeStatus: true,
+    canMerge: true,
+  },
+  pending_review: {
+    canChangeStatus: true,
+    canBulkChangeStatus: true,
+    canMerge: true,
+  },
+  confirmed: {
+    canChangeStatus: false,
+    canBulkChangeStatus: false,
+    canMerge: false,
+  },
+  on_hold: {
+    canChangeStatus: true,
+    canBulkChangeStatus: true,
+    canMerge: false,
+  },
+  processing: {
+    canChangeStatus: true,
+    canBulkChangeStatus: true,
+    canMerge: false,
+  },
+  completed: {
+    canChangeStatus: false,
+    canBulkChangeStatus: false,
+    canMerge: false,
+  },
+  cancelled: {
+    canChangeStatus: false,
+    canBulkChangeStatus: false,
+    canMerge: false,
+  },
+} satisfies Record<
+  OrderStatusType,
+  {
+    canChangeStatus: boolean;
+    canBulkChangeStatus: boolean;
+    canMerge: boolean;
+  }
+>;
+
 export interface Dealer {
   id: number;
   businessName: string;
