@@ -17,6 +17,7 @@
     "@digico/contracts": "workspace:*",
     "@digico/db": "workspace:*",
     "@trpc/server": "catalog:",
+    "better-auth": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

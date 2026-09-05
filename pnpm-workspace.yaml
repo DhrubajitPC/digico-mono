@@ -7,6 +7,7 @@ allowBuilds:
   esbuild: true
 
 catalog:
+  "@fastify/cors": ^11.3.0
   "@radix-ui/react-dropdown-menu": ^2.1.24
   "@radix-ui/react-radio-group": ^1.4.7
   "@tailwindcss/vite": ^4.3.3
@@ -19,6 +20,7 @@ catalog:
   "@types/react": ^19.0.0
   "@types/react-dom": ^19.0.0
   "@vitejs/plugin-react": ^4.3.4
+  better-auth: ^1.7.2
   class-variance-authority: ^0.7.1
   clsx: ^2.1.1
   lucide-react: ^0.475.0

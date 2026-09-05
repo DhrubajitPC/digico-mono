@@ -4,6 +4,7 @@ export { createContext } from "./context.ts";
 export type { TrpcContext } from "./context.ts";
 export { appRouter } from "./router.ts";
 export type { AppRouter, RouterInputs, RouterOutputs } from "./router.ts";
+export { auth } from "./auth//auth.ts";
 
 export * from "./schemas.ts";
 

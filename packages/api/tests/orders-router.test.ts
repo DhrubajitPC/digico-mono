@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { TRPCError } from "@trpc/server";
 import type { Dealer, Order } from "@digico/contracts";
+import { createTestContext } from "./test-context.ts";
 
 const db = vi.hoisted(() => {
   class MariaDbError extends Error {
@@ -52,7 +53,7 @@ const orderFixture: Order = {
 };
 
 describe("ordersRouter", () => {
-  const caller = ordersRouter.createCaller({});
+  const caller = ordersRouter.createCaller(createTestContext());
 
   beforeEach(() => {
     vi.clearAllMocks();

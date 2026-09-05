@@ -12,7 +12,7 @@ import {
 } from "@digico/db";
 import type { OrderHistoryItem } from "@digico/contracts";
 import { orderStatusCapabilities } from "@digico/contracts";
-import { publicProcedure, router } from "../trpc.ts";
+import { publicProcedure, router, protectedProcedure } from "../trpc.ts";
 import {
   bulkSetOrderStatusInputSchema,
   createOrderInputSchema,
@@ -95,7 +95,8 @@ export const ordersRouter = router({
     }
   }),
 
-  update: publicProcedure.input(updateOrderInputSchema).mutation(async ({ input }) => {
+  // update: publicProcedure.input(updateOrderInputSchema).mutation(async ({ input }) => {
+  update: protectedProcedure.input(updateOrderInputSchema).mutation(async ({ input, ctx }) => {
     const { id, ...body } = input;
     try {
       const updated = await updateMariaDbOrder(id, body);
@@ -109,6 +110,23 @@ export const ordersRouter = router({
       return dbErrorToTrpc(err);
     }
   }),
+  // update: permissionProcedure("orders.update")
+  //   .input(orderUpdateSchema)
+  //   .mutation(async ({ input, ctx }) => {
+  //     // existing logic
+  //     const { id, ...body } = input;
+  //     try {
+  //       const updated = await updateMariaDbOrder(id, body);
+  //       if (!updated)
+  //         throw new TRPCError({
+  //           code: "NOT_FOUND",
+  //           message: "Order not found",
+  //         });
+  //       return updated;
+  //     } catch (err) {
+  //       return dbErrorToTrpc(err);
+  //     }
+  //   }),
 
   setStatus: publicProcedure.input(setOrderStatusInputSchema).mutation(async ({ input }) => {
     try {

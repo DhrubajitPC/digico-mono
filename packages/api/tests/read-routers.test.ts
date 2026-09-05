@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { Dealer, Product } from "@digico/contracts";
+import { createTestContext } from "./test-context.ts";
 
 const db = vi.hoisted(() => ({
   fetchMariaDbProducts: vi.fn(),
@@ -41,30 +42,36 @@ describe("read routers", () => {
 
   it("products.list returns the product list", async () => {
     db.fetchMariaDbProducts.mockResolvedValue([productFixture]);
-    await expect(productsRouter.createCaller({}).list()).resolves.toEqual([productFixture]);
+    await expect(productsRouter.createCaller(createTestContext()).list()).resolves.toEqual([
+      productFixture,
+    ]);
   });
 
   it("dealers.list returns the dealer list", async () => {
     db.fetchMariaDbDealers.mockResolvedValue([dealerFixture]);
-    await expect(dealersRouter.createCaller({}).list()).resolves.toEqual([dealerFixture]);
+    await expect(dealersRouter.createCaller(createTestContext()).list()).resolves.toEqual([
+      dealerFixture,
+    ]);
   });
 
   it("messages.list passes filters through to the db", async () => {
     db.listMariaDbMessages.mockResolvedValue({ items: [], total: 0 });
-    const caller = messagesRouter.createCaller({});
+    const caller = messagesRouter.createCaller(createTestContext());
     await caller.list({ phone: "+8801", limit: 25, offset: 0 });
     expect(db.listMariaDbMessages).toHaveBeenCalledWith({ phone: "+8801", limit: 25, offset: 0 });
   });
 
   it("messages.list rejects a NaN limit", async () => {
     await expect(
-      messagesRouter.createCaller({}).list({ limit: NaN } as never),
+      messagesRouter.createCaller(createTestContext()).list({ limit: NaN } as never),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
   it("messages.get throws NOT_FOUND for a missing message", async () => {
     db.getMariaDbMessageDetail.mockResolvedValue(null);
-    await expect(messagesRouter.createCaller({}).get({ id: 999 })).rejects.toMatchObject({
+    await expect(
+      messagesRouter.createCaller(createTestContext()).get({ id: 999 }),
+    ).rejects.toMatchObject({
       code: "NOT_FOUND",
     });
   });
