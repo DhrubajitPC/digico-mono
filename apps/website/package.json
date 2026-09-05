@@ -17,9 +17,11 @@
     "@tanstack/react-table": "catalog:",
     "@trpc/client": "catalog:",
     "@trpc/react-query": "catalog:",
+    "better-auth": "catalog:",
     "lucide-react": "catalog:",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "sonner": "catalog:"
   },
   "devDependencies": {
     "@tailwindcss/vite": "catalog:",
