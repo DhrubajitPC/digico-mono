@@ -43,7 +43,9 @@ export async function createContext({ req, res }: CreateFastifyContextOptions) {
       continue;
     }
 
-    headers.set(key, Array.isArray(value) ? value.join(",") : value);
+    const headerValue = Array.isArray(value) ? value.join(",") : String(value);
+
+    headers.set(key, headerValue);
   }
 
   const session = await auth.api.getSession({
