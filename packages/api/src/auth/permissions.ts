@@ -1,26 +1,23 @@
-import { TRPCError } from "@trpc/server";
+import { createAccessControl } from "better-auth/plugins/access";
 
-export type UserRole = "admin" | "manager" | "staff";
+export const statement = {
+  orders: ["read", "update", "setStatus", "merge"],
+} as const;
 
-export type Permission = "orders.read" | "orders.update" | "orders.setStatus" | "orders.merge";
+export const ac = createAccessControl(statement);
 
-const rolePermissions: Record<UserRole, Permission[]> = {
-  admin: ["orders.read", "orders.update", "orders.setStatus", "orders.merge"],
+export const superAdmin = ac.newRole({
+  orders: ["read", "update", "setStatus", "merge"],
+});
 
-  manager: ["orders.read", "orders.update", "orders.setStatus", "orders.merge"],
+export const adminRole = ac.newRole({
+  orders: ["read", "update", "setStatus", "merge"],
+});
 
-  staff: ["orders.read", "orders.update"],
-};
+export const orderManager = ac.newRole({
+  orders: ["read", "update", "setStatus", "merge"],
+});
 
-export function hasPermission(role: UserRole, permission: Permission): boolean {
-  return rolePermissions[role]?.includes(permission) ?? false;
-}
-
-export function requirePermission(role: UserRole, permission: Permission): void {
-  if (!hasPermission(role, permission)) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "You do not have permission to perform this action",
-    });
-  }
-}
+export const orderViewer = ac.newRole({
+  orders: ["read"],
+});

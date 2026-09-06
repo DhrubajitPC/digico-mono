@@ -7,8 +7,10 @@ interface LoginProps {
 
 export function Login({ onLogin }: LoginProps) {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [loginId, setLoginId] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -24,6 +26,7 @@ export function Login({ onLogin }: LoginProps) {
     if (isSignUp) {
       const { error } = await authClient.signUp.email({
         name,
+        username,
         email,
         password,
       });
@@ -48,10 +51,25 @@ export function Login({ onLogin }: LoginProps) {
       return;
     }
 
-    const { error } = await authClient.signIn.email({
-      email,
-      password,
-    });
+    // const { error } = await authClient.signIn.email({
+    //   email,
+    //   password,
+    // });
+
+    let error;
+    if (loginId.includes("@")) {
+      // Email login
+      ({ error } = await authClient.signIn.email({
+        email: loginId,
+        password,
+      }));
+    } else {
+      // Username login
+      ({ error } = await authClient.signIn.username({
+        username: loginId,
+        password,
+      }));
+    }
 
     setIsLoading(false);
 
@@ -114,31 +132,73 @@ export function Login({ onLogin }: LoginProps) {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Name - Sign Up only */}
             {isSignUp && (
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Full name
-                </label>
+              <>
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Full name
+                  </label>
 
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="Enter your name"
-                  required
-                  autoComplete="name"
-                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
+                  <input
+                    id="name"
+                    type="text"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder="Enter your name"
+                    required
+                    autoComplete="name"
+                    className="w-full px-3 py-2.5 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                {/* Username */}{" "}
+                <div>
+                  {" "}
+                  <label
+                    htmlFor="username"
+                    className="block text-sm font-medium text-gray-700 mb-1.5"
+                  >
+                    {" "}
+                    Username{" "}
+                  </label>{" "}
+                  <input
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    placeholder="Enter your username"
+                    required
+                    autoComplete="username"
+                    className="w-full px-3 py-2.5 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  />{" "}
+                </div>{" "}
+                {/* Email */}{" "}
+                <div>
+                  {" "}
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    {" "}
+                    Email{" "}
+                  </label>{" "}
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="you@example.com"
+                    required
+                    autoComplete="email"
+                    className="w-full px-3 py-2.5 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  />{" "}
+                </div>{" "}
+              </>
             )}
 
             {/* Email */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
-                Email address
-              </label>
+            {!isSignUp && (
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Email address or Username
+                </label>
 
-              <input
+                {/* <input
                 id="email"
                 type="email"
                 value={email}
@@ -147,8 +207,18 @@ export function Login({ onLogin }: LoginProps) {
                 required
                 autoComplete="email"
                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
+              /> */}
+                <input
+                  type="text"
+                  value={loginId}
+                  onChange={(e) => setLoginId(e.target.value)}
+                  placeholder="Username or Email"
+                  autoComplete="username"
+                  required
+                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 bg-white text-sm text-gray-900 placeholder:text-gray-400 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            )}
 
             {/* Password */}
             <div>

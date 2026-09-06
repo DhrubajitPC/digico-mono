@@ -1,8 +1,7 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import type { TrpcContext } from "./context.ts";
 import type { Context } from "./context.js";
-import { requirePermission, type Permission, type UserRole } from "./auth/permissions.ts";
-// import { getUserRole } from "@digico/db";
+import { auth } from "./auth/auth.ts";
 
 // const t = initTRPC.context<TrpcContext>().create();
 
@@ -27,12 +26,55 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
     },
   });
 });
-export function permissionProcedure(permission: Permission) {
-  return protectedProcedure.use(async ({ ctx, next }) => {
-    // const role = ctx.user.role as UserRole;
+export type OrderPermission = "read" | "update" | "setStatus" | "merge";
 
-    // requirePermission(role, permission);
+// export const permissionProcedure = (permission: OrderPermission) =>
+//   protectedProcedure.use(async ({ ctx, next }) => {
+//     const result = await auth.api.userHasPermission({
+//       body: {
+//         userId: ctx.session.user.id,
+//         permissions: {
+//           orders: [permission],
+//         },
+//       },
+//     });
+
+//     if (!result.success) {
+//       throw new TRPCError({
+//         code: "FORBIDDEN",
+//         message: `You do not have permission to perform orders.${permission}`,
+//       });
+//     }
+
+//     return next();
+//   });
+
+export const permissionProcedure = (permission: OrderPermission) =>
+  protectedProcedure.use(async ({ ctx, next }) => {
+    console.log("RBAC CHECK:", {
+      userId: ctx.session.user.id,
+      username: ctx.session.user.username,
+      role: ctx.session.user.role,
+      permission,
+    });
+
+    const result = await auth.api.userHasPermission({
+      body: {
+        userId: ctx.session.user.id,
+        permissions: {
+          orders: [permission],
+        },
+      },
+    });
+
+    console.log("RBAC RESULT:", result);
+
+    if (!result.success) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: `You do not have permission to perform orders.${permission}`,
+      });
+    }
 
     return next();
   });
-}
