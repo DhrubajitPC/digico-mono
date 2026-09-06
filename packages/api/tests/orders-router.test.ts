@@ -24,6 +24,18 @@ const db = vi.hoisted(() => {
 
 vi.mock("@digico/db", () => db);
 
+const authMock = vi.hoisted(() => ({
+  api: {
+    userHasPermission: vi.fn(),
+  },
+}));
+
+vi.mock("@digico/db", () => db);
+
+vi.mock("../src/auth/auth.ts", () => ({
+  auth: authMock,
+}));
+
 import { ordersRouter } from "../src/routers/orders.ts";
 
 const dealerFixture: Dealer = {
@@ -58,6 +70,10 @@ describe("ordersRouter", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    authMock.api.userHasPermission.mockResolvedValue({
+      success: true,
+    });
   });
 
   it("list returns items, total, and per-status counts", async () => {
