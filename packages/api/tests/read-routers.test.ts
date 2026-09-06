@@ -3,6 +3,7 @@ import type { Dealer, Product } from "@digico/contracts";
 import { createTestContext } from "./test-context.ts";
 
 const db = vi.hoisted(() => ({
+  getMariaDbPool: vi.fn(),
   fetchMariaDbProducts: vi.fn(),
   fetchMariaDbDealers: vi.fn(),
   listMariaDbMessages: vi.fn(),

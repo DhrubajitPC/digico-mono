@@ -12,6 +12,7 @@ const db = vi.hoisted(() => {
   }
   return {
     MariaDbError,
+    getMariaDbPool: vi.fn(),
     fetchMariaDbOrders: vi.fn(),
     fetchMariaDbOrderById: vi.fn(),
     fetchMariaDbDealerByPhone: vi.fn(),
