@@ -19,7 +19,10 @@
     /* Linting */
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@digico/api/*": ["../../packages/api/src/*"]
+    }
   },
   "include": ["src"]
 }
