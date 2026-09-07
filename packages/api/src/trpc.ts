@@ -51,13 +51,6 @@ export type OrderPermission = "read" | "update" | "setStatus" | "merge";
 
 export const permissionProcedure = (permission: OrderPermission) =>
   protectedProcedure.use(async ({ ctx, next }) => {
-    console.log("RBAC CHECK:", {
-      userId: ctx.session.user.id,
-      username: ctx.session.user.username,
-      role: ctx.session.user.role,
-      permission,
-    });
-
     const result = await auth.api.userHasPermission({
       body: {
         userId: ctx.session.user.id,
@@ -66,8 +59,6 @@ export const permissionProcedure = (permission: OrderPermission) =>
         },
       },
     });
-
-    console.log("RBAC RESULT:", result);
 
     if (!result.success) {
       throw new TRPCError({

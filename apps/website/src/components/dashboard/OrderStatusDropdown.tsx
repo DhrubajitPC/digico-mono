@@ -10,6 +10,7 @@ import type { OrderStatusType } from "@digico/contracts";
 import { orderStatusCapabilities } from "@digico/contracts";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import { authClient } from "../../auth-client";
 
 const statusOptions: OrderStatusType[] = [
   "draft",
@@ -34,6 +35,7 @@ export function OrderStatusDropdown({
   isSaving,
   disabled = false,
 }: OrderStatusDropdownProps) {
+  const user = authClient.useSession().data?.user;
   const handleSelect = async (newStatus: OrderStatusType) => {
     //
     if (newStatus === status) {
@@ -50,7 +52,7 @@ export function OrderStatusDropdown({
   };
   const canChangeStatus = orderStatusCapabilities[status].canChangeStatus;
 
-  if (!canChangeStatus) {
+  if ((!canChangeStatus && !(user?.role === "super_admin")) || user?.role === "order_viewer") {
     return <StatusBadge status={status} />;
   }
 

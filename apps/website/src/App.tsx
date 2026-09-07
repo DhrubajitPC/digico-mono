@@ -2,12 +2,18 @@ import { useState } from "react";
 import { OrdersDashboard } from "./components/OrdersDashboard.js";
 import { MessageLogView } from "./components/MessageLogView.js";
 import { WhatsAppEmulator } from "./components/WhatsAppEmulator.js";
-import { ShoppingBag, MessageSquare, MessageCircleCode, ShieldCheck } from "lucide-react";
+import { UserManagement } from "./components/userManagement/UserManagement.js";
+import { ShoppingBag, MessageSquare, MessageCircleCode, ShieldCheck, Users } from "lucide-react";
 import { Login } from "./components/Login.js";
 import { authClient } from "./auth-client";
 
 export function App() {
-  const [activeView, setActiveView] = useState<"orders" | "messages" | "emulator">("orders");
+  // const [activeView, setActiveView] = useState<
+  //   "orders" | "messages" | "emulator"
+  // >("orders");
+  const [activeView, setActiveView] = useState<"orders" | "messages" | "emulator" | "users">(
+    "orders",
+  );
 
   const handleLogout = async () => {
     await authClient.signOut();
@@ -23,6 +29,8 @@ export function App() {
   if (!session?.user) {
     return <Login onLogin={() => window.location.reload()} />;
   }
+  const user = session?.user;
+
   return (
     <div className="min-h-screen bg-gray-50/50 flex flex-col font-sans">
       {/* Navbar Header */}
@@ -83,6 +91,21 @@ export function App() {
                 <MessageSquare className="w-3.5 h-3.5" />{" "}
                 <span className="hidden sm:inline">WhatsApp Logs</span>
               </button>
+              {user.role === "super_admin" && (
+                <button
+                  type="button"
+                  onClick={() => setActiveView("users")}
+                  aria-label="User Management"
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                    activeView === "users"
+                      ? "bg-white text-primary shadow-xs"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Users</span>
+                </button>
+              )}
             </nav>
           </div>
 
@@ -95,7 +118,12 @@ export function App() {
             </div> */}
             <div className="flex items-center gap-2">
               <div className="size-8 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold text-sm shrink-0">
-                SA
+                {/* SA */}
+                {user?.role
+                  ?.split("_")
+                  .map((part) => part[0])
+                  .join("")
+                  .toUpperCase()}
               </div>
 
               <button
@@ -115,8 +143,12 @@ export function App() {
           <OrdersDashboard />
         ) : activeView === "emulator" ? (
           <WhatsAppEmulator />
-        ) : (
+        ) : activeView === "messages" ? (
           <MessageLogView />
+        ) : user.role === "super_admin" ? (
+          <UserManagement />
+        ) : (
+          <OrdersDashboard />
         )}
       </main>
     </div>

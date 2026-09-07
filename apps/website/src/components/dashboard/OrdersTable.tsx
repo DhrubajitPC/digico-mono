@@ -26,6 +26,7 @@ import {
 import { ChevronDown, ChevronUp, ChevronsUpDown, Eye } from "lucide-react";
 import { trpc } from "../../trpc";
 import { OrderStatusDropdown } from "./OrderStatusDropdown";
+import { authClient } from "../../auth-client";
 
 type ListOrdersResult = OrderListOutput;
 type OrderRow = OrderListItem;
@@ -197,6 +198,8 @@ export function OrdersTable({
   //       : latest,
   //   );
   // };
+
+  const isOrderViewer = authClient.useSession().data?.user?.role === "order_viewer";
 
   const orders = ordersData?.items ?? EMPTY_ROWS;
 
@@ -495,8 +498,7 @@ export function OrdersTable({
                     </th>
                   );
                 })}
-
-                <th className="p-3 text-center">Action</th>
+                {!isOrderViewer && <th className="p-3 text-center">Action</th>}
               </tr>
             ))}
           </thead>
@@ -518,7 +520,8 @@ export function OrdersTable({
                     className={`transition-colors hover:bg-gray-50/80 cursor-pointer ${
                       isSelected ? "bg-red-50/30" : ""
                     }`}
-                    onClick={() => onReviewOrder(orderId)}
+                    // onClick={() => onReviewOrder(orderId)}
+                    onClick={isOrderViewer ? undefined : () => onReviewOrder(orderId)}
                   >
                     <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
                       <input
@@ -547,20 +550,22 @@ export function OrdersTable({
                         <table.FlexRender cell={cell} />
                       </td>
                     ))}
-
-                    <td
-                      className="p-3 text-center whitespace-nowrap"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs px-2.5"
-                        onClick={() => onReviewOrder(orderId)}
+                    {!isOrderViewer && (
+                      <td
+                        className="p-3 text-center whitespace-nowrap"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <Eye className="w-3 h-3" /> Review
-                      </Button>
-                    </td>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs px-2.5"
+                          disabled={isOrderViewer}
+                          onClick={() => onReviewOrder(orderId)}
+                        >
+                          <Eye className="w-3 h-3" /> Review
+                        </Button>
+                      </td>
+                    )}
                   </tr>
                 );
               })

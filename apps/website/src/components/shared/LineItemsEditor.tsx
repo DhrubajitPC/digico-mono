@@ -2,6 +2,7 @@ import { Button, Input, Select, type OrderStatusType } from "@digico/design-syst
 import type { ProductListItem } from "@digico/api";
 import { CURRENCY_SYMBOL, formatCurrency } from "@digico/utils";
 import { Plus, ShoppingBag, Trash2 } from "lucide-react";
+import { authClient } from "../../auth-client";
 
 export interface LineItemLike {
   productId?: number | null;
@@ -51,6 +52,7 @@ export function LineItemsEditor({
   onItemQtyChange,
   onItemPriceChange,
 }: LineItemsEditorProps) {
+  const user = authClient.useSession().data?.user;
   const canChangeQuantity =
     (mode === "editable" || mode === "add-only") &&
     (orderStatus === "pending_review" || orderStatus === "draft");
@@ -86,7 +88,7 @@ export function LineItemsEditor({
                   <div className="text-xs text-gray-500 font-mono">{item.sku}</div>
                 </td>
                 <td className="p-2.5 text-center">
-                  {canChangeQuantity && onItemQtyChange ? (
+                  {(canChangeQuantity || user?.role === "super_admin") && onItemQtyChange ? (
                     <Input
                       type="number"
                       min={1}
@@ -99,7 +101,7 @@ export function LineItemsEditor({
                   )}
                 </td>
                 <td className="p-2.5 text-right">
-                  {canChangeQuantity && onItemPriceChange ? (
+                  {(canChangeQuantity || user?.role === "super_admin") && onItemPriceChange ? (
                     <Input
                       type="number"
                       value={item.unitPrice}
@@ -150,7 +152,7 @@ export function LineItemsEditor({
       </div>
 
       {/* Add Product Line */}
-      {canChangeQuantity && (
+      {(canChangeQuantity || user?.role === "super_admin") && (
         <>
           {mode === "editable" ? (
             <div className="flex items-center gap-2">
