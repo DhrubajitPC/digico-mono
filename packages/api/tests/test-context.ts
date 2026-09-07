@@ -1,6 +1,6 @@
 import type { Context } from "../src/context.ts";
 
-export const createTestContext = (): Context => {
+export function createTestContext(): Context {
   return {
     req: {} as never,
     res: {} as never,
@@ -30,6 +30,5 @@ export const createTestContext = (): Context => {
         role: "admin",
       },
     },
-    // other context properties
   };
-};
+}
