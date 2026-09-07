@@ -13,7 +13,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 ENV PNPM_CONFIG_MINIMUM_RELEASE_AGE=0
 
 # Copy root workspace configs
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 
 # Copy packages and frontend app
 COPY packages/ ./packages/
