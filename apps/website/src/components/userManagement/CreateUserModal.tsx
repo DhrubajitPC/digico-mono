@@ -12,6 +12,7 @@ const ROLE_LABELS = {
 } as const;
 
 type Role = keyof typeof ROLE_LABELS;
+// type Role = keyof typeof ROLE_LABELS;
 
 interface CreateUserModalProps {
   roles: readonly Role[];
