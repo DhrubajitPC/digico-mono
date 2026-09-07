@@ -8,7 +8,7 @@
     "start": "node --env-file=../../.env --experimental-strip-types src/server.ts",
     "test": "vp test",
     "check": "vp check",
-    "seed": "pnpm --filter @digico/db seed"
+    "seed": "vp run @digico/db#seed"
   },
   "dependencies": {
     "@digico/api": "workspace:*",
