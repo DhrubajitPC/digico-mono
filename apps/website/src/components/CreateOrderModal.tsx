@@ -131,6 +131,7 @@ export function CreateOrderModal({ open, onClose, onSuccess }: CreateOrderModalP
         {/* Line Items */}
         <LineItemsEditor
           mode="add-only"
+          orderStatus="pending_review"
           items={items}
           total={grandTotal}
           productsList={productsList}

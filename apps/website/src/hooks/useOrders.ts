@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { trpc } from "../trpc.js";
 import type { ListOrdersInput } from "@digico/api";
 import type { OrderOriginType, OrderStatusType } from "@digico/contracts";
@@ -27,8 +28,15 @@ export function useOrders() {
     search: searchQuery || undefined,
   });
 
+  // const bulkStatusMutation = trpc.orders.bulkSetStatus.useMutation({
+  //   onSuccess: () => void utils.orders.list.invalidate(),
+  // });
+
   const bulkStatusMutation = trpc.orders.bulkSetStatus.useMutation({
-    onSuccess: () => void utils.orders.list.invalidate(),
+    onSuccess: () => {
+      void utils.orders.list.invalidate();
+      toast.success("Order statuses updated successfully.");
+    },
   });
 
   const fetchOrders = () => {
@@ -45,13 +53,27 @@ export function useOrders() {
     if (!bulkAction || selectedOrderIds.length === 0) return;
     const targetStatus = BULK_ACTION_STATUS[bulkAction];
     if (!targetStatus) return;
-    await bulkStatusMutation.mutateAsync({
-      orderIds: selectedOrderIds,
-      status: targetStatus,
-      reason: `Bulk action: ${bulkAction}`,
-    });
-    setSelectedOrderIds([]);
-    setBulkAction("");
+    // await bulkStatusMutation.mutateAsync({
+    //   orderIds: selectedOrderIds,
+    //   status: targetStatus,
+    //   reason: `Bulk action: ${bulkAction}`,
+    // });
+    // setSelectedOrderIds([]);
+    // setBulkAction("");
+    try {
+      await bulkStatusMutation.mutateAsync({
+        orderIds: selectedOrderIds,
+        status: targetStatus,
+        reason: `Bulk action: ${bulkAction}`,
+      });
+
+      setSelectedOrderIds([]);
+      setBulkAction("");
+
+      toast.success("Order statuses updated successfully.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update order status.");
+    }
   };
 
   return {

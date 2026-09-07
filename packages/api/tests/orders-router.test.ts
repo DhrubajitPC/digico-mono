@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { TRPCError } from "@trpc/server";
 import type { Dealer, Order } from "@digico/contracts";
+import { createTestContext } from "./test-context.ts";
 
 const db = vi.hoisted(() => {
   class MariaDbError extends Error {
@@ -11,6 +12,7 @@ const db = vi.hoisted(() => {
   }
   return {
     MariaDbError,
+    getMariaDbPool: vi.fn(),
     fetchMariaDbOrders: vi.fn(),
     fetchMariaDbOrderById: vi.fn(),
     fetchMariaDbDealerByPhone: vi.fn(),
@@ -21,6 +23,18 @@ const db = vi.hoisted(() => {
 });
 
 vi.mock("@digico/db", () => db);
+
+const authMock = vi.hoisted(() => ({
+  api: {
+    userHasPermission: vi.fn(),
+  },
+}));
+
+vi.mock("@digico/db", () => db);
+
+vi.mock("../src/auth/auth.ts", () => ({
+  auth: authMock,
+}));
 
 import { ordersRouter } from "../src/routers/orders.ts";
 
@@ -52,10 +66,14 @@ const orderFixture: Order = {
 };
 
 describe("ordersRouter", () => {
-  const caller = ordersRouter.createCaller({});
+  const caller = ordersRouter.createCaller(createTestContext());
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    authMock.api.userHasPermission.mockResolvedValue({
+      success: true,
+    });
   });
 
   it("list returns items, total, and per-status counts", async () => {

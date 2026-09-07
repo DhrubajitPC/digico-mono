@@ -6,15 +6,19 @@ import {
   fetchMariaDbDealerByPhone,
   fetchMariaDbOrderById,
   fetchMariaDbOrders,
+  mergeMariaDbOrders,
   updateMariaDbOrder,
   updateMariaDbOrderStatus,
 } from "@digico/db";
 import type { OrderHistoryItem } from "@digico/contracts";
-import { publicProcedure, router } from "../trpc.ts";
+import { orderStatusCapabilities } from "@digico/contracts";
+import { permissionProcedure, publicProcedure, router } from "../trpc.ts";
+// import { publicProcedure, router, protectedProcedure } from "../trpc.ts";
 import {
   bulkSetOrderStatusInputSchema,
   createOrderInputSchema,
   listOrdersInputSchema,
+  mergeOrdersInputSchema,
   setOrderStatusInputSchema,
   updateOrderInputSchema,
 } from "../schemas.ts";
@@ -24,34 +28,41 @@ const EMPTY_HISTORY: OrderHistoryItem[] = [];
 /** Error mapping mirrors the old REST routes: MariaDbError → 500, not-found → 404. */
 function dbErrorToTrpc(err: unknown): never {
   if (err instanceof MariaDbError) {
-    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: err.message });
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: err.message,
+    });
   }
   throw err;
 }
 
 export const ordersRouter = router({
-  list: publicProcedure.input(listOrdersInputSchema).query(async ({ input }) => {
-    // "all" is sent by the dashboard tabs; the old route dropped it before fetching.
-    const status = input.status && input.status !== "all" ? input.status : null;
-    const search = input.search ?? null;
+  // list: publicProcedure
+  list: permissionProcedure("read")
+    .input(listOrdersInputSchema)
+    .query(async ({ input }) => {
+      // "all" is sent by the dashboard tabs; the old route dropped it before fetching.
+      const status = input.status && input.status !== "all" ? input.status : null;
+      const search = input.search ?? null;
 
-    const items = await fetchMariaDbOrders({ status, search });
-    const allOrders = await fetchMariaDbOrders();
+      const items = await fetchMariaDbOrders({ status, search });
+      const allOrders = await fetchMariaDbOrders();
 
-    const counts = {
-      all: allOrders.length,
-      pending_review: allOrders.filter((e) => e.status === "pending_review").length,
-      confirmed: allOrders.filter((e) => e.status === "confirmed").length,
-      on_hold: allOrders.filter((e) => e.status === "on_hold").length,
-      processing: allOrders.filter((e) => e.status === "processing").length,
-      completed: allOrders.filter((e) => e.status === "completed").length,
-      cancelled: allOrders.filter((e) => e.status === "cancelled").length,
-    };
+      const counts = {
+        all: allOrders.length,
+        pending_review: allOrders.filter((e) => e.status === "pending_review").length,
+        confirmed: allOrders.filter((e) => e.status === "confirmed").length,
+        on_hold: allOrders.filter((e) => e.status === "on_hold").length,
+        processing: allOrders.filter((e) => e.status === "processing").length,
+        completed: allOrders.filter((e) => e.status === "completed").length,
+        cancelled: allOrders.filter((e) => e.status === "cancelled").length,
+      };
 
-    return { items, total: items.length, counts };
-  }),
+      return { items, total: items.length, counts };
+    }),
 
-  get: publicProcedure
+  // get: publicProcedure
+  get: permissionProcedure("read")
     .input(z.object({ id: z.number().int().positive() }))
     .query(async ({ input }) => {
       const order = await fetchMariaDbOrderById(input.id);
@@ -59,72 +70,259 @@ export const ordersRouter = router({
       return { ...order, history: EMPTY_HISTORY };
     }),
 
-  create: publicProcedure.input(createOrderInputSchema).mutation(async ({ input }) => {
-    const items = input.items;
-    const firstItem = items[0];
-    const total = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
-
-    let dealer;
-    try {
-      dealer = await fetchMariaDbDealerByPhone(input.dealerPhone);
-    } catch (err) {
-      return dbErrorToTrpc(err);
-    }
-    if (!dealer) {
-      throw new TRPCError({ code: "BAD_REQUEST", message: "Unknown dealer" });
-    }
-
-    try {
-      return await createMariaDbOrder({
-        phone: dealer.phone,
-        customerName: dealer.contactPerson || dealer.businessName,
-        productName: firstItem?.productName || "Product",
-        quantity: firstItem?.quantity || 1,
-        unitPrice: firstItem?.unitPrice || total,
-        totalAmount: total,
-        notes: input.notes ?? null,
-      });
-    } catch (err) {
-      return dbErrorToTrpc(err);
-    }
-  }),
-
-  update: publicProcedure.input(updateOrderInputSchema).mutation(async ({ input }) => {
-    const { id, ...body } = input;
-    try {
-      const updated = await updateMariaDbOrder(id, body);
-      if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
-      return updated;
-    } catch (err) {
-      return dbErrorToTrpc(err);
-    }
-  }),
-
-  setStatus: publicProcedure.input(setOrderStatusInputSchema).mutation(async ({ input }) => {
-    try {
-      const updated = await updateMariaDbOrderStatus(
-        input.id,
-        input.status,
-        input.reason,
-        input.proposedMessage,
-      );
-      if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
-      return updated;
-    } catch (err) {
-      return dbErrorToTrpc(err);
-    }
-  }),
-
-  bulkSetStatus: publicProcedure
-    .input(bulkSetOrderStatusInputSchema)
+  // create: publicProcedure
+  create: permissionProcedure("update")
+    .input(createOrderInputSchema)
     .mutation(async ({ input }) => {
+      const items = input.items;
+      const firstItem = items[0];
+      const total = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
+
+      let dealer;
       try {
-        for (const id of input.orderIds) {
-          await updateMariaDbOrderStatus(id, input.status, input.reason);
-        }
+        dealer = await fetchMariaDbDealerByPhone(input.dealerPhone);
       } catch (err) {
         return dbErrorToTrpc(err);
       }
-      return { success: true as const, count: input.orderIds.length };
+      if (!dealer) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Unknown dealer" });
+      }
+
+      try {
+        return await createMariaDbOrder({
+          phone: dealer.phone,
+          customerName: dealer.contactPerson || dealer.businessName,
+          productName: firstItem?.productName || "Product",
+          quantity: firstItem?.quantity || 1,
+          unitPrice: firstItem?.unitPrice || total,
+          totalAmount: total,
+          notes: input.notes ?? null,
+        });
+      } catch (err) {
+        return dbErrorToTrpc(err);
+      }
+    }),
+
+  // update: publicProcedure.input(updateOrderInputSchema).mutation(async ({ input }) => {
+  // update: protectedProcedure
+  update: permissionProcedure("update")
+    .input(updateOrderInputSchema)
+    .mutation(async ({ input, ctx }) => {
+      const { id, ...body } = input;
+      try {
+        const updated = await updateMariaDbOrder(id, body);
+        if (!updated)
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Order not found",
+          });
+        return updated;
+      } catch (err) {
+        return dbErrorToTrpc(err);
+      }
+    }),
+  // update: permissionProcedure("orders.update")
+  //   .input(orderUpdateSchema)
+  //   .mutation(async ({ input, ctx }) => {
+  //     // existing logic
+  //     const { id, ...body } = input;
+  //     try {
+  //       const updated = await updateMariaDbOrder(id, body);
+  //       if (!updated)
+  //         throw new TRPCError({
+  //           code: "NOT_FOUND",
+  //           message: "Order not found",
+  //         });
+  //       return updated;
+  //     } catch (err) {
+  //       return dbErrorToTrpc(err);
+  //     }
+  //   }),
+
+  // setStatus: publicProcedure
+  // setStatus: permissionProcedure("setStatus")
+  //   .input(setOrderStatusInputSchema)
+  //   .mutation(async ({ input }) => {
+  //     try {
+  //       const updated = await updateMariaDbOrderStatus(
+  //         input.id,
+  //         input.status,
+  //         input.reason,
+  //         input.proposedMessage,
+  //       );
+  //       if (!updated)
+  //         throw new TRPCError({
+  //           code: "NOT_FOUND",
+  //           message: "Order not found",
+  //         });
+  //       return updated;
+  //     } catch (err) {
+  //       return dbErrorToTrpc(err);
+  //     }
+  //   }),
+  setStatus: permissionProcedure("setStatus")
+    .input(setOrderStatusInputSchema)
+    .mutation(async ({ input, ctx }) => {
+      try {
+        // Get the current order before changing its status
+        const order = await fetchMariaDbOrderById(input.id);
+
+        if (!order) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Order not found",
+          });
+        }
+
+        // confirmed/completed orders can only be changed by super_admin
+        if (
+          (order.status === "confirmed" || order.status === "completed") &&
+          ctx.user.role !== "super_admin"
+        ) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Only super_admin can change the status of confirmed or completed orders",
+          });
+        }
+
+        const updated = await updateMariaDbOrderStatus(
+          input.id,
+          input.status,
+          input.reason,
+          input.proposedMessage,
+        );
+
+        if (!updated) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Order not found",
+          });
+        }
+
+        return updated;
+      } catch (err) {
+        return dbErrorToTrpc(err);
+      }
+    }),
+
+  // merge: publicProcedure
+  merge: permissionProcedure("merge")
+    .input(mergeOrdersInputSchema)
+    .mutation(async ({ input }) => {
+      if (input.sourceOrderId === input.targetOrderId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Cannot merge an order with itself",
+        });
+      }
+
+      try {
+        const sourceOrder = await fetchMariaDbOrderById(input.sourceOrderId);
+
+        const targetOrder = await fetchMariaDbOrderById(input.targetOrderId);
+
+        if (!sourceOrder || !targetOrder) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "One or both orders were not found",
+          });
+        }
+
+        return await mergeMariaDbOrders(input.sourceOrderId, input.targetOrderId);
+      } catch (err) {
+        return dbErrorToTrpc(err);
+      }
+    }),
+
+  // bulkSetStatus: publicProcedure
+  // bulkSetStatus: permissionProcedure("setStatus")
+  //   .input(bulkSetOrderStatusInputSchema)
+  //   .mutation(async ({ input }) => {
+  //     try {
+  //       // for (const id of input.orderIds) {
+  //       //   await updateMariaDbOrderStatus(id, input.status, input.reason);
+  //       // }
+
+  //       // Validate all orders before updating any order
+  //       for (const id of input.orderIds) {
+  //         const order = await fetchMariaDbOrderById(id);
+
+  //         if (!order) {
+  //           throw new TRPCError({
+  //             code: "NOT_FOUND",
+  //             message: `Order ${id} not found.`,
+  //           });
+  //         }
+
+  //         if (!orderStatusCapabilities[order.status].canBulkChangeStatus) {
+  //           throw new TRPCError({
+  //             code: "BAD_REQUEST",
+  //             message:
+  //               `Order ${order.orderNumber} cannot be changed ` +
+  //               `from ${order.status}.`,
+  //           });
+  //         }
+  //       }
+
+  //       // Update only after all orders pass validation
+  //       for (const id of input.orderIds) {
+  //         await updateMariaDbOrderStatus(id, input.status, input.reason);
+  //       }
+  //     } catch (err) {
+  //       return dbErrorToTrpc(err);
+  //     }
+  //     return { success: true as const, count: input.orderIds.length };
+  //   }),
+  bulkSetStatus: permissionProcedure("setStatus")
+    .input(bulkSetOrderStatusInputSchema)
+    .mutation(async ({ input, ctx }) => {
+      try {
+        // Fetch and validate all orders before updating any order
+        const orders = [];
+
+        for (const id of input.orderIds) {
+          const order = await fetchMariaDbOrderById(id);
+
+          if (!order) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: `Order ${id} not found.`,
+            });
+          }
+
+          if (!orderStatusCapabilities[order.status].canBulkChangeStatus) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Order ${order.orderNumber} cannot be changed ` + `from ${order.status}.`,
+            });
+          }
+
+          orders.push(order);
+        }
+
+        // confirmed/completed orders require super_admin
+        const hasRestrictedOrder = orders.some(
+          (order) => order.status === "confirmed" || order.status === "completed",
+        );
+
+        if (hasRestrictedOrder && ctx.user.role !== "super_admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Only super_admin can change the status of confirmed or completed orders",
+          });
+        }
+
+        // Only update after every order passes validation
+        for (const id of input.orderIds) {
+          await updateMariaDbOrderStatus(id, input.status, input.reason);
+        }
+
+        return {
+          success: true as const,
+          count: input.orderIds.length,
+        };
+      } catch (err) {
+        return dbErrorToTrpc(err);
+      }
     }),
 });

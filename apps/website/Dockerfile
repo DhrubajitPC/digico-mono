@@ -8,7 +8,8 @@ RUN apk add --no-cache git
 # Bypass minimum release age policy inside Docker build
 ENV PNPM_CONFIG_MINIMUM_RELEASE_AGE=0
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# Copy root workspace configs
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 
 # Must follow the COPY: reads the pinned version from package.json#packageManager
 RUN corepack enable && corepack prepare --activate

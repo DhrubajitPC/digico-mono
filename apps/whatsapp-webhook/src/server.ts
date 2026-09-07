@@ -1,6 +1,7 @@
 import Fastify from "fastify";
+import cors from "@fastify/cors";
 import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
-import { appRouter, createContext } from "@digico/api";
+import { appRouter, createContext, auth } from "@digico/api";
 import { registerEmulatorRoutes } from "./routes/emulator.ts";
 import { registerWebhookRoutes } from "./routes/webhook.ts";
 
@@ -8,6 +9,48 @@ const PORT = Number(process.env.PORT ?? 8787);
 
 async function startServer() {
   const app = Fastify({ logger: false });
+
+  await app.register(cors, {
+    origin: "http://localhost:5173",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  });
+
+  // Better Auth
+  app.all("/api/auth/*", async (request, reply) => {
+    const url = new URL(request.url, `http://${request.headers.host}`);
+
+    const headers = new Headers();
+
+    for (const [key, value] of Object.entries(request.headers)) {
+      if (value !== undefined) {
+        headers.set(key, Array.isArray(value) ? value.join(",") : value);
+      }
+    }
+
+    const body =
+      request.method === "GET" || request.method === "HEAD"
+        ? undefined
+        : JSON.stringify(request.body);
+
+    const response = await auth.handler(
+      new Request(url, {
+        method: request.method,
+        headers,
+        body,
+      }),
+    );
+
+    reply.status(response.status);
+
+    response.headers.forEach((value, key) => {
+      reply.header(key, value);
+    });
+
+    const responseBody = await response.text();
+
+    return reply.send(responseBody);
+  });
 
   // GET /health
   app.get("/health", async (_req, reply) => {

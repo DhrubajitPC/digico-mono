@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { Toaster } from "sonner";
 import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App } from "./App.js";
 import { trpc, trpcClient } from "./trpc.js";
@@ -19,6 +20,7 @@ root.render(
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         <App />
+        <Toaster position="top-right" />
       </QueryClientProvider>
     </trpc.Provider>
   </StrictMode>,

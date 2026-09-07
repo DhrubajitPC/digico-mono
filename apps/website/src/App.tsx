@@ -3,10 +3,26 @@ import { OrdersDashboard } from "./components/OrdersDashboard.js";
 import { MessageLogView } from "./components/MessageLogView.js";
 import { WhatsAppEmulator } from "./components/WhatsAppEmulator.js";
 import { ShoppingBag, MessageSquare, MessageCircleCode, ShieldCheck } from "lucide-react";
+import { Login } from "./components/Login.js";
+import { authClient } from "./auth-client";
 
 export function App() {
   const [activeView, setActiveView] = useState<"orders" | "messages" | "emulator">("orders");
 
+  const handleLogout = async () => {
+    await authClient.signOut();
+    window.location.reload();
+  };
+
+  const { data: session, isPending } = authClient.useSession();
+
+  if (isPending) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  if (!session?.user) {
+    return <Login onLogin={() => window.location.reload()} />;
+  }
   return (
     <div className="min-h-screen bg-gray-50/50 flex flex-col font-sans">
       {/* Navbar Header */}
@@ -74,8 +90,20 @@ export function App() {
             <span className="hidden md:inline-flex items-center gap-1.5 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full font-medium">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Joy AI Live
             </span>
-            <div className="size-8 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold text-sm shrink-0">
+            {/* <div className="size-8 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold text-sm shrink-0">
               SA
+            </div> */}
+            <div className="flex items-center gap-2">
+              <div className="size-8 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                SA
+              </div>
+
+              <button
+                onClick={handleLogout}
+                className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg"
+              >
+                Logout
+              </button>
             </div>
           </div>
         </div>

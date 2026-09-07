@@ -14,6 +14,7 @@
     "@digico/api": "workspace:*",
     "@digico/contracts": "workspace:*",
     "@digico/db": "workspace:*",
+    "@fastify/cors": "catalog:",
     "@trpc/server": "catalog:",
     "fastify": "^5.2.0",
     "mysql2": "^3.12.0"

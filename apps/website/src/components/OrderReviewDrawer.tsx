@@ -56,6 +56,7 @@ export function OrderReviewDrawer({ orderId, open, onClose, onRefresh }: OrderRe
         <div className="lg:col-span-7 space-y-6">
           <LineItemsEditor
             mode="editable"
+            orderStatus={order.status}
             items={editableItems}
             total={calculatedTotal}
             productsList={productsList}
