@@ -3,7 +3,11 @@ import { beforeEach, expect, test, vi } from "vite-plus/test";
 const client = vi.hoisted(() => ({ getMariaDbPool: vi.fn() }));
 vi.mock("../src/client.ts", () => client);
 
-import { fetchMariaDbDealerByPhone, fetchMariaDbDealers } from "../src/dealers.ts";
+import {
+  createMariaDbDealer,
+  fetchMariaDbDealerByPhone,
+  fetchMariaDbDealers,
+} from "../src/dealers.ts";
 
 let query: ReturnType<typeof vi.fn>;
 
@@ -54,6 +58,8 @@ test("collapses multiple guest-checkout orders from the same phone into one deal
   ]);
   query.mockResolvedValueOnce([[]]);
 
+  query.mockResolvedValueOnce([[]]);
+
   const dealers = await fetchMariaDbDealers();
 
   const mehedi = dealers.filter((d) => d.phone === "8801777898395");
@@ -80,6 +86,8 @@ test("still returns one dealer per distinct phone", async () => {
   ]);
   query.mockResolvedValueOnce([[]]);
 
+  query.mockResolvedValueOnce([[]]);
+
   const dealers = await fetchMariaDbDealers();
 
   expect(dealers.map((d) => d.phone).sort()).toEqual(["8801711111111", "8801722222222"]);
@@ -102,6 +110,7 @@ test("excludes orders with the shared unknown-phone placeholder from the dealers
       metaRow(302, "_billing_first_name", "Real Dealer"),
     ],
   ]);
+  query.mockResolvedValueOnce([[]]);
   query.mockResolvedValueOnce([[]]);
 
   const dealers = await fetchMariaDbDealers();
@@ -163,4 +172,123 @@ test("fetchMariaDbDealerByPhone's query has no LIMIT", async () => {
 
   const sql = String(query.mock.calls[0]![0]);
   expect(sql).not.toMatch(/LIMIT/i);
+});
+
+test("returns registered dealers from digico_dealers even when they have no orders", async () => {
+  query.mockResolvedValueOnce([[]]); // orders
+
+  query.mockResolvedValueOnce([
+    [
+      {
+        id: 1,
+        business_name: "ABC Electronics",
+        contact_person: "Karim Hasan",
+        phone: "8801712345678",
+        address: "Dhaka",
+      },
+    ],
+  ]); // dedicated dealer query
+
+  const dealers = await fetchMariaDbDealers();
+
+  expect(dealers).toContainEqual({
+    id: 1,
+    businessName: "ABC Electronics",
+    contactPerson: "Karim Hasan",
+    phone: "8801712345678",
+    address: "Dhaka",
+  });
+});
+test("creates a registered dealer with normalized phone", async () => {
+  query.mockResolvedValueOnce([[]]); // duplicate check
+
+  query.mockResolvedValueOnce([
+    {
+      insertId: 10,
+    },
+  ]); // insert
+
+  const dealer = await createMariaDbDealer({
+    businessName: "ABC Electronics",
+    contactPerson: "Karim Hasan",
+    phone: "01712-345678",
+    address: "Dhaka",
+  });
+
+  expect(dealer).toEqual({
+    id: 10,
+    businessName: "ABC Electronics",
+    contactPerson: "Karim Hasan",
+    phone: "8801712345678",
+    address: "Dhaka",
+  });
+});
+test("rejects duplicate dealer phone", async () => {
+  query.mockResolvedValueOnce([
+    [
+      {
+        id: 7,
+        business_name: "Existing Dealer",
+        contact_person: "Existing Person",
+        phone: "8801712345678",
+        address: "Dhaka",
+      },
+    ],
+  ]);
+
+  await expect(
+    createMariaDbDealer({
+      businessName: "ABC Electronics",
+      contactPerson: "Karim Hasan",
+      phone: "01712-345678",
+      address: "Dhaka",
+    }),
+  ).rejects.toThrow("Dealer with this phone number already exists");
+
+  expect(query).toHaveBeenCalledTimes(1);
+});
+
+test("rejects an empty business name", async () => {
+  await expect(
+    createMariaDbDealer({
+      businessName: "   ",
+      phone: "01712345678",
+    }),
+  ).rejects.toThrow("Business name is required");
+
+  expect(query).not.toHaveBeenCalled();
+});
+
+test("rejects an invalid phone number", async () => {
+  await expect(
+    createMariaDbDealer({
+      businessName: "ABC Electronics",
+      phone: "abc",
+    }),
+  ).rejects.toThrow("Valid phone number is required");
+
+  expect(query).not.toHaveBeenCalled();
+});
+
+test("creates dealer with nullable optional fields", async () => {
+  query.mockResolvedValueOnce([[]]);
+
+  query.mockResolvedValueOnce([
+    {
+      insertId: 11,
+    },
+  ]);
+
+  const dealer = await createMariaDbDealer({
+    businessName: "XYZ Electronics",
+    phone: "01812345678",
+  });
+
+  expect(dealer).toEqual({
+    id: 11,
+    businessName: "XYZ Electronics",
+    contactPerson: null,
+    phone: "8801812345678",
+    address: null,
+  });
 });

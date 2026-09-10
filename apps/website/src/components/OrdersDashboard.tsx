@@ -6,9 +6,12 @@ import { DashboardTabs } from "./dashboard/DashboardTabs.js";
 import { DashboardToolbar } from "./dashboard/DashboardToolbar.js";
 import { OrdersTable } from "./dashboard/OrdersTable.js";
 import { Plus, RefreshCw } from "lucide-react";
+import { CreateDealerModal } from "./CreateDealerModal.js";
+import { useState } from "react";
 
 /** Presentational orders dashboard; data + state live in useOrders. */
 export function OrdersDashboard() {
+  const [showCreateDealerModal, setShowCreateDealerModal] = useState(false);
   const {
     ordersData,
     activeTab,
@@ -41,6 +44,9 @@ export function OrdersDashboard() {
             <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Orders</h1>
             <Button size="sm" onClick={() => setShowCreateModal(true)}>
               <Plus className="w-4 h-4" /> Add order
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowCreateDealerModal(true)}>
+              <Plus className="w-4 h-4" /> Add dealer
             </Button>
           </div>
           <p className="text-sm text-gray-500 mt-1">
@@ -100,6 +106,12 @@ export function OrdersDashboard() {
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={fetchOrders}
+      />
+      {/* Create Dealer Modal */}
+      <CreateDealerModal
+        open={showCreateDealerModal}
+        onClose={() => setShowCreateDealerModal(false)}
+        onSuccess={() => {}}
       />
     </div>
   );

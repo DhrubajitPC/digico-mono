@@ -6,6 +6,7 @@ const db = vi.hoisted(() => ({
   getMariaDbPool: vi.fn(),
   fetchMariaDbProducts: vi.fn(),
   fetchMariaDbDealers: vi.fn(),
+  createMariaDbDealer: vi.fn(),
   listMariaDbMessages: vi.fn(),
   getMariaDbMessageDetail: vi.fn(),
 }));
@@ -54,12 +55,47 @@ describe("read routers", () => {
       dealerFixture,
     ]);
   });
+  it("dealers.create creates and returns a dealer", async () => {
+    db.createMariaDbDealer.mockResolvedValue({
+      id: 10,
+      businessName: "ABC Electronics",
+      contactPerson: "Karim Hasan",
+      phone: "8801712345678",
+      address: "Dhaka",
+    });
+
+    const result = await dealersRouter.createCaller(createTestContext()).create({
+      businessName: "ABC Electronics",
+      contactPerson: "Karim Hasan",
+      phone: "01712-345678",
+      address: "Dhaka",
+    });
+
+    expect(result).toEqual({
+      id: 10,
+      businessName: "ABC Electronics",
+      contactPerson: "Karim Hasan",
+      phone: "8801712345678",
+      address: "Dhaka",
+    });
+
+    expect(db.createMariaDbDealer).toHaveBeenCalledWith({
+      businessName: "ABC Electronics",
+      contactPerson: "Karim Hasan",
+      phone: "01712-345678",
+      address: "Dhaka",
+    });
+  });
 
   it("messages.list passes filters through to the db", async () => {
     db.listMariaDbMessages.mockResolvedValue({ items: [], total: 0 });
     const caller = messagesRouter.createCaller(createTestContext());
     await caller.list({ phone: "+8801", limit: 25, offset: 0 });
-    expect(db.listMariaDbMessages).toHaveBeenCalledWith({ phone: "+8801", limit: 25, offset: 0 });
+    expect(db.listMariaDbMessages).toHaveBeenCalledWith({
+      phone: "+8801",
+      limit: 25,
+      offset: 0,
+    });
   });
 
   it("messages.list rejects a NaN limit", async () => {
